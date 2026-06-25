@@ -1,0 +1,14 @@
+/* Fandqi app.css — modular stylesheet entry.
+   Keep import order stable: base -> pages -> components -> layout -> patches. */
+@import './base/auth-layout.css';
+@import './pages/platform-owner.css';
+@import './pages/hotel-manager-core.css';
+@import './pages/rooms-reservations.css';
+@import './pages/guests-checkio-housekeeping.css';
+@import './components/design-system.css';
+@import './pages/food-maintenance-reports.css';
+@import './layout/sidebar-topbar-dashboard.css';
+@import './components/central-controls.css';
+@import './components/ui-components.css';
+@import './pages/subscription-topbar-refinements.css';
+@import './patches/final-regression-fixes.css';

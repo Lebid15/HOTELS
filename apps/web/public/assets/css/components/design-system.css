@@ -1,0 +1,513 @@
+/* Fandqi Modular Refactor — Strict centralized design-system classes, cards, controls, tables, badges, grids, utilities. */
+/* ========================================================================== */
+/* FANDQI STRICT CENTRAL DESIGN SYSTEM — single source for repeated UI pieces  */
+/* ========================================================================== */
+.ds-page,
+.page-shell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-page-gap);
+  min-width: 0;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.ds-card,
+.table-card,
+.empty-panel,
+.dashboard-panel,
+.dashboard-card,
+.quick-action-card,
+.settings-logo-card,
+.invoice-preview-card,
+.room-card,
+.staff-card,
+.reservation-card,
+.guest-card,
+.checkio-card,
+.housekeeping-room-card,
+.food-service-card,
+.floor-overview-card,
+.room-floor-section,
+.panel {
+  border: var(--ds-border-width) solid var(--color-border);
+  border-radius: var(--ds-card-radius);
+  background: var(--ds-card-bg);
+  box-shadow: var(--ds-card-shadow);
+  min-width: 0;
+}
+
+.ds-card-compact,
+.reservation-card,
+.guest-card,
+.checkio-card,
+.housekeeping-room-card,
+.staff-card,
+.room-card {
+  padding: var(--ds-card-padding-compact);
+  gap: var(--ds-card-gap);
+}
+
+.ds-summary-card,
+[class*="summary-card"],
+.dashboard-card,
+.quick-action-card {
+  min-width: 0;
+  min-height: var(--ds-summary-min-height);
+  padding: var(--ds-summary-padding);
+  border: var(--ds-border-width) solid var(--color-border);
+  border-radius: var(--ds-summary-radius);
+  background: var(--ds-card-bg-soft);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+}
+
+.ds-summary-grid,
+[class*="summary-grid"],
+.dashboard-grid,
+.quick-actions-grid,
+.floor-overview-grid,
+.room-cards-grid,
+.staff-cards-grid,
+.reservation-cards-grid,
+.guest-cards-grid,
+.checkio-cards-grid,
+.housekeeping-cards-grid {
+  display: grid;
+  gap: var(--ds-grid-gap);
+  min-width: 0;
+}
+
+.ds-filters,
+.filters-bar,
+.compact-filters-bar,
+.rooms-filters-bar,
+.staff-filters-bar,
+.reservations-filters-bar,
+.guests-filters-bar,
+.checkio-filters-bar,
+.housekeeping-filters-bar {
+  position: relative;
+  z-index: var(--ds-z-filters);
+  display: grid;
+  align-items: end;
+  gap: var(--ds-filter-gap);
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: var(--ds-filter-padding);
+  border: var(--ds-border-width) solid var(--color-border);
+  border-radius: var(--ds-filter-radius);
+  background: var(--ds-filter-bg);
+  box-shadow: var(--shadow-xs);
+  isolation: isolate;
+}
+
+.ds-field,
+.field {
+  display: grid;
+  gap: var(--ds-field-gap);
+  min-width: 0;
+}
+
+.ds-field .field-label,
+.field-label,
+.field label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: var(--ds-label-size);
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.ds-control,
+.input,
+.select,
+.textarea {
+  width: 100%;
+  min-height: var(--ds-control-height);
+  border: var(--ds-border-width) solid var(--color-border);
+  border-radius: var(--ds-control-radius);
+  padding-inline: var(--ds-control-padding-x);
+  background: var(--ds-control-bg);
+  color: var(--color-text);
+  font-size: var(--ds-control-font-size);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition), transform var(--transition);
+}
+
+.textarea {
+  min-height: calc(var(--ds-control-height) * 1.65);
+  padding-block: var(--space-3);
+  resize: vertical;
+}
+
+.ds-control:focus,
+.input:focus,
+.select:focus,
+.textarea:focus {
+  border-color: var(--color-primary);
+  box-shadow: var(--ds-focus-ring);
+}
+
+.ds-btn,
+.btn,
+.icon-btn,
+.nav-item,
+.settings-tab-btn,
+.checkio-tab {
+  border-radius: var(--ds-button-radius);
+  font-weight: 900;
+  transition: transform var(--transition), box-shadow var(--transition), background var(--transition), border-color var(--transition), color var(--transition);
+}
+
+.btn,
+.ds-btn {
+  min-height: var(--ds-button-height);
+  padding-inline: var(--ds-button-padding-x);
+  border: var(--ds-border-width) solid var(--color-border);
+  background: var(--ds-button-bg);
+  color: var(--color-text);
+}
+
+.btn.small,
+.ds-btn-small {
+  min-height: var(--ds-button-height-sm);
+  height: var(--ds-button-height-sm);
+  padding-inline: var(--ds-button-padding-x-sm);
+  border-radius: var(--ds-button-radius-sm);
+  font-size: var(--text-sm);
+}
+
+.btn:hover,
+.icon-btn:hover,
+.nav-item:hover,
+.settings-tab-btn:hover,
+.checkio-tab:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-xs);
+}
+
+.ds-btn-primary,
+.btn.primary {
+  background: var(--ds-action-primary-bg);
+  border-color: var(--ds-action-primary-border);
+  color: var(--color-on-primary);
+}
+
+.ds-btn-accent,
+.btn.accent {
+  background: var(--ds-action-accent-bg);
+  border-color: var(--ds-action-accent-border);
+  color: var(--color-on-primary);
+}
+
+.ds-btn-luxury,
+.btn.luxury {
+  background: var(--ds-action-luxury-bg);
+  border-color: var(--ds-action-luxury-border);
+  color: var(--color-on-primary);
+}
+
+.ds-btn-warning,
+.btn.warning {
+  background: var(--ds-action-warning-bg);
+  border-color: var(--ds-action-warning-border);
+  color: var(--color-on-primary);
+}
+
+.ds-btn-danger,
+.btn.danger,
+.danger {
+  background: var(--ds-action-danger-bg);
+  border-color: var(--ds-action-danger-border);
+  color: var(--color-on-primary);
+}
+
+.btn.ghost,
+.ds-btn-neutral {
+  background: var(--ds-button-bg);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+.ds-modal-backdrop,
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ds-z-modal);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--ds-modal-padding);
+  background: var(--ds-modal-backdrop-bg);
+  overflow: auto;
+}
+
+.ds-modal-card,
+.modal-card,
+.compact-modal-card,
+.reservation-details-modal,
+.reservation-wizard-modal,
+.guest-details-modal,
+.modal-card-wide {
+  width: min(100%, var(--ds-modal-width));
+  max-height: var(--ds-modal-max-height);
+  overflow: auto;
+  scrollbar-gutter: stable;
+  border-radius: var(--ds-modal-radius);
+  border: var(--ds-border-width) solid var(--color-border);
+  background: var(--ds-card-bg);
+  box-shadow: var(--shadow-md);
+}
+
+.compact-modal-card,
+.guest-details-modal,
+.reservation-details-modal {
+  --ds-modal-width: var(--ds-modal-width-compact);
+}
+
+.modal-card-wide,
+.reservation-wizard-modal {
+  --ds-modal-width: var(--ds-modal-width-wide);
+}
+
+.ds-modal-grid,
+.modal-grid,
+.compact-modal-grid,
+.reservation-form-grid,
+.staff-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--ds-form-col-min)), 1fr));
+  gap: var(--ds-form-gap);
+  min-width: 0;
+}
+
+.field-full,
+.settings-full,
+.full {
+  grid-column: 1 / -1;
+}
+
+.ds-modal-actions,
+.modal-actions,
+.row-actions,
+.reservation-card-actions,
+.guest-card-actions,
+.checkio-card-actions,
+.housekeeping-card-actions,
+.staff-card-actions,
+.room-card-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ds-actions-gap);
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.ds-badge,
+.status-badge,
+.guest-stay-badge,
+.guest-type-chip,
+.staff-role-chip,
+.reservation-number-chip,
+.room-number-chip,
+.floor-overview-badge,
+.guest-doc-chip,
+.document-file-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: 0;
+  border-radius: var(--radius-pill);
+  border: var(--ds-border-width) solid var(--color-border);
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.ds-table,
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: var(--ds-table-min-width);
+}
+
+.table-scroll,
+.ds-scroll-area {
+  width: 100%;
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--ds-table-cell-padding);
+  border-bottom: var(--ds-border-width) solid var(--color-border);
+  text-align: start;
+}
+
+.data-table th {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 900;
+  background: var(--color-surface-soft);
+}
+
+/* Central room color rules: the only place that colors guest/operation cards by room. */
+.guest-card[class*="guest-room-color-"],
+.guest-details-modal[class*="guest-room-color-"],
+.checkio-card[class*="guest-room-color-"] {
+  border-color: hsl(var(--guest-room-hue) 72% 58% / .58);
+  background:
+    radial-gradient(circle at 8% 5%, hsl(var(--guest-room-hue) 96% 82% / .68) 0 62px, transparent 63px),
+    radial-gradient(circle at 101% 101%, hsl(var(--guest-room-hue) 92% 88% / .44) 0 92px, transparent 93px),
+    linear-gradient(145deg, hsl(var(--guest-room-hue) 100% 98% / 1), hsl(var(--guest-room-hue) 92% 94% / .98));
+}
+
+.guest-card[class*="guest-room-color-"]::before,
+.checkio-card[class*="guest-room-color-"]::before {
+  background: hsl(var(--guest-room-hue) 82% 42%);
+  box-shadow: 0 0 22px hsl(var(--guest-room-hue) 88% 52% / .42);
+}
+
+.guest-card[class*="guest-room-color-"] .person-avatar,
+.guest-details-modal[class*="guest-room-color-"] .person-avatar {
+  background: hsl(var(--guest-room-hue) 84% 92% / .94);
+  border-color: hsl(var(--guest-room-hue) 68% 64% / .42);
+  color: hsl(var(--guest-room-hue) 78% 34%);
+}
+
+.guest-room-color-1 { --guest-room-hue: 210; }
+.guest-room-color-2 { --guest-room-hue: 348; }
+.guest-room-color-3 { --guest-room-hue: 125; }
+.guest-room-color-4 { --guest-room-hue: 263; }
+.guest-room-color-5 { --guest-room-hue: 40; }
+.guest-room-color-6 { --guest-room-hue: 178; }
+.guest-room-color-7 { --guest-room-hue: 315; }
+.guest-room-color-8 { --guest-room-hue: 93; }
+.guest-room-color-9 { --guest-room-hue: 230; }
+.guest-room-color-10 { --guest-room-hue: 8; }
+.guest-room-color-11 { --guest-room-hue: 145; }
+.guest-room-color-12 { --guest-room-hue: 283; }
+.guest-room-color-13 { --guest-room-hue: 60; }
+.guest-room-color-14 { --guest-room-hue: 198; }
+.guest-room-color-15 { --guest-room-hue: 335; }
+.guest-room-color-16 { --guest-room-hue: 113; }
+.guest-room-color-17 { --guest-room-hue: 250; }
+.guest-room-color-18 { --guest-room-hue: 28; }
+.guest-room-color-19 { --guest-room-hue: 165; }
+.guest-room-color-20 { --guest-room-hue: 303; }
+.guest-room-color-21 { --guest-room-hue: 80; }
+.guest-room-color-22 { --guest-room-hue: 218; }
+.guest-room-color-23 { --guest-room-hue: 355; }
+.guest-room-color-24 { --guest-room-hue: 133; }
+.guest-room-color-25 { --guest-room-hue: 270; }
+.guest-room-color-26 { --guest-room-hue: 48; }
+.guest-room-color-27 { --guest-room-hue: 185; }
+.guest-room-color-28 { --guest-room-hue: 323; }
+.guest-room-color-29 { --guest-room-hue: 100; }
+.guest-room-color-30 { --guest-room-hue: 238; }
+.guest-room-color-31 { --guest-room-hue: 15; }
+.guest-room-color-32 { --guest-room-hue: 153; }
+.guest-room-color-33 { --guest-room-hue: 290; }
+.guest-room-color-34 { --guest-room-hue: 68; }
+.guest-room-color-35 { --guest-room-hue: 205; }
+.guest-room-color-36 { --guest-room-hue: 343; }
+.guest-room-color-37 { --guest-room-hue: 120; }
+.guest-room-color-38 { --guest-room-hue: 258; }
+.guest-room-color-39 { --guest-room-hue: 35; }
+.guest-room-color-40 { --guest-room-hue: 173; }
+.guest-room-color-41 { --guest-room-hue: 310; }
+.guest-room-color-42 { --guest-room-hue: 88; }
+.guest-room-color-43 { --guest-room-hue: 225; }
+.guest-room-color-44 { --guest-room-hue: 3; }
+.guest-room-color-45 { --guest-room-hue: 140; }
+.guest-room-color-46 { --guest-room-hue: 278; }
+.guest-room-color-47 { --guest-room-hue: 55; }
+.guest-room-color-48 { --guest-room-hue: 193; }
+.guest-room-color-49 { --guest-room-hue: 330; }
+.guest-room-color-50 { --guest-room-hue: 108; }
+.guest-room-color-51 { --guest-room-hue: 245; }
+.guest-room-color-52 { --guest-room-hue: 23; }
+.guest-room-color-53 { --guest-room-hue: 160; }
+.guest-room-color-54 { --guest-room-hue: 298; }
+.guest-room-color-55 { --guest-room-hue: 75; }
+.guest-room-color-56 { --guest-room-hue: 213; }
+.guest-room-color-57 { --guest-room-hue: 350; }
+.guest-room-color-58 { --guest-room-hue: 128; }
+.guest-room-color-59 { --guest-room-hue: 265; }
+.guest-room-color-60 { --guest-room-hue: 43; }
+.guest-room-color-61 { --guest-room-hue: 180; }
+.guest-room-color-62 { --guest-room-hue: 318; }
+.guest-room-color-63 { --guest-room-hue: 95; }
+.guest-room-color-64 { --guest-room-hue: 233; }
+.guest-room-color-65 { --guest-room-hue: 11; }
+.guest-room-color-66 { --guest-room-hue: 148; }
+.guest-room-color-67 { --guest-room-hue: 286; }
+.guest-room-color-68 { --guest-room-hue: 63; }
+.guest-room-color-69 { --guest-room-hue: 201; }
+.guest-room-color-70 { --guest-room-hue: 338; }
+.guest-room-color-71 { --guest-room-hue: 116; }
+.guest-room-color-72 { --guest-room-hue: 253; }
+
+@media (max-width: 1180px) {
+  [class*="summary-grid"] { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reservation-cards-grid,
+  .guest-cards-grid,
+  .checkio-cards-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  .ds-filters,
+  .filters-bar,
+  .compact-filters-bar,
+  .rooms-filters-bar,
+  .staff-filters-bar,
+  .reservations-filters-bar,
+  .guests-filters-bar,
+  .checkio-filters-bar,
+  .housekeeping-filters-bar,
+  [class*="summary-grid"],
+  [class*="cards-grid"],
+  .modal-grid,
+  .compact-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-actions,
+  .row-actions,
+  .reservation-card-actions,
+  .guest-card-actions,
+  .checkio-card-actions,
+  .housekeeping-card-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .modal-actions .btn,
+  .row-actions .btn,
+  .reservation-card-actions .btn,
+  .guest-card-actions .btn,
+  .checkio-card-actions .btn,
+  .housekeeping-card-actions .btn {
+    width: 100%;
+  }
+}
+
+
+/* Strict central visibility guard: hidden elements must stay hidden even when component classes set display later. */
+.hidden.hidden,
+.btn.hidden,
+.reservation-validation-alert.hidden,
+.reservation-step-panel.hidden {
+  display: none;
+}
+

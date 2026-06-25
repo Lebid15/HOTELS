@@ -1,0 +1,638 @@
+/* Fandqi Modular Refactor — Hotel subscription packages page and final topbar/sidebar/scrollbar refinements. */
+/* ===== Hotel manager subscription & packages page ===== */
+.subscription-plan-page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.subscription-plan-head {
+  align-items: center;
+}
+
+.subscription-plan-summary-grid {
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+}
+
+.subscription-plan-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, .75fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.subscription-current-panel,
+.subscription-requests-panel,
+.subscription-packages-panel {
+  border-radius: calc(var(--radius-xl) + 2px);
+}
+
+.subscription-current-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-5);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border) 82%);
+  border-radius: calc(var(--radius-xl) + 2px);
+  background:
+    radial-gradient(circle at 12% 10%, color-mix(in srgb, var(--color-secondary-soft) 48%, transparent) 0, transparent 25%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--color-surface) 98%, white 2%) 0%,
+      color-mix(in srgb, var(--color-primary-soft) 10%, var(--color-surface) 90%) 100%);
+  box-shadow: 0 16px 36px color-mix(in srgb, var(--color-primary) 7%, transparent);
+}
+
+.subscription-package-mark {
+  width: 68px;
+  height: 68px;
+  border-radius: 22px;
+  display: grid;
+  place-items: center;
+  color: white;
+  background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+  box-shadow: 0 18px 34px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+.subscription-package-mark svg {
+  width: 30px;
+  height: 30px;
+}
+
+.subscription-current-hero span,
+.subscription-current-hero p {
+  color: var(--color-muted-strong);
+  font-weight: 800;
+}
+
+.subscription-current-hero h3 {
+  margin: 3px 0 6px;
+  color: var(--color-heading);
+  font-size: clamp(1.5rem, 2vw, 2rem);
+}
+
+.subscription-info-grid,
+.subscription-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.subscription-feature-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.subscription-info-grid .info-box,
+.subscription-feature-item {
+  min-height: 82px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3);
+  background: color-mix(in srgb, var(--color-surface) 88%, transparent);
+  display: grid;
+  align-content: center;
+  gap: 5px;
+}
+
+.subscription-info-grid .info-box span,
+.subscription-feature-item span {
+  color: var(--color-muted);
+  font-weight: 800;
+  font-size: var(--text-xs);
+}
+
+.subscription-info-grid .info-box strong,
+.subscription-feature-item strong {
+  color: var(--color-heading);
+  font-weight: 950;
+}
+
+.subscription-feature-item {
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  align-content: center;
+}
+
+.subscription-feature-item strong {
+  grid-column: 2;
+}
+
+.subscription-feature-item .svg-icon {
+  grid-row: 1 / span 2;
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  color: var(--color-primary);
+  background: color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.subscription-plan-actions {
+  justify-content: flex-start;
+}
+
+.subscription-request-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.subscription-request-card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+  box-shadow: var(--shadow-xs);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.subscription-request-card h4 {
+  margin: 0;
+  color: var(--color-heading);
+}
+
+.subscription-request-card p,
+.subscription-request-card small {
+  color: var(--color-muted-strong);
+  font-weight: 800;
+}
+
+.subscription-empty-requests {
+  min-height: 220px;
+}
+
+.subscription-package-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: var(--space-4);
+}
+
+.subscription-package-card {
+  position: relative;
+  overflow: hidden;
+  min-height: 260px;
+  padding: var(--space-5);
+  border: 1px solid color-mix(in srgb, var(--color-border) 76%, var(--color-primary) 24%);
+  border-radius: calc(var(--radius-xl) + 2px);
+  background:
+    radial-gradient(circle at 0% 0%, color-mix(in srgb, var(--color-primary-soft) 42%, transparent) 0, transparent 27%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--color-surface) 98%, white 2%) 0%,
+      color-mix(in srgb, var(--color-surface) 92%, var(--color-primary-soft) 8%) 100%);
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--color-primary) 8%, transparent);
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.subscription-package-card.current {
+  border-color: color-mix(in srgb, var(--color-success) 42%, var(--color-border) 58%);
+}
+
+.subscription-package-card h4 {
+  margin: 0;
+  color: var(--color-heading);
+  font-size: 1.25rem;
+}
+
+.subscription-package-card p {
+  margin: 0;
+  color: var(--color-muted-strong);
+  font-weight: 800;
+  line-height: 1.7;
+  min-height: 48px;
+}
+
+.subscription-package-card > strong {
+  color: var(--color-primary-strong);
+  font-size: 1.5rem;
+}
+
+.subscription-package-limits {
+  display: grid;
+  gap: 8px;
+  color: var(--color-muted-strong);
+  font-weight: 850;
+}
+
+.subscription-package-limits span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subscription-package-limits svg {
+  width: 17px;
+  height: 17px;
+}
+
+@media (max-width: 1200px) {
+  .subscription-plan-summary-grid,
+  .subscription-info-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .subscription-plan-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-package-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .subscription-plan-summary-grid,
+  .subscription-info-grid,
+  .subscription-feature-grid,
+  .subscription-package-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .subscription-current-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Topbar title replacement: large hotel logo only ===== */
+.topbar-title--logo-only {
+  min-width: 92px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.topbar-main-logo {
+  width: 82px;
+  height: 82px;
+  border-radius: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 16%, color-mix(in srgb, var(--color-secondary-soft) 62%, transparent) 0, transparent 34%),
+    linear-gradient(180deg,
+      color-mix(in srgb, var(--color-surface) 98%, white 2%) 0%,
+      color-mix(in srgb, var(--color-surface) 91%, var(--color-primary-soft) 9%) 100%);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 20%, var(--color-border) 80%);
+  box-shadow: 0 16px 34px color-mix(in srgb, var(--color-primary-hover) 12%, transparent);
+  color: var(--color-primary-strong);
+  font-size: 2.05rem;
+  font-weight: 950;
+}
+
+.topbar-main-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 10px;
+}
+
+.topbar-title--logo-only h1,
+.topbar-title--logo-only p {
+  display: none;
+}
+
+@media (max-width: 920px) {
+  .topbar-main-logo {
+    width: 64px;
+    height: 64px;
+    border-radius: 20px;
+  }
+}
+
+/* ===== Topbar identity refinement: logo + manager/hotel, no framed user chip ===== */
+.topbar-title--logo-only {
+  min-width: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.topbar-brand-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.topbar-main-logo {
+  width: 96px;
+  height: 96px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+  color: var(--color-primary-strong);
+  font-size: 2.35rem;
+  font-weight: 950;
+}
+
+.topbar-main-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 0;
+}
+
+.topbar-brand-copy {
+  display: grid;
+  gap: 4px;
+  text-align: right;
+}
+
+.topbar-brand-copy strong {
+  color: var(--color-heading);
+  font-size: 1.25rem;
+  font-weight: 950;
+  line-height: 1.15;
+}
+
+.topbar-brand-copy small {
+  color: var(--color-muted-strong);
+  font-size: 0.96rem;
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+.topbar-actions .user-chip,
+.topbar-actions .user-chip--with-avatar {
+  display: none;
+}
+
+#languageBtn.ds-btn,
+#notificationsBtn.ds-btn,
+#refreshAppBtn.ds-btn,
+.topbar-refresh-btn.ds-btn,
+.topbar-notify-btn.ds-btn,
+#languageBtn,
+#notificationsBtn,
+#refreshAppBtn,
+.topbar-refresh-btn,
+.topbar-notify-btn {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+#languageBtn:hover,
+#notificationsBtn:hover,
+#refreshAppBtn:hover,
+.topbar-refresh-btn:hover,
+.topbar-notify-btn:hover {
+  background: color-mix(in srgb, var(--color-surface) 40%, transparent);
+  border-color: color-mix(in srgb, var(--color-border) 35%, transparent);
+  box-shadow: none;
+}
+
+@media (max-width: 920px) {
+  .topbar-brand-identity {
+    gap: 12px;
+  }
+
+  .topbar-main-logo {
+    width: 78px;
+    height: 78px;
+  }
+
+  .topbar-brand-copy strong {
+    font-size: 1.08rem;
+  }
+
+  .topbar-brand-copy small {
+    font-size: 0.88rem;
+  }
+}
+
+/* ===== Refinement patch: topbar action circles + brand sizing + elegant scrollbar ===== */
+.topbar-brand-copy strong {
+  font-size: 1.42rem;
+  font-weight: 950;
+}
+
+.topbar-brand-copy small {
+  font-size: 0.98rem;
+  font-weight: 850;
+  margin-inline-end: 14px;
+}
+
+.topbar-actions {
+  gap: 8px;
+}
+
+#languageBtn.ds-btn,
+#notificationsBtn.ds-btn,
+#refreshAppBtn.ds-btn,
+.topbar-refresh-btn.ds-btn,
+.topbar-notify-btn.ds-btn,
+#languageBtn,
+#notificationsBtn,
+#refreshAppBtn,
+.topbar-refresh-btn,
+.topbar-notify-btn {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  min-height: 46px;
+  padding: 0;
+  border-radius: 999px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 94%, white 6%) 0%, color-mix(in srgb, var(--color-primary-soft) 16%, var(--color-surface) 84%) 100%);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 22%, var(--color-border) 78%);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--color-primary) 10%, transparent);
+  color: var(--color-heading);
+}
+
+#languageBtn:hover,
+#notificationsBtn:hover,
+#refreshAppBtn:hover,
+.topbar-refresh-btn:hover,
+.topbar-notify-btn:hover {
+  background: linear-gradient(180deg, color-mix(in srgb, white 84%, var(--color-primary-soft) 16%) 0%, color-mix(in srgb, var(--color-primary-soft) 24%, var(--color-surface) 76%) 100%);
+  border-color: color-mix(in srgb, var(--color-primary) 34%, var(--color-border) 66%);
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--color-primary) 14%, transparent);
+}
+
+.topbar-notify-badge {
+  min-width: 21px;
+  height: 21px;
+  top: -4px;
+  inset-inline-end: -3px;
+  background: linear-gradient(180deg, var(--ds-action-danger-solid-soft) 0%, var(--ds-action-danger-solid) 100%);
+  color: var(--color-on-primary);
+  border: 2px solid var(--color-on-primary);
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--color-danger) 26%, transparent);
+}
+
+.topbar-notify-count {
+  background: linear-gradient(180deg, var(--ds-action-danger-solid-soft) 0%, var(--ds-action-danger-solid) 100%);
+  color: var(--color-on-primary);
+  border: 2px solid color-mix(in srgb, var(--color-surface) 92%, transparent);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--color-danger) 18%, transparent);
+}
+
+.sidebar-brand {
+  gap: 14px;
+}
+
+.sidebar-header .brand-mark,
+.sidebar-header .brand-mark-image {
+  width: 72px;
+  height: 72px;
+  min-width: 72px;
+  border-radius: 22px;
+}
+
+.sidebar-header .brand-mark-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 8px;
+}
+
+.sidebar-brand .brand-title {
+  font-size: 1.3rem;
+  font-weight: 950;
+}
+
+.sidebar-brand .brand-subtitle {
+  font-size: 0.9rem;
+}
+
+/* Elegant thin scrollbar */
+html,
+body,
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--color-primary) 42%, var(--color-accent) 58%) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 999px;
+  margin: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--color-primary) 72%, white 28%), color-mix(in srgb, var(--color-accent) 54%, var(--color-primary) 46%)) padding-box;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-surface) 22%, transparent), 0 5px 14px color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, var(--color-primary), var(--color-accent)) padding-box;
+}
+
+.topbar-notify-panel,
+.page-shell,
+.content,
+.dashboard-panel,
+.sidebar-nav {
+  scrollbar-gutter: stable;
+}
+
+@media (max-width: 920px) {
+  .topbar-brand-copy strong {
+    font-size: 1.18rem;
+  }
+
+  .topbar-brand-copy small {
+    margin-inline-end: 10px;
+    font-size: 0.9rem;
+  }
+
+  .sidebar-header .brand-mark,
+  .sidebar-header .brand-mark-image {
+    width: 62px;
+    height: 62px;
+    min-width: 62px;
+  }
+}
+
+/* ===== Fine tune: sidebar subtitle removal + larger topbar icons + smaller badge ===== */
+.sidebar-brand .brand-subtitle {
+  display: none;
+}
+
+.sidebar-header .brand-mark,
+.sidebar-header .brand-mark-image {
+  width: 82px;
+  height: 82px;
+  min-width: 82px;
+  border-radius: 24px;
+}
+
+.sidebar-header .brand-mark-image img {
+  padding: 6px;
+}
+
+#languageBtn.ds-btn,
+#notificationsBtn.ds-btn,
+#refreshAppBtn.ds-btn,
+.topbar-refresh-btn.ds-btn,
+.topbar-notify-btn.ds-btn,
+#languageBtn,
+#notificationsBtn,
+#refreshAppBtn,
+.topbar-refresh-btn,
+.topbar-notify-btn {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
+}
+
+#languageBtn svg,
+#notificationsBtn svg,
+#refreshAppBtn svg,
+.topbar-refresh-btn svg,
+.topbar-notify-btn svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2.1;
+}
+
+.topbar-notify-badge {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  font-size: 0.66rem;
+  top: -3px;
+  inset-inline-end: -2px;
+  border-width: 1.5px;
+}
+
+@media (max-width: 920px) {
+  .sidebar-header .brand-mark,
+  .sidebar-header .brand-mark-image {
+    width: 70px;
+    height: 70px;
+    min-width: 70px;
+  }
+
+  #languageBtn.ds-btn,
+  #notificationsBtn.ds-btn,
+  #refreshAppBtn.ds-btn,
+  .topbar-refresh-btn.ds-btn,
+  .topbar-notify-btn.ds-btn,
+  #languageBtn,
+  #notificationsBtn,
+  #refreshAppBtn,
+  .topbar-refresh-btn,
+  .topbar-notify-btn {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    min-height: 48px;
+  }
+}
+

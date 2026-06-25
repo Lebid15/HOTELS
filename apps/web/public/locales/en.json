@@ -1,0 +1,2038 @@
+{
+  "app": {
+    "name": "Fandqi",
+    "subtitle": "Hotel operations and management platform",
+    "initial": "F",
+    "title": "Fandqi | Hotel operations platform",
+    "loading": "Loading..."
+  },
+  "login": {
+    "eyebrow": "Hotel management platform",
+    "title": "Sign in",
+    "description": "Sign in to continue.",
+    "email": "Email address",
+    "password": "Password",
+    "button": "Sign in",
+    "remember": "Remember me",
+    "forgot": "Forgot password?",
+    "security": "Secure access",
+    "languageIconLabel": "Change language",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "visualTitle": "One platform for hotel operations",
+    "visualDescription": "Dedicated interfaces for the platform owner, hotel manager, and receptionist.",
+    "feature1": "Central management",
+    "feature2": "Operational organization",
+    "feature3": "Role-based access",
+    "error": "Invalid login credentials",
+    "visualLabel": "Fandqi platform overview",
+    "visualMetricBookings": "Reservations",
+    "visualMetricBookingsNote": "Daily tracking",
+    "visualMetricRooms": "Rooms",
+    "visualMetricRoomsNote": "Occupancy and cleaning",
+    "visualMetricAlerts": "Alerts",
+    "visualMetricAlertsNote": "Instant operations",
+    "loginBenefitsLabel": "Sign-in benefits",
+    "loginBenefitSecure": "Secure access",
+    "loginBenefitAlerts": "Instant alerts",
+    "loginBenefitHotel": "Hotel management"
+  },
+  "roles": {
+    "platform_owner": "Platform Owner",
+    "hotel_manager": "Hotel Manager",
+    "receptionist": "Receptionist",
+    "cashier": "Cashier",
+    "housekeeping": "Housekeeping Staff",
+    "maintenance": "Maintenance Staff",
+    "restaurant": "Restaurant Staff",
+    "room_service": "Room Service",
+    "supervisor": "Operations Supervisor"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "hotels": "Hotels",
+    "subscriptions": "Subscriptions",
+    "subscription_requests": "Subscription requests",
+    "platform_users": "Users",
+    "platform_settings": "Platform settings",
+    "rooms": "Rooms & floors",
+    "reservations": "Reservations",
+    "guests": "Guests",
+    "hotel_settings": "Hotel settings",
+    "front_desk": "Front desk",
+    "check_in_out": "Check-in & out",
+    "payments": "Payments",
+    "hotel_managers": "Hotel managers",
+    "packages": "Packages",
+    "staff": "Staff",
+    "room_service": "Restaurant & Café",
+    "housekeeping": "Housekeeping",
+    "maintenance": "Maintenance",
+    "reports": "Reports",
+    "subscription_plan": "Subscription & packages",
+    "notifications": "Notifications"
+  },
+  "topbar": {
+    "languageIconLabel": "Change language",
+    "logout": "Logout",
+    "refresh": "Refresh",
+    "refreshDone": "Interface refreshed",
+    "notifications": {
+      "openPage": "All notifications",
+      "clearTitle": "No alerts right now",
+      "clearNote": "Everything is under control",
+      "subscriptionRequestsTitle": "Incoming subscription requests",
+      "subscriptionRequestsNote": "request awaiting platform owner approval",
+      "endingSoonTitle": "Subscriptions ending soon",
+      "endingSoonNote": "subscription needs follow-up",
+      "expiredTitle": "Expired subscriptions",
+      "expiredNote": "expired subscription",
+      "suspendedHotelsTitle": "Suspended hotels",
+      "suspendedHotelsNote": "hotel needs review",
+      "arrivalsTitle": "Today's arrivals",
+      "arrivalsNote": "reservation awaiting check-in",
+      "departuresTitle": "Today's departures",
+      "departuresNote": "reservation needs check-out completion",
+      "balanceTitle": "Outstanding balances",
+      "balanceNote": "reservation with remaining balance",
+      "cleaningTitle": "Rooms under cleaning",
+      "cleaningNote": "room awaiting preparation",
+      "maintenanceTitle": "Open maintenance tickets",
+      "maintenanceUrgent": "urgent",
+      "maintenanceNote": "total tickets",
+      "roomAccountTitle": "Room-account orders",
+      "roomAccountNote": "posted to guest accounts",
+      "label": "Notifications",
+      "title": "Notifications",
+      "subtitle": "Quick tracking for what needs your attention"
+    },
+    "closeNavigation": "Close navigation",
+    "openNavigation": "Open navigation"
+  },
+  "toast": {
+    "loginSuccess": "Login successful",
+    "logoutSuccess": "Logged out"
+  },
+  "page": {
+    "dashboard": "Dashboard",
+    "hotels": "Hotels",
+    "hotel_managers": "Hotel managers",
+    "subscriptions": "Subscriptions",
+    "subscription_requests": "Subscription requests",
+    "platform_settings": "Platform settings",
+    "rooms": "Rooms & floors",
+    "reservations": "Reservations",
+    "guests": "Guests",
+    "hotel_settings": "Hotel settings",
+    "front_desk": "Front desk",
+    "check_in_out": "Check-in & out",
+    "payments": "Payments",
+    "packages": "Packages",
+    "staff": "Staff",
+    "room_service": "Restaurant & Café",
+    "housekeeping": "Housekeeping",
+    "maintenance": "Maintenance",
+    "reports": "Reports",
+    "notifications": "Notifications",
+    "subscription_plan": "Subscription & packages"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "yes": "Yes",
+    "no": "No",
+    "next": "Next",
+    "previous": "Previous",
+    "user": "User",
+    "listSeparator": ", ",
+    "remove": "Remove"
+  },
+  "hotel": {
+    "actions": {
+      "add": "Add new hotel",
+      "view": "View",
+      "edit": "Edit",
+      "manager": "Assign manager",
+      "activate": "Activate",
+      "suspend": "Suspend",
+      "archive": "Archive"
+    },
+    "filters": {
+      "search": "Search by hotel or manager",
+      "status": "Status",
+      "location": "Country or city",
+      "all": "All"
+    },
+    "columns": {
+      "name": "Hotel name",
+      "location": "Country / City",
+      "manager": "Hotel manager",
+      "phone": "Phone",
+      "email": "Email",
+      "status": "Status",
+      "createdAt": "Created at",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "archived": "Archived"
+    },
+    "emptyTitle": "No hotels yet",
+    "emptyText": "Start by adding the first hotel using the add hotel button.",
+    "modal": {
+      "addTitle": "Add new hotel",
+      "editTitle": "Edit hotel",
+      "managerTitle": "Assign hotel manager",
+      "viewTitle": "Hotel details"
+    },
+    "form": {
+      "hotelInfo": "Hotel information",
+      "managerInfo": "Hotel manager information",
+      "name": "Hotel name",
+      "country": "Country",
+      "city": "City",
+      "address": "Address",
+      "phone": "Phone",
+      "email": "Email",
+      "managerName": "Hotel manager name",
+      "managerPassword": "Manager password",
+      "status": "Hotel status",
+      "managerPasswordConfirm": "Confirm password"
+    },
+    "details": {
+      "updatedAt": "Last update"
+    },
+    "validation": {
+      "passwordMismatch": "Passwords do not match"
+    }
+  },
+  "manager": {
+    "filters": {
+      "search": "Search by manager, hotel, or email",
+      "status": "Account status",
+      "hotelStatus": "Hotel status",
+      "all": "All"
+    },
+    "columns": {
+      "manager": "Hotel manager",
+      "email": "Email",
+      "hotel": "Hotel",
+      "location": "Country / City",
+      "accountStatus": "Account status",
+      "hotelStatus": "Hotel status",
+      "updatedAt": "Last update",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "suspended": "Suspended"
+    },
+    "actions": {
+      "edit": "Edit manager",
+      "activate": "Activate account",
+      "suspend": "Suspend account"
+    },
+    "emptyTitle": "No hotel managers yet",
+    "emptyText": "Hotel managers are created from the hotels section when adding or editing a hotel."
+  },
+  "subscription": {
+    "trial": {
+      "autoNotes": "Automatic 7-day trial subscription when the account is created."
+    },
+    "actions": {
+      "add": "Add / update subscription",
+      "setup": "Set subscription",
+      "edit": "Edit",
+      "view": "View",
+      "activate": "Activate",
+      "suspend": "Suspend",
+      "renew": "Renew"
+    },
+    "filters": {
+      "search": "Search by hotel, manager, or email",
+      "status": "Subscription status",
+      "plan": "Plan",
+      "all": "All"
+    },
+    "columns": {
+      "hotel": "Hotel",
+      "plan": "Plan",
+      "status": "Subscription status",
+      "period": "Subscription period",
+      "amount": "Monthly amount",
+      "payment": "Payment status",
+      "updatedAt": "Last update",
+      "actions": "Actions",
+      "remaining": "Remaining days"
+    },
+    "status": {
+      "trial": "Trial",
+      "active": "Active",
+      "expired": "Expired",
+      "suspended": "Suspended",
+      "not_set": "Not set"
+    },
+    "plan": {
+      "trial": "Trial",
+      "basic": "Basic",
+      "professional": "Professional",
+      "premium": "Premium",
+      "not_set": "Not set"
+    },
+    "payment": {
+      "paid": "Paid",
+      "unpaid": "Unpaid",
+      "partial": "Partial"
+    },
+    "emptyNoHotelsTitle": "No hotels for subscriptions",
+    "emptyNoHotelsText": "Add a hotel first from the hotels section, then return to set the subscription.",
+    "emptyFilteredTitle": "No matching results",
+    "emptyFilteredText": "Change the search or filters to show subscriptions.",
+    "modal": {
+      "formTitle": "Add / edit subscription",
+      "viewTitle": "Subscription details"
+    },
+    "form": {
+      "subscriptionInfo": "Subscription information",
+      "hotel": "Hotel",
+      "plan": "Plan",
+      "status": "Subscription status",
+      "paymentStatus": "Payment status",
+      "startDate": "Start date",
+      "endDate": "Auto end date",
+      "monthlyAmount": "Package price",
+      "currency": "Currency",
+      "notes": "Notes",
+      "durationDays": "Plan days",
+      "remainingDays": "Remaining days",
+      "price": "Price"
+    },
+    "validation": {
+      "addHotelFirst": "Add a hotel before creating a subscription.",
+      "hotelRequired": "Hotel is required.",
+      "dateOrder": "End date must be after start date.",
+      "addPackageFirst": "Add an active package before creating a subscription.",
+      "packageRequired": "Package is required."
+    },
+    "details": {
+      "automaticDates": "The end date is calculated automatically from the start date and selected package days."
+    },
+    "emptyNoPackagesTitle": "No active packages",
+    "emptyNoPackagesText": "Add an active package first from the packages section, then return to set hotel subscriptions.",
+    "remaining": {
+      "expired": "Expired",
+      "today": "Ends today",
+      "day": "days"
+    },
+    "toast": {
+      "renewed": "Subscription renewed from today."
+    },
+    "requests": {
+      "approve": "Approve and activate",
+      "reject": "Reject",
+      "kicker": "Platform owner follow-up",
+      "title": "Incoming subscription requests",
+      "note": "Package change, renewal, or extension requests sent by hotel managers appear here immediately.",
+      "pending": "Pending",
+      "emptyTitle": "No incoming subscription requests",
+      "emptyText": "When a hotel manager requests a package change or renewal, requests will appear here immediately.",
+      "pageHint": "An independent inbox for reviewing renewal or package-change requests from hotels.",
+      "toast": {
+        "alreadyResolved": "This request was already processed",
+        "rejected": "Subscription request rejected",
+        "hotelMissing": "Could not find the hotel linked to this request",
+        "packageMissing": "Could not find the requested package",
+        "approved": "Request approved and subscription activated"
+      },
+      "rejected": "Rejected"
+    }
+  },
+  "package": {
+    "defaultTrial": {
+      "name": "Free trial package",
+      "description": "Automatic 7-day trial package for each new hotel so it can start immediately.",
+      "notes": "Activated automatically when a new hotel account is registered."
+    },
+    "actions": {
+      "add": "Add new package",
+      "view": "View",
+      "edit": "Edit",
+      "activate": "Activate",
+      "suspend": "Suspend",
+      "archive": "Archive"
+    },
+    "filters": {
+      "search": "Search by package name or description",
+      "status": "Package status",
+      "all": "All"
+    },
+    "columns": {
+      "name": "Package name",
+      "duration": "Duration",
+      "price": "Price",
+      "limits": "Limits",
+      "features": "Features",
+      "status": "Status",
+      "updatedAt": "Last update",
+      "actions": "Actions"
+    },
+    "status": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "archived": "Archived"
+    },
+    "boolean": {
+      "yes": "Yes",
+      "no": "No"
+    },
+    "units": {
+      "days": "days"
+    },
+    "emptyTitle": "No packages yet",
+    "emptyText": "Start by adding the first subscription package, then use it in subscriptions.",
+    "modal": {
+      "addTitle": "Add new package",
+      "editTitle": "Edit package",
+      "viewTitle": "Package details"
+    },
+    "form": {
+      "packageInfo": "Package information",
+      "name": "Package name",
+      "description": "Short description",
+      "durationDays": "Package days",
+      "price": "Price",
+      "currency": "Currency",
+      "status": "Package status",
+      "maxUsers": "Allowed users",
+      "maxRooms": "Allowed rooms",
+      "restaurantSupport": "Restaurant / cafeteria support",
+      "reportsSupport": "Reports support",
+      "trialSupport": "Trial mode support",
+      "notes": "Notes"
+    }
+  },
+  "settings": {
+    "actions": {
+      "save": "Save settings",
+      "uploadLogo": "Upload logo",
+      "removeLogo": "Remove logo",
+      "exportBackup": "Export backup",
+      "importBackup": "Import backup",
+      "clearDemoData": "Clear local operations data"
+    },
+    "sections": {
+      "identity": "Platform identity",
+      "defaults": "Default settings",
+      "billing": "Billing and numbering",
+      "support": "Support and social links",
+      "security": "Security",
+      "notifications": "Notifications",
+      "terms": "Subscription terms",
+      "backup": "Backup",
+      "support_old": "Support and notes"
+    },
+    "fields": {
+      "logo": "Platform logo",
+      "platformName": "Platform name in Arabic",
+      "platformNameEn": "Platform name in English",
+      "platformEmail": "Official email",
+      "platformPhone": "Official phone",
+      "defaultCurrency": "Default currency",
+      "defaultLanguage": "Default language",
+      "invoiceTitle": "Invoice title",
+      "invoiceFooter": "Invoice footer note",
+      "supportEmail": "Support email",
+      "supportPhone": "Support phone",
+      "notes": "Internal notes",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "invoicePrefix": "Invoice number prefix",
+      "invoiceLastNumber": "Last invoice number",
+      "subscriptionPrefix": "Subscription number prefix",
+      "subscriptionLastNumber": "Last subscription number",
+      "subscriptionExpireBeforeDays": "Alert before expiry in days",
+      "notifySubscriptionExpired": "Alert when subscription expires",
+      "notifyNewHotel": "Alert when a hotel is added",
+      "notifyHotelSuspended": "Alert when a hotel is suspended",
+      "supportWhatsapp": "Support WhatsApp number",
+      "supportWhatsappLink": "Support WhatsApp link",
+      "websiteUrl": "Official website URL",
+      "facebookUrl": "Facebook URL",
+      "instagramUrl": "Instagram URL",
+      "subscriptionTerms": "Subscription terms",
+      "suspensionPolicy": "Suspension policy",
+      "legalNote": "Short legal note",
+      "defaultCountry": "Default country",
+      "timezone": "Time zone",
+      "dateFormat": "Date format",
+      "timeFormat": "Time format",
+      "taxRate": "Tax rate %",
+      "subscriptionWarningMessage": "Subscription expiry warning message",
+      "subscriptionExpiredMessage": "Expired subscription message"
+    },
+    "toast": {
+      "saved": "Platform settings saved",
+      "savedWithPassword": "Settings saved and password updated",
+      "backupExported": "Backup exported",
+      "backupImported": "Backup imported",
+      "backupInvalid": "Invalid backup file",
+      "demoDataCleared": "Local operations data cleared"
+    },
+    "validation": {
+      "currentPasswordWrong": "Current password is incorrect",
+      "passwordTooShort": "New password must be at least 6 characters",
+      "passwordMismatch": "Passwords do not match"
+    },
+    "confirm": {
+      "clearDemoData": "This will clear local hotels, packages, and subscriptions. Are you sure?"
+    },
+    "backup": {
+      "helper": "Export and import apply to the current local version data only."
+    },
+    "tabsLabel": "Platform settings tabs",
+    "preview": {
+      "invoicePreview": "Invoice preview",
+      "currency": "Currency",
+      "subtotal": "Subtotal before tax",
+      "tax": "Tax",
+      "total": "Total",
+      "footerFallback": "This is an approximate invoice preview."
+    },
+    "timeFormat": {
+      "twentyFour": "24-hour",
+      "twelve": "12-hour"
+    },
+    "language": {
+      "arabic": "Arabic",
+      "english": "English"
+    },
+    "defaults": {
+      "subscriptionWarningMessage": "Notice: the hotel subscription will end soon. Please renew to avoid service suspension.",
+      "subscriptionExpiredMessage": "The hotel subscription has ended. Please renew to reactivate the service."
+    },
+    "pageSubtitle": "Central settings for platform identity, subscriptions, invoices, security, support, and backups."
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "description": "A smart overview of the platform based on current hotels, packages, and subscriptions.",
+    "cards": {
+      "hotelsTotal": "Total hotels",
+      "hotelsActive": "Active hotels",
+      "hotelsSuspended": "Suspended hotels",
+      "managers": "Hotel managers",
+      "packagesActive": "Active packages",
+      "subscriptionsActive": "Active subscriptions",
+      "endingSoon": "Ending soon",
+      "expired": "Expired subscriptions",
+      "paidAmount": "Paid total",
+      "unpaidAmount": "Unpaid total",
+      "subscriptionRequests": "Subscription requests",
+      "platformScale": "Operating scale",
+      "platformRevenue": "Expected revenue"
+    },
+    "notes": {
+      "allHotels": "Open all hotels",
+      "activeHotels": "Open active hotels",
+      "suspendedHotels": "Open suspended hotels",
+      "activeManagers": "active manager",
+      "totalPackages": "total packages",
+      "activeSubscriptions": "Active or trial subscriptions",
+      "within": "Within",
+      "days": "days",
+      "expiredSubscriptions": "Needs follow-up or renewal",
+      "paidAmount": "From paid subscriptions",
+      "unpaidAmount": "Unpaid or partial",
+      "subscriptionRequests": "Requests awaiting platform owner approval",
+      "platformScale": "Rooms registered across hotels"
+    },
+    "sections": {
+      "quickActions": "Quick actions",
+      "endingSoon": "Subscriptions ending soon",
+      "ownerInbox": "Decision inbox",
+      "ownerInboxHint": "Requests that need platform owner approval or rejection.",
+      "newHotels": "Latest registered hotels",
+      "newHotelsHint": "Track new registrations and automatic trials."
+    },
+    "quick": {
+      "addHotel": "Add hotel",
+      "addHotelNote": "Open new hotel form",
+      "addPackage": "Add package",
+      "addPackageNote": "Create subscription package",
+      "addSubscription": "Add subscription",
+      "addSubscriptionNote": "Connect a hotel to a package"
+    },
+    "empty": {
+      "endingSoonTitle": "No subscriptions ending soon",
+      "endingSoonText": "Subscriptions close to their end date will appear here based on notification settings."
+    }
+  },
+  "managerInterface": {
+    "currentHotel": "Current hotel",
+    "noHotelTitle": "No hotel linked to this account",
+    "noHotelText": "The platform owner must add a hotel and connect the manager email before using the manager interface."
+  },
+  "managerDashboard": {
+    "title": "Hotel manager dashboard",
+    "description": "A smart operations dashboard that gives the manager direct access to reservations, guests, rooms, food service, maintenance, finance, and reports.",
+    "cards": {
+      "roomsTotal": "Total rooms",
+      "roomsAvailable": "Available rooms",
+      "roomsOccupied": "Occupied rooms",
+      "roomsMaintenance": "Maintenance",
+      "roomsCleaning": "Needs cleaning",
+      "floorsTotal": "Floors"
+    },
+    "notes": {
+      "roomsTotal": "All registered rooms",
+      "roomsAvailable": "Ready for booking",
+      "roomsOccupied": "Currently occupied",
+      "roomsMaintenance": "Temporarily unavailable",
+      "roomsCleaning": "Being cleaned",
+      "floorsTotal": "Floors with rooms"
+    },
+    "quick": {
+      "title": "Quick shortcuts",
+      "newReservation": "New reservation",
+      "arrivals": "Today arrivals",
+      "newFoodOrder": "Restaurant / cafeteria order",
+      "cleaning": "Housekeeping",
+      "maintenance": "Maintenance ticket",
+      "reports": "Reports"
+    },
+    "sections": {
+      "smartCards": "Smart dashboard cards",
+      "smartCardsHint": "Click any card to jump directly"
+    },
+    "smart": {
+      "reservationsToday": "Today reservations",
+      "arrivalsToday": "Today arrivals",
+      "inHouse": "Currently in-house",
+      "departuresToday": "Today departures",
+      "roomsAvailable": "Available rooms",
+      "roomsOccupied": "Occupied rooms",
+      "cleaningRooms": "Rooms under cleaning",
+      "maintenanceOpen": "Open maintenance tickets",
+      "guests": "Guests",
+      "foodOrdersToday": "Today orders",
+      "roomAccount": "Room account charges",
+      "balanceDue": "Balance due",
+      "financialReport": "Financial report",
+      "hotelSettings": "Hotel settings",
+      "staff": "Staff",
+      "open": "Open",
+      "manage": "Manage"
+    },
+    "smartNotes": {
+      "reservationsToday": "Arrivals, departures, or updates today",
+      "arrivalsToday": "Guests that need check-in",
+      "inHouse": "Reservations currently inside the hotel",
+      "departuresToday": "Financial check before checkout",
+      "roomsAvailable": "Ready for a new booking",
+      "roomsOccupied": "Linked to current guests",
+      "cleaningRooms": "After checkout before availability",
+      "maintenanceOpen": "Needs operational follow-up",
+      "urgentMaintenance": "urgent",
+      "totalGuestEntries": "total guest records",
+      "foodRevenueToday": "today revenue",
+      "roomAccount": "Orders transferred to booking account",
+      "withBalance": "reservation has balance",
+      "financialReport": "Stays, orders, and dues",
+      "hotelSettings": "Hotel identity and services",
+      "staff": "Permissions, accounts, and photos",
+      "roomsOverview": "All hotel rooms"
+    }
+  },
+  "room": {
+    "actions": {
+      "add": "Add room",
+      "view": "View",
+      "edit": "Edit",
+      "archive": "Archive",
+      "restore": "Restore"
+    },
+    "filters": {
+      "search": "Search by room number or note",
+      "status": "Status",
+      "type": "Room type",
+      "floor": "Floor",
+      "all": "All",
+      "title": "Room filters",
+      "note": "Search or filter by status, type, and floor without interfering with room cards."
+    },
+    "columns": {
+      "number": "Room number",
+      "floor": "Floor",
+      "type": "Type",
+      "capacity": "Capacity",
+      "status": "Status",
+      "price": "Price",
+      "createdAt": "Created at",
+      "updatedAt": "Last update",
+      "actions": "Actions"
+    },
+    "status": {
+      "available": "Available",
+      "occupied": "Occupied",
+      "cleaning": "Cleaning",
+      "maintenance": "Maintenance",
+      "out_of_service": "Out of service",
+      "archived": "Archived",
+      "booked": "Booked"
+    },
+    "type": {
+      "single": "Single",
+      "double": "Double",
+      "triple": "Triple",
+      "suite": "Suite",
+      "family": "Family",
+      "suite_room": "Suite room",
+      "deluxe": "Premium room",
+      "wing": "Wing"
+    },
+    "emptyTitle": "No rooms yet",
+    "emptyText": "Start by adding the first room for this hotel.",
+    "modal": {
+      "addTitle": "Add room",
+      "editTitle": "Edit room",
+      "viewTitle": "Room details"
+    },
+    "form": {
+      "roomInfo": "Room information",
+      "number": "Room number",
+      "floor": "Floor",
+      "type": "Room type",
+      "capacity": "Capacity",
+      "status": "Room status",
+      "price": "Price",
+      "currency": "Currency",
+      "notes": "Notes",
+      "floorPrefix": "Floor",
+      "priceLockHelper": "This rate is set by the hotel manager and will be used later in reservations without receptionist changes."
+    },
+    "cards": {
+      "total": "Total rooms",
+      "totalNote": "Rooms registered in this hotel",
+      "floors": "Total floors",
+      "floorsNote": "Configured and used floors",
+      "available": "Available",
+      "availableNote": "Ready for booking now",
+      "occupied": "Occupied",
+      "occupiedNote": "Has guests or an active booking",
+      "attention": "Needs attention",
+      "attentionNote": "Cleaning, maintenance, or unavailable",
+      "floorLabel": "Floor overview",
+      "roomsWord": "rooms",
+      "roomLabel": "Room",
+      "noNotes": "No notes added to this room",
+      "booked": "Booked"
+    },
+    "archiveHelper": "Archived rooms are not deleted; find them from the Status filter by choosing Archived, then restore them from the same card.",
+    "page": {
+      "description": "Central floor and room management with operating status, prices, and capacity."
+    },
+    "floors": {
+      "editAction": "Edit floors",
+      "overviewTitle": "Floors overview",
+      "modalTitle": "Edit floors count",
+      "modalSection": "Floor settings",
+      "countLabel": "Enabled floors count",
+      "countHelper": "The count cannot be lower than the highest floor currently used by rooms.",
+      "usedFloors": "Currently used floors",
+      "usedFloorsHelper": "These floors come from existing rooms and show the safe minimum limit.",
+      "saveAction": "Save floors",
+      "savedToast": "Floors count updated successfully."
+    }
+  },
+  "hotelSettings": {
+    "description": "Hotel operation, contact, policy, and billing settings used later by rooms, reservations, and services.",
+    "logoAlt": "Hotel logo",
+    "sections": {
+      "identity": "Hotel identity",
+      "operation": "Operation settings",
+      "policies": "Policies",
+      "billing": "Billing",
+      "services": "Restaurant & Café",
+      "contact": "Contact information"
+    },
+    "fields": {
+      "displayName": "Display hotel name",
+      "country": "Country",
+      "city": "City",
+      "address": "Address",
+      "phone": "Phone",
+      "email": "Email",
+      "floorsCount": "Floors count",
+      "defaultCurrency": "Default currency",
+      "roomTypes": "Available room types",
+      "checkInTime": "Check-in time",
+      "checkOutTime": "Check-out time",
+      "cancellationPolicy": "Cancellation policy",
+      "paymentPolicy": "Payment policy",
+      "invoiceTitle": "Invoice title",
+      "invoiceFooter": "Invoice footer note",
+      "taxRate": "Tax rate",
+      "notes": "Internal notes",
+      "workStartTime": "Hotel work starts at",
+      "workEndTime": "Hotel work ends at",
+      "restaurantName": "Restaurant name",
+      "restaurantHasTables": "Accept restaurant table orders",
+      "restaurantTablesCount": "Restaurant tables count",
+      "restaurantRoomDelivery": "Accept room orders through restaurant",
+      "restaurantServiceScope": "Restaurant order scope",
+      "restaurantNotes": "Restaurant notes",
+      "cafeteriaName": "Café name",
+      "cafeteriaHasTables": "Accept café table orders",
+      "cafeteriaTablesCount": "Café tables count",
+      "cafeteriaRoomDelivery": "Accept room orders through café",
+      "cafeteriaServiceScope": "Café order scope",
+      "cafeteriaNotes": "Café notes",
+      "restaurantScheduleMode": "Restaurant working mode",
+      "restaurantShiftCount": "Restaurant shifts count",
+      "cafeteriaScheduleMode": "Café working mode",
+      "cafeteriaShiftCount": "Café shifts count",
+      "shiftStart": "Shift start",
+      "shiftEnd": "Shift end",
+      "reception24_7": "Reception works 24/7",
+      "receptionShiftCount": "Reception shifts count",
+      "receptionShiftStart": "Reception shift start",
+      "receptionShiftEnd": "Reception shift end",
+      "restaurantExternalOrders": "Record external guest requests through restaurant",
+      "cafeteriaExternalOrders": "Record external guest requests through café",
+      "receptionPhone": "Reception phone",
+      "reservationsPhone": "Reservations phone",
+      "whatsappNumber": "Hotel WhatsApp number",
+      "supportPhone": "Support / guest service phone",
+      "emergencyPhone": "Internal emergency phone",
+      "contactEmail": "Official contact email",
+      "websiteUrl": "Website URL",
+      "facebookUrl": "Facebook URL",
+      "instagramUrl": "Instagram URL",
+      "googleMapsUrl": "Google Maps URL",
+      "depositEnabled": "Reservation deposit enabled",
+      "depositAmount": "Default deposit amount",
+      "depositRefundable": "Deposit is refundable",
+      "securityDepositRequired": "Security deposit required at check-in",
+      "securityDepositAmount": "Default security deposit amount",
+      "autoCleaningAfterCheckout": "Move room to cleaning after checkout automatically",
+      "defaultCleaningMinutes": "Default cleaning duration in minutes",
+      "taxNumber": "Tax number",
+      "commercialRegister": "Commercial register number",
+      "bookingPrefix": "Booking number prefix",
+      "bookingLastNumber": "Last booking number",
+      "hotelInvoicePrefix": "Hotel invoice prefix",
+      "hotelInvoiceLastNumber": "Last invoice number",
+      "serviceOrderPrefix": "Service order prefix",
+      "serviceOrderLastNumber": "Last service order number"
+    },
+    "actions": {
+      "save": "Save settings",
+      "uploadLogo": "Upload logo",
+      "removeLogo": "Remove logo",
+      "addRoomType": "Add type",
+      "removeRoomType": "Remove room type"
+    },
+    "toast": {
+      "saved": "Hotel settings saved"
+    },
+    "tabsLabel": "Hotel settings tabs",
+    "roomTypes": {
+      "placeholder": "Example: Suite, Wing, Deluxe room",
+      "helper": "Add all room types used by the hotel; they will appear automatically when adding a room.",
+      "empty": "No room types yet",
+      "duplicate": "This room type already exists"
+    },
+    "services": {
+      "description": "Enable the restaurant or café only when it exists in the hotel. The service uses the hotel name, and order sources are configured here: room, table, or external guest request.",
+      "restaurantTitle": "Restaurant exists",
+      "cafeteriaTitle": "Café exists",
+      "restaurantHelper": "Enable restaurant order recording settings for this hotel.",
+      "cafeteriaHelper": "Enable café order recording settings for this hotel.",
+      "serviceUsesHotelName": "The service name uses the hotel name and does not need a separate name:",
+      "orderSourcesTitle": "Order sources",
+      "orderSourcesHelper": "Orders can be recorded from a room, a table, or as an external guest request when something is purchased from outside the hotel."
+    },
+    "serviceScope": {
+      "inside": "Inside service only",
+      "room_delivery": "Room delivery only",
+      "both": "Inside service + room delivery"
+    },
+    "scheduleMode": {
+      "24_7": "Works 24/7",
+      "shifts": "Works by shifts"
+    },
+    "receptionShifts": {
+      "helper": "These shifts are for reception staff, not restaurant or café staff."
+    }
+  },
+  "foodServices": {
+    "description": "Manage restaurant and café items, instantly delivered orders, printable invoices, and room-account charges in finance.",
+    "emptyTitle": "No food services enabled",
+    "emptyText": "Enable restaurant or café from hotel settings first.",
+    "scope": "Service scope",
+    "tables": "Tables",
+    "roomDelivery": "Room orders",
+    "externalOrders": "External requests",
+    "ordersTitle": "Restaurant and café invoices log",
+    "ordersEmptyTitle": "No orders yet",
+    "ordersEmptyText": "Start by registering the first order.",
+    "sourcesMissingTitle": "No order sources enabled",
+    "sourcesMissingText": "Enable restaurant or café services from hotel settings. Hospitality and visitor orders can still be created without a room.",
+    "actions": {
+      "addOrder": "Register new order",
+      "printInvoice": "Print invoice"
+    },
+    "modal": {
+      "addTitle": "Register order"
+    },
+    "fields": {
+      "serviceType": "Service type",
+      "sourceType": "Order source",
+      "roomNumber": "Room number",
+      "tableNumber": "Table number",
+      "guestName": "Guest name",
+      "externalVendor": "External purchase source",
+      "orderText": "Order details",
+      "amount": "Total",
+      "notes": "Notes",
+      "notSelected": "Not selected",
+      "paymentMethod": "Payment method",
+      "selectGuest": "Select guest from room",
+      "selectRoom": "Select room",
+      "selectRoomOptional": "Select room when needed",
+      "selectGuestOptional": "Select room guest when needed",
+      "walkInGuestName": "Visitor / hospitality name"
+    },
+    "placeholders": {
+      "table": "Example: 5",
+      "guest": "Optional",
+      "externalVendor": "Example: external restaurant / market / pharmacy",
+      "orderText": "Write the requested order details",
+      "walkInGuest": "Example: walk-in guest / hospitality / visitor"
+    },
+    "columns": {
+      "source": "Source",
+      "details": "Details",
+      "request": "Items",
+      "amount": "Amount",
+      "status": "Status",
+      "createdAt": "Created at",
+      "paymentMethod": "Payment method"
+    },
+    "source": {
+      "room": "Room order",
+      "table": "Table order",
+      "external": "External guest request",
+      "hospitality": "Visitor / hospitality"
+    },
+    "service": {
+      "restaurant": "Restaurant",
+      "cafeteria": "Café",
+      "external": "External request"
+    },
+    "status": {
+      "pending": "Pending",
+      "preparing": "Preparing",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    },
+    "noActiveGuestsTitle": "No in-house guests",
+    "noActiveGuestsText": "Visitor and hospitality orders can be created without a room; room orders must be linked to current room guests.",
+    "roomAccountHelper": "For room orders, select the room guest to fetch the room and reservation automatically. Visitor and hospitality orders remain open and can be paid by cash, electronic payment, or posted to the table account.",
+    "paymentMethod": {
+      "cash": "Cash",
+      "electronic": "Electronic",
+      "room_account": "Room / table account"
+    },
+    "financialStatus": {
+      "paid": "Paid",
+      "roomAccount": "Posted to room / table account"
+    },
+    "validation": {
+      "guestRequired": "Select a room guest or enter a visitor / hospitality name.",
+      "tableRequired": "Enter the table number for table orders.",
+      "roomGuestRequired": "Room orders must be linked to a current room guest to fetch room and reservation data.",
+      "guestNameRequired": "Select a room guest or enter a visitor / hospitality name.",
+      "roomAccountGuestRequired": "Posting to the room account requires a guest linked to an in-house reservation.",
+      "itemsRequired": "Select at least one menu item."
+    },
+    "finance": {
+      "roomCharges": "Room / table orders"
+    },
+    "menu": {
+      "title": "Items / Menu",
+      "addItem": "Add item",
+      "modalTitle": "Add restaurant or café item",
+      "categoryLabel": "Item category",
+      "name": "Item name",
+      "namePlaceholder": "Example: tea / coffee / breakfast meal",
+      "price": "Price",
+      "availabilityLabel": "Item status",
+      "description": "Optional description",
+      "descriptionPlaceholder": "Ingredients or a short item note",
+      "emptyTitle": "No items yet",
+      "emptyText": "Add drinks and food items so orders can be selected instead of typed manually.",
+      "emptyForOrderText": "Add menu items first before registering orders.",
+      "selectItem": "Select item",
+      "quantity": "Quantity",
+      "orderItemsTitle": "Requested items",
+      "chooseItemsHelper": "Choose food and drinks from the menu; the total is calculated automatically.",
+      "addItemRow": "Add item",
+      "category": {
+        "drinks": "Drinks",
+        "food": "Food",
+        "dessert": "Desserts / snacks",
+        "hospitality": "Hospitality",
+        "extras": "Extras"
+      },
+      "availability": {
+        "available": "Available",
+        "unavailable": "Unavailable"
+      }
+    },
+    "seed": {
+      "tea": "Tea",
+      "coffee": "Coffee",
+      "water": "Water",
+      "breakfast": "Breakfast meal",
+      "sandwich": "Chicken sandwich",
+      "hospitality": "Complimentary hospitality"
+    },
+    "invoice": {
+      "title": "Order invoice"
+    }
+  },
+  "staff": {
+    "actions": {
+      "add": "Add employee",
+      "view": "View",
+      "edit": "Edit",
+      "activate": "Activate",
+      "suspend": "Suspend",
+      "archive": "Archive",
+      "changePassword": "Change password",
+      "changeShift": "Change shift",
+      "managePermissions": "Permissions",
+      "restore": "Restore"
+    },
+    "filters": {
+      "search": "Search by employee, email, or phone",
+      "role": "Role",
+      "status": "Status",
+      "all": "All"
+    },
+    "columns": {
+      "name": "Employee name",
+      "role": "Role",
+      "contact": "Contact",
+      "shift": "Shift",
+      "status": "Status",
+      "permissions": "Permissions",
+      "createdAt": "Created at",
+      "updatedAt": "Last update",
+      "actions": "Actions"
+    },
+    "roles": {
+      "receptionist": "Receptionist",
+      "cashier": "Cashier",
+      "housekeeping": "Housekeeping",
+      "maintenance": "Maintenance",
+      "restaurant": "Restaurant",
+      "room_service": "Room service",
+      "supervisor": "Supervisor"
+    },
+    "status": {
+      "active": "Active",
+      "suspended": "Suspended",
+      "archived": "Archived"
+    },
+    "shifts": {
+      "morning": "Morning",
+      "evening": "Evening",
+      "night": "Night",
+      "flexible": "As needed"
+    },
+    "permissions": {
+      "reservations": "Reservations",
+      "check_in_out": "Check-in/out",
+      "payments": "Payments",
+      "rooms": "Rooms",
+      "room_service": "Room service",
+      "housekeeping": "Housekeeping",
+      "maintenance": "Maintenance",
+      "reports": "Reports"
+    },
+    "emptyTitle": "No employees yet",
+    "emptyText": "Start by adding the first employee and assigning role and permissions.",
+    "modal": {
+      "addTitle": "Add employee",
+      "editTitle": "Edit employee",
+      "viewTitle": "Employee details",
+      "passwordTitle": "Change staff password",
+      "shiftTitle": "Change staff shift",
+      "permissionsTitle": "Manage staff permissions"
+    },
+    "form": {
+      "basicInfo": "Employee information",
+      "fullName": "Employee name",
+      "role": "Role",
+      "phone": "Phone",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "shift": "Shift",
+      "status": "Account status",
+      "permissions": "Permissions",
+      "notes": "Notes"
+    },
+    "validation": {
+      "passwordMismatch": "Passwords do not match",
+      "emailExists": "This email is already used by another employee in the same hotel"
+    },
+    "cards": {
+      "total": "Total staff",
+      "totalNote": "All registered hotel staff",
+      "active": "Active staff",
+      "activeNote": "Currently available for work",
+      "suspended": "Suspended",
+      "suspendedNote": "Needs review or reactivation",
+      "reception": "Reception",
+      "receptionNote": "Reception staff count",
+      "service": "Service team",
+      "serviceNote": "Housekeeping, maintenance, service, restaurant",
+      "permissions": "Permissions",
+      "noPermissions": "No specific permissions",
+      "noNotes": "No notes for this staff member",
+      "noEmail": "No email",
+      "noPhone": "No phone number",
+      "currentShift": "Current shift"
+    },
+    "toast": {
+      "passwordChanged": "Staff password changed successfully",
+      "shiftChanged": "Staff shift changed successfully",
+      "permissionsChanged": "Staff permissions updated successfully"
+    },
+    "pageDescription": "Manage staff members, permissions, and shifts from one place."
+  },
+  "reservation": {
+    "actions": {
+      "add": "Add reservation",
+      "view": "View",
+      "edit": "Edit",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "print": "Print",
+      "printCustomer": "Print for guest",
+      "viewDocument": "View document"
+    },
+    "filters": {
+      "search": "Search by guest, reservation number, or phone",
+      "status": "Reservation status",
+      "room": "Room",
+      "all": "All",
+      "employee": "Booking employee"
+    },
+    "columns": {
+      "number": "Reservation no.",
+      "guest": "Guest",
+      "room": "Room",
+      "period": "Period",
+      "status": "Status",
+      "amount": "Amount",
+      "paid": "Paid",
+      "actions": "Actions"
+    },
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "cancelled": "Cancelled",
+      "checked_in": "Checked in",
+      "completed": "Completed",
+      "archived": "Archived"
+    },
+    "source": {
+      "direct": "Direct",
+      "phone": "Phone",
+      "whatsapp": "WhatsApp",
+      "online": "Online",
+      "other": "Other"
+    },
+    "modal": {
+      "addTitle": "Add reservation",
+      "editTitle": "Edit reservation",
+      "viewTitle": "Reservation details"
+    },
+    "form": {
+      "reservationInfo": "Reservation information",
+      "number": "Reservation number",
+      "guestName": "Full name",
+      "guestPhone": "Guest phone",
+      "guestEmail": "Guest email",
+      "room": "Room",
+      "roomShort": "Room",
+      "guestsCount": "Guests count",
+      "checkInDate": "Check-in date",
+      "checkOutDate": "Check-out date",
+      "nights": "Nights",
+      "roomPrice": "Room price",
+      "totalAmount": "Total amount",
+      "paidAmount": "Paid amount",
+      "currency": "Currency",
+      "status": "Reservation status",
+      "source": "Reservation source",
+      "notes": "Notes",
+      "priceLockHelper": "The price is taken from the room price set by the hotel manager, and will be used later in invoices without receptionist changes.",
+      "guestIdentity": "Guest identity",
+      "nationalId": "National ID",
+      "guestFirstName": "First name",
+      "guestLastName": "Last name",
+      "fatherName": "Father name",
+      "motherName": "Mother name",
+      "birthDate": "Date of birth",
+      "documentInfo": "Documents",
+      "documentType": "Document type",
+      "documentImage": "Document image",
+      "scanDocument": "Scan document",
+      "noDocumentSelected": "No file selected",
+      "scannerHint": "Document source was set to scanner. Actual scanner service will be connected when scanner support is prepared.",
+      "documentRequired": "Upload the main ID/document image before saving the reservation.",
+      "noEmail": "No email"
+    },
+    "units": {
+      "nights": "nights"
+    },
+    "emptyTitle": "No reservations yet",
+    "emptyText": "Start by adding the first reservation after preparing rooms.",
+    "noRoomsTitle": "No rooms ready for reservation",
+    "noRoomsText": "Add a room from Rooms & Floors first to create a reservation.",
+    "documentType": {
+      "national_id": "National ID",
+      "passport": "Passport",
+      "family_book": "Family book",
+      "residence": "Residence card",
+      "other": "Other",
+      "kinship_proof": "Kinship proof"
+    },
+    "companions": {
+      "title": "Companions",
+      "hasCompanions": "Has companions",
+      "adultCount": "Adult companions",
+      "childrenCount": "Children count",
+      "relationship": "Relationship",
+      "childrenRelationship": "Children relationship",
+      "adultTitle": "Adult companion",
+      "groupType": "Companion type",
+      "groupCompanions": "Companions",
+      "groupFamily": "My family",
+      "familyBookRequired": "When My family is selected, the kinship proof must be a family book, while each adult companion document remains required.",
+      "documentType": "Companion document type",
+      "documentImage": "Companion document image",
+      "scanDocument": "Scan companion document",
+      "noDocumentSelected": "No companion document selected",
+      "documentRequired": "Upload a personal document for adult companion #",
+      "clickToComplete": "Click to complete companion details",
+      "documentsTitle": "Adult companion documents",
+      "documentsHelper": "Complete adult companion documents here instead of inside companion details.",
+      "noAdultDocuments": "No adult companion documents are required now.",
+      "documentForAdult": "Document for this companion"
+    },
+    "wizard": {
+      "steps": {
+        "guest": "Guest Info",
+        "documents": "Documents",
+        "companions": "Companions",
+        "booking": "Reservation Info"
+      }
+    },
+    "relationship": {
+      "spouse": "Spouse",
+      "son": "Son",
+      "daughter": "Daughter",
+      "father": "Father",
+      "mother": "Mother",
+      "brother": "Brother",
+      "sister": "Sister",
+      "relative": "Relative",
+      "friend": "Friend",
+      "other": "Other"
+    },
+    "familyProof": {
+      "title": "Family book or kinship proof",
+      "helper": "When My family or a family relationship is selected, upload a family book or kinship proof in addition to each adult companion document.",
+      "type": "Kinship proof type",
+      "file": "Family book / kinship proof image",
+      "scan": "Scan kinship proof",
+      "noFile": "No family book or kinship proof selected",
+      "required": "Upload a family book or kinship proof for family relationships."
+    },
+    "validation": {
+      "title": "Complete reservation information",
+      "stepPrefix": "Required in step",
+      "requiredField": "Please fill",
+      "field": "field",
+      "adultCompanionPrefix": "Adult companion",
+      "companionsEmpty": "Companions is selected, but no adult or child count was set.",
+      "invalidNights": "Nights must be at least 1.",
+      "saveFailed": "Reservation could not be saved. The document files are likely too large for local storage. This local version stores file names only; try saving again or use smaller files.",
+      "roomAlreadyReserved": "This room is already reserved. Choose another room."
+    },
+    "details": {
+      "guestSection": "Guest information",
+      "bookingSection": "Reservation information",
+      "moneySection": "Amounts",
+      "docsSection": "Documents and companions",
+      "documentReady": "Document uploaded",
+      "documentMissing": "Document missing",
+      "notRequired": "Not required",
+      "previewUnavailable": "No saved preview is available. The file may be too large for local storage.",
+      "documentsView": "View documents",
+      "overviewTab": "Overview",
+      "tabsLabel": "Reservation detail sections",
+      "stayPeriod": "Stay period",
+      "totalConfirmed": "Total reservation value",
+      "remainingAmount": "Remaining amount",
+      "quickSummary": "Quick summary"
+    },
+    "success": {
+      "title": "Reservation saved",
+      "text": "The reservation has been saved. You can now print the guest reservation copy."
+    },
+    "receipt": {
+      "title": "Reservation summary",
+      "generatedAt": "Printed at",
+      "customerCopy": "Guest copy",
+      "popupBlocked": "The browser blocked the print window. Allow popups and try again.",
+      "hotelDocument": "Official hotel document",
+      "balance": "Balance",
+      "termsTitle": "Reservation notes and terms",
+      "termsText": "Please present this document on arrival. Reservation details are handled according to hotel policy, and check-in, check-out, and changes are subject to management rules. The guest confirms the submitted information is correct and agrees to follow hotel policies and instructions during the stay.",
+      "customerSignature": "Customer signature",
+      "hotelSignature": "Hotel stamp / signature",
+      "formIntro": "This form summarizes the reservation, submitted document types, and approved administrative terms.",
+      "documentsTitle": "Submitted documents",
+      "documentsHelper": "Only the document type is recorded; document images are not shown or printed for the guest.",
+      "documentsText": "The following document types were recorded in the reservation file:"
+    },
+    "cards": {
+      "total": "Total reservations",
+      "totalNote": "All reservations in this hotel",
+      "pending": "Pending",
+      "pendingNote": "Needs confirmation or follow-up",
+      "confirmed": "Confirmed",
+      "confirmedNote": "Successfully confirmed",
+      "activeStay": "Active stays",
+      "activeStayNote": "Confirmed or checked-in reservations",
+      "revenue": "Reservation value",
+      "revenueNote": "Total reservation revenue",
+      "guests": "Guests",
+      "companions": "Companions",
+      "remaining": "Remaining",
+      "lastUpdate": "Last update",
+      "noNotes": "No notes for this reservation"
+    },
+    "staff": {
+      "bookedBy": "Booked by",
+      "managerShift": "Hotel management"
+    },
+    "documents": {
+      "mainTitle": "Booking owner document",
+      "mainHelper": "Choose the document type and upload a clear image or scan it.",
+      "optional": "Optional"
+    },
+    "room": "Room",
+    "noRoom": "No room",
+    "paid": "Paid",
+    "pageDescription": "A centralized workspace for reservations, statuses, filters, guest details, printing, confirmation, and cancellation from one place.",
+    "page": {
+      "kicker": "Reservations and stays management"
+    }
+  },
+  "avatar": {
+    "label": "Profile photo",
+    "title": "Optional profile photo",
+    "helper": "Upload a clear photo to display professionally in the manager or staff card.",
+    "choose": "Choose photo",
+    "remove": "Remove photo",
+    "noFile": "No photo selected",
+    "tooLarge": "Could not save the photo. Use an image smaller than 650KB."
+  },
+  "guests": {
+    "pageHint": "This section is generated automatically from saved reservations without re-entering guest data.",
+    "primaryRelation": "Booking owner",
+    "childrenName": "Children / minors",
+    "noDocuments": "No document type recorded",
+    "documentsTitle": "Submitted documents",
+    "documentsHelper": "Only the document type is shown in the guest profile; no images or copies are printed for the guest.",
+    "remaining": "Remaining",
+    "emptyTitle": "No guests yet",
+    "emptyText": "Create a reservation and the booking owner and companions will appear here automatically.",
+    "modalTitle": "Guest profile",
+    "type": {
+      "primary": "Booking owner",
+      "companion": "Adult companion",
+      "children": "Children"
+    },
+    "stayStatus": {
+      "all": "All",
+      "arriving": "Arriving today",
+      "active": "In-house",
+      "upcoming": "Upcoming",
+      "departed": "Departed",
+      "cancelled": "Cancelled",
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "checked_in": "Checked in",
+      "completed": "Completed"
+    },
+    "cards": {
+      "total": "Total guests",
+      "totalNote": "Booking owners, companions, and children",
+      "active": "In-house",
+      "activeNote": "Currently in stay period",
+      "arriving": "Arriving today",
+      "arrivingNote": "Guests checking in today",
+      "upcoming": "Upcoming",
+      "upcomingNote": "Later reservations",
+      "remaining": "Financial balance",
+      "remainingNote": "Across guest-linked reservations"
+    },
+    "filters": {
+      "search": "Search guest, ID, reservation, or room",
+      "status": "Stay status",
+      "type": "Guest type",
+      "room": "Room",
+      "all": "All"
+    },
+    "actions": {
+      "view": "View profile",
+      "reservation": "View reservation"
+    },
+    "details": {
+      "personalSection": "Guest information",
+      "bookingSection": "Reservation and stay",
+      "name": "Name",
+      "type": "Guest type",
+      "relationship": "Relation / capacity",
+      "remaining": "Remaining"
+    }
+  },
+  "checkInOut": {
+    "pageHint": "A daily operations screen for arrivals, in-house guests, departures, and room-linked financial alerts.",
+    "tabsLabel": "Check-in and check-out tabs",
+    "tabs": {
+      "arrivals": "Today arrivals",
+      "in_house": "In house",
+      "departures": "Today departures",
+      "attention": "Needs attention",
+      "log": "Log",
+      "inHouse": "In-house"
+    },
+    "cards": {
+      "arrivals": "Due arrivals",
+      "arrivalsNote": "Bookings ready for check-in",
+      "inHouse": "In house",
+      "inHouseNote": "Currently active stays",
+      "departures": "Due departures",
+      "departuresNote": "Guests to follow up for checkout",
+      "balance": "Balance due",
+      "balanceNote": "Total balance on active cases"
+    },
+    "filters": {
+      "search": "Search",
+      "date": "Operation date",
+      "room": "Room"
+    },
+    "status": {
+      "arrival_due": "Ready for check-in",
+      "in_house": "In house",
+      "departure_due": "Departure due",
+      "upcoming": "Upcoming",
+      "departed": "Departed",
+      "cancelled": "Cancelled",
+      "pending": "Pending",
+      "confirmed": "Confirmed"
+    },
+    "fields": {
+      "roomState": "Room state",
+      "persons": "persons",
+      "actualCheckIn": "Actual check-in",
+      "actualCheckOut": "Actual check-out"
+    },
+    "actions": {
+      "checkIn": "Check in",
+      "checkOut": "Check out"
+    },
+    "balanceWarning": "Balance warning",
+    "noActualTimes": "No actual time recorded yet",
+    "emptyTitle": "No matching operations",
+    "emptyText": "Change the date or filters to show other bookings.",
+    "empty": {
+      "arrivals": {
+        "title": "No due arrivals",
+        "text": "There are no bookings ready for check-in for the current operation date."
+      },
+      "in_house": {
+        "title": "No in-house guests",
+        "text": "Active stays will appear here after check-in."
+      },
+      "departures": {
+        "title": "No due departures",
+        "text": "There are no guests to check out for the current operation date."
+      },
+      "attention": {
+        "title": "No cases need attention",
+        "text": "There are no due departures or balances in the current active cases."
+      },
+      "log": {
+        "title": "No log yet",
+        "text": "Check-in and checkout history will appear here after operations are completed."
+      }
+    },
+    "toast": {
+      "checkedIn": "Guest checked in and room updated to occupied.",
+      "checkedOut": "Guest checked out and the room moved to cleaning. It will not become available until cleaning is confirmed.",
+      "checkedOutWithBalance": "Checkout is not allowed when a remaining balance exists.",
+      "checkoutBlockedBalance": "Checkout is blocked because this guest has remaining payments due. Settle the balance first. Remaining:",
+      "cannotCheckIn": "This case cannot be checked in.",
+      "cannotCheckOut": "This case cannot be checked out."
+    }
+  },
+  "housekeeping": {
+    "pageHint": "After checkout, the room automatically moves to cleaning. Once housekeeping finishes arranging and cleaning it, press Mark Clean to make it available again.",
+    "cards": {
+      "cleaning": "In cleaning",
+      "cleaningNote": "Rooms checked out and needing preparation",
+      "available": "Available",
+      "availableNote": "Ready to book after cleaning",
+      "occupied": "Occupied",
+      "occupiedNote": "Rooms with active stays",
+      "attention": "Needs attention",
+      "attentionNote": "Maintenance or out of service"
+    },
+    "filters": {
+      "search": "Search room, guest, or booking",
+      "status": "Room status",
+      "floor": "Floor",
+      "all": "All"
+    },
+    "flow": {
+      "afterCheckout": "After checkout",
+      "availableAfterClean": "Available after cleaning"
+    },
+    "fields": {
+      "cleaningStartedAt": "Cleaning started",
+      "lastReservation": "Last booking",
+      "lastGuest": "Last guest"
+    },
+    "actions": {
+      "markClean": "Mark clean",
+      "sendMaintenance": "Send to maintenance"
+    },
+    "cleaningHint": "This room is not available for booking until cleaning is confirmed.",
+    "emptyTitle": "No matching rooms",
+    "emptyText": "Change filters or wait for a new checkout to see cleaning rooms here.",
+    "toast": {
+      "markedClean": "Room cleaning confirmed and the room is now available for booking.",
+      "cannotMarkClean": "Only rooms in cleaning can be marked clean.",
+      "sentMaintenance": "Room moved to maintenance."
+    }
+  },
+  "payments": {
+    "description": "Financial tracking for orders and payments, with clear filtering for orders posted to room accounts.",
+    "emptyTitle": "No matching transactions",
+    "emptyText": "Change the filters or add a new order from Restaurant & Café.",
+    "roomChargeOrdersTitle": "Restaurant & Café orders by payment and room account",
+    "cards": {
+      "totalOrders": "Total orders",
+      "totalOrdersNote": "All registered restaurant and café orders",
+      "roomAccount": "Room account",
+      "roomAccountNote": "Posted amounts to consider before checkout",
+      "cashElectronic": "Cash / electronic",
+      "cashElectronicNote": "Orders paid directly",
+      "ordersCount": "Orders count",
+      "ordersCountNote": "Total registered transactions"
+    },
+    "filters": {
+      "search": "Search guest, room, or order",
+      "method": "Payment / posting method",
+      "all": "All",
+      "title": "Payment filters",
+      "note": "Search or choose a payment method without interfering with order cards."
+    },
+    "columns": {
+      "guest": "Guest",
+      "roomTable": "Room / table",
+      "order": "Order",
+      "method": "Payment method",
+      "amount": "Amount",
+      "createdAt": "Created at"
+    }
+  },
+  "maintenance": {
+    "pageHint": "Manage maintenance tickets and connect them to rooms. When maintenance is resolved, the room moves to cleaning before becoming available again.",
+    "autoTicketDescription": "Automatic maintenance ticket from housekeeping or room status workflow.",
+    "cleaningAfterResolve": "Cleaning after maintenance resolution",
+    "common": {
+      "newTicket": "New ticket",
+      "generalLocation": "General area",
+      "unassigned": "Unassigned"
+    },
+    "cards": {
+      "open": "Open tickets",
+      "openNote": "Waiting to start or assign",
+      "inProgress": "In progress",
+      "inProgressNote": "Maintenance team is working",
+      "critical": "High priority",
+      "criticalNote": "Urgent or high and not closed",
+      "resolved": "Resolved",
+      "resolvedNote": "Closed maintenance tickets"
+    },
+    "filters": {
+      "search": "Search ticket, room, or description",
+      "status": "Ticket status",
+      "priority": "Priority",
+      "room": "Room",
+      "all": "All"
+    },
+    "status": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "waiting_parts": "Waiting parts",
+      "resolved": "Resolved",
+      "cancelled": "Cancelled"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "types": {
+      "electric": "Electric",
+      "plumbing": "Plumbing",
+      "ac": "AC",
+      "internet": "Internet",
+      "furniture": "Furniture",
+      "appliance": "Appliance/equipment",
+      "door": "Doors and locks",
+      "cleaning_damage": "Cleaning/damage note",
+      "other": "Other"
+    },
+    "source": {
+      "manual": "Manual",
+      "housekeeping": "Housekeeping",
+      "room_status": "Room status"
+    },
+    "fields": {
+      "createdAt": "Created at",
+      "assignedTo": "Assigned to",
+      "source": "Source",
+      "updatedAt": "Last update"
+    },
+    "actions": {
+      "add": "Add maintenance ticket",
+      "save": "Save ticket",
+      "edit": "Edit",
+      "start": "Start work",
+      "resolve": "Resolve maintenance",
+      "waitingParts": "Waiting parts",
+      "cancel": "Cancel ticket"
+    },
+    "modal": {
+      "addTitle": "Add maintenance ticket",
+      "editTitle": "Edit maintenance ticket"
+    },
+    "form": {
+      "room": "Room / location",
+      "type": "Issue type",
+      "priority": "Priority",
+      "assignedTo": "Assign to",
+      "description": "Issue description",
+      "descriptionPlaceholder": "Write a clear short description of the issue or required action."
+    },
+    "activeHint": "The linked room must not become available before maintenance and cleaning are completed.",
+    "resolvedHint": "Ticket resolved. If linked to a room, it was moved to cleaning.",
+    "emptyTitle": "No matching maintenance tickets",
+    "emptyText": "Add a new ticket or change filters to show other tickets.",
+    "toast": {
+      "saved": "Maintenance ticket saved.",
+      "updated": "Maintenance ticket updated.",
+      "in_progress": "Maintenance work started.",
+      "waiting_parts": "Ticket moved to waiting parts.",
+      "resolved": "Maintenance resolved and linked room moved to cleaning if applicable.",
+      "cancelled": "Maintenance ticket cancelled."
+    }
+  },
+  "accountStatement": {
+    "title": "Guest account statement",
+    "print": "Print account statement",
+    "printShort": "Statement",
+    "paidOrders": "Paid orders",
+    "remaining": "Remaining",
+    "bookingTotal": "Stay total",
+    "bookingPaid": "Booking paid",
+    "roomOrdersTotal": "Room-account orders",
+    "generatedAt": "Printed at",
+    "customerCopy": "Customer copy",
+    "type": {
+      "roomStay": "Room stay",
+      "payment": "Payment"
+    },
+    "method": {
+      "roomCharge": "Stay charge",
+      "bookingPayment": "Booking payment"
+    },
+    "desc": {
+      "bookingPayment": "Amount paid against booking"
+    },
+    "columns": {
+      "type": "Item",
+      "desc": "Description",
+      "method": "Method",
+      "debit": "Debit",
+      "credit": "Paid"
+    }
+  },
+  "reports": {
+    "description": "Operational and financial reports that help management read hotel performance quickly and accurately.",
+    "tabsLabel": "Report types",
+    "printTitle": "Hotel Report",
+    "generatedAt": "Generated at",
+    "emptyTitle": "No data in the selected period",
+    "emptyText": "Change the date range or add operational data to view this report.",
+    "types": {
+      "overview": "Overview",
+      "reservations": "Reservations",
+      "financial": "Finance",
+      "rooms": "Rooms & Occupancy",
+      "food": "Restaurant & Cafeteria",
+      "maintenance": "Maintenance"
+    },
+    "periods": {
+      "today": "Today",
+      "last7": "Last 7 days",
+      "month": "This month",
+      "custom": "Custom range"
+    },
+    "filters": {
+      "period": "Period",
+      "from": "From",
+      "to": "To"
+    },
+    "actions": {
+      "print": "Print report",
+      "export": "Export CSV"
+    },
+    "cards": {
+      "reservations": "Reservations",
+      "reservationsNote": "Within selected period",
+      "revenue": "Total activity",
+      "revenueNote": "Stay + orders",
+      "occupancy": "Occupancy rate",
+      "activeGuests": "In-house guests",
+      "activeGuestsNote": "Based on current stays",
+      "roomAccount": "Room account",
+      "roomAccountNote": "Orders not paid directly",
+      "pendingOps": "Operational follow-up",
+      "pendingOpsNote": "Cleaning, maintenance, open tickets"
+    },
+    "sections": {
+      "financialOverview": "Quick financial overview",
+      "roomStatus": "Room status",
+      "smartInsights": "Management insights",
+      "reservations": "Reservations report",
+      "financial": "Financial breakdown",
+      "roomAccountOrders": "Orders posted to rooms",
+      "roomsByFloor": "Rooms by floor",
+      "rooms": "Rooms report",
+      "foodByPayment": "Food orders by payment",
+      "topFoodItems": "Top ordered items",
+      "foodOrders": "Restaurant and cafeteria orders",
+      "maintenanceByStatus": "Maintenance by status",
+      "maintenanceByPriority": "Maintenance by priority",
+      "maintenanceTickets": "Maintenance tickets"
+    },
+    "table": {
+      "item": "Item",
+      "value": "Value",
+      "note": "Note"
+    },
+    "columns": {
+      "no": "No.",
+      "guest": "Guest",
+      "room": "Room",
+      "dates": "Dates",
+      "status": "Status",
+      "total": "Total",
+      "paid": "Paid",
+      "due": "Due",
+      "item": "Item",
+      "floor": "Floor",
+      "type": "Type",
+      "reservation": "Reservation",
+      "quantity": "Quantity",
+      "source": "Source",
+      "method": "Payment method",
+      "location": "Location",
+      "priority": "Priority",
+      "assignedTo": "Assigned to",
+      "date": "Date"
+    },
+    "financial": {
+      "bookingRevenue": "Total stay value",
+      "bookingRevenueNote": "Reservation value in period",
+      "bookingPaid": "Reservation paid",
+      "bookingPaidNote": "Paid reservation amounts",
+      "cashOrders": "Cash orders",
+      "cashOrdersNote": "Restaurant and cafeteria cash",
+      "electronicOrders": "Electronic orders",
+      "electronicOrdersNote": "Restaurant and cafeteria electronic",
+      "roomAccount": "Room account orders",
+      "roomAccountNote": "Added to guest account statement",
+      "dueTotal": "Total due",
+      "dueTotalNote": "Checkout is blocked when due remains",
+      "foodRevenue": "Restaurant & cafeteria revenue"
+    },
+    "insights": {
+      "bestArea": "Strongest activity source",
+      "food": "Restaurant and cafeteria",
+      "reservations": "Reservations",
+      "bestAreaNote": "Based on selected period",
+      "checkoutRisk": "Checkout risk",
+      "checkoutRiskNote": "Amounts to collect before departure",
+      "operationalLoad": "Operational load",
+      "operationalLoadNote": "Rooms needing cleaning or maintenance"
+    },
+    "export": {
+      "reservationsCount": "Reservations count",
+      "completedReservations": "Completed reservations",
+      "checkedInReservations": "In-house reservations",
+      "reservationTotal": "Reservation value",
+      "bookingPaid": "Booking paid",
+      "dueTotal": "Due total",
+      "foodTotal": "Food orders",
+      "foodRoomAccount": "Room account",
+      "foodPaid": "Paid food orders",
+      "grandTotal": "Total activity",
+      "roomsCount": "Rooms count",
+      "occupied": "Occupied",
+      "occupancyRate": "Occupancy rate",
+      "activeGuests": "Active guests",
+      "cleaningRooms": "Cleaning rooms",
+      "maintenanceRooms": "Maintenance rooms",
+      "maintenanceOpen": "Open maintenance tickets"
+    }
+  },
+  "notifications": {
+    "cards": {
+      "total": "Total notifications",
+      "totalNote": "All current alerts",
+      "urgent": "Needs follow-up",
+      "urgentNote": "Alerts linked to active operations",
+      "priority": "Urgent / warning alerts",
+      "priorityNote": "Need quick action",
+      "safe": "Positive notifications",
+      "safeNote": "Stable items or no action needed"
+    },
+    "pageNote": "These notifications are real and generated from reservations, rooms, payments, and maintenance data",
+    "actions": {
+      "refresh": "Refresh",
+      "openSection": "Open section",
+      "openNotification": "Open notification",
+      "markRead": "Mark as read",
+      "markAllRead": "Mark all as read"
+    },
+    "status": {
+      "read": "Read",
+      "unread": "Unread"
+    },
+    "emptyUnreadTitle": "No unread notifications",
+    "emptyReadTitle": "No read notifications",
+    "emptyTitle": "No current notifications",
+    "emptyUnreadText": "All current alerts have been read or there is nothing requiring follow-up now.",
+    "emptyText": "Important hotel events will appear here automatically.",
+    "truePageSubtitle": "Real operational alerts for hotel activity. Opening a notification marks it as read and removes it from the bell counter.",
+    "filters": {
+      "statusLabel": "Filter notifications by read status",
+      "all": "All",
+      "unread": "Unread",
+      "read": "Read",
+      "urgent": "Urgent unread"
+    },
+    "feedTitle": "Hotel alert log",
+    "toast": {
+      "allRead": "All notifications marked as read"
+    },
+    "kicker": "Notifications Center"
+  },
+  "subscriptionPlan": {
+    "description": "Track your hotel active package and request an extension, renewal, or package change from one place.",
+    "currentTitle": "Current package",
+    "currentHint": "These details come from the hotel subscription registered by the platform owner",
+    "endingSoon": "Ending soon",
+    "activePackage": "Active package",
+    "noPackageText": "No active package yet. You can send a request to the platform owner.",
+    "requestsTitle": "Subscription requests",
+    "requestsHint": "Your request is saved so the platform owner can review it later",
+    "noRequestsTitle": "No requests yet",
+    "noRequestsText": "You can send an extension, renewal, or package change request from this page.",
+    "availablePackagesTitle": "Available packages",
+    "availablePackagesHint": "Choose any package to send a package change request",
+    "currentBadge": "Current package",
+    "noPackagesTitle": "No packages available",
+    "noPackagesText": "Packages will appear here after the platform owner adds and activates them.",
+    "actions": {
+      "extend": "Request extension",
+      "renew": "Request renewal",
+      "change": "Change package",
+      "requestThisPackage": "Request this package",
+      "requestSent": "Request sent",
+      "renewRequestSent": "Renewal request sent",
+      "renewNow": "Renew now"
+    },
+    "cards": {
+      "status": "Subscription status",
+      "statusNote": "Current package status",
+      "package": "Active package",
+      "packageNote": "No package selected yet",
+      "remaining": "Remaining days",
+      "noEndDate": "No end date",
+      "requests": "Your requests",
+      "requestsNote": "Extension, change, and renewal requests"
+    },
+    "requestType": {
+      "extend": "Extension request",
+      "renew": "Renewal request",
+      "change": "Package change request"
+    },
+    "requestStatus": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "done": "Completed"
+    },
+    "toast": {
+      "requestSent": "Request sent to the platform owner",
+      "packageRequestAlreadySent": "A request for this package was already sent. You cannot send another request for the same package.",
+      "renewRequestAlreadySent": "A renewal request was already sent. You cannot send another renewal request for the same package.",
+      "extendRequestAlreadySent": "An extension request was already sent. You cannot send another extension request for the same package.",
+      "requestAlreadySent": "This request was already sent and cannot be repeated.",
+      "renewalLockedWithDays": "Renewal or extension cannot be requested now because your account is still active. Requests open 7 days before the subscription ends. You can change the package at any time.",
+      "renewalLocked": "Renewal or extension cannot be requested now because your account is still active. Requests open only 7 days before the subscription ends. You can change the package at any time."
+    },
+    "packageUnavailable": "Currently unavailable",
+    "renewalWarning": {
+      "title": "Renewal is approaching",
+      "text": "You can send a renewal request before the subscription ends."
+    },
+    "requestsTable": {
+      "type": "Request type",
+      "requestedPackage": "Requested package",
+      "currentPackage": "Current package",
+      "status": "Status",
+      "createdAt": "Request date"
+    },
+    "head": {
+      "packagesCount": "packages",
+      "requestsCount": "requests"
+    },
+    "packageManagedByPlatform": "An operational package managed by the platform owner."
+  },
+  "staffDashboard": {
+    "title": "Staff operations dashboard",
+    "description": "A focused workspace that only shows tasks matching the employee role and permissions.",
+    "todayWork": "Today’s work"
+  },
+  "frontDesk": {
+    "title": "Daily front desk center",
+    "description": "Arrivals, departures, in-house guests, balances, and operational shortcuts in one workspace.",
+    "noArrivalsTitle": "No arrivals now",
+    "noArrivalsText": "Reservations due to check in today will appear here.",
+    "noInHouseTitle": "No in-house guests now",
+    "noInHouseText": "Checked-in reservations will appear here.",
+    "noDeparturesTitle": "No departures today",
+    "noDeparturesText": "Reservations due to check out today will appear here."
+  },
+  "platformOwner": {
+    "description": "Manage hotels, subscriptions, and packages from one place"
+  },
+  "register": {
+    "haveNoAccount": "Do not have a hotel account?",
+    "createAccount": "Create new account",
+    "eyebrow": "Register a new hotel",
+    "title": "Create a new account",
+    "description": "Create a local hotel account for trial use, then access the hotel management dashboard directly.",
+    "benefitsLabel": "New account benefits",
+    "benefitHotel": "Hotel account",
+    "benefitManager": "Primary manager",
+    "benefitLocal": "Local storage",
+    "hotelName": "Hotel name",
+    "managerName": "Manager name",
+    "email": "Email address",
+    "phone": "Phone number",
+    "country": "Country",
+    "city": "City",
+    "password": "Password",
+    "passwordConfirm": "Confirm password",
+    "submit": "Create account and sign in",
+    "alreadyHaveAccount": "Already have an account?",
+    "backToLogin": "Back to sign in",
+    "validationRequired": "Please fill in the required fields",
+    "validationPasswordLength": "Password must be at least 6 characters",
+    "validationPasswordMatch": "Passwords do not match",
+    "validationDuplicateEmail": "An account with this email already exists",
+    "toastCreated": "Account created and signed in successfully"
+  },
+  "forgot": {
+    "eyebrow": "Secure recovery",
+    "title": "Password recovery",
+    "description": "Enter the hotel account email and we will show a recovery message suitable for the local version.",
+    "safeTitle": "Protect hotel account",
+    "safeText": "In production, a recovery link will be sent by email.",
+    "submit": "Send recovery instructions",
+    "remembered": "Remembered your password?",
+    "toastSent": "Recovery instructions were prepared for this email in the local version",
+    "toastCheckEmail": "If the email exists, recovery instructions will be available"
+  },
+  "owner": {
+    "hotel": {
+      "rooms": "Rooms",
+      "staff": "Staff",
+      "reservations": "Reservations",
+      "openTasks": "Open tasks",
+      "profileKicker": "Platform customer profile",
+      "health": "Customer health"
+    },
+    "hotels": {
+      "kicker": "Platform customer management",
+      "subtitle": "Hotel profiles, subscription status, manager, and operating scale in clear cards instead of tables."
+    },
+    "common": {
+      "needsAttention": "Needs attention"
+    },
+    "managers": {
+      "kicker": "Hotel admin management",
+      "subtitle": "Track hotel manager accounts and link each manager to hotel and subscription status."
+    },
+    "package": {
+      "usedBy": "hotel using it"
+    },
+    "packages": {
+      "kicker": "Sales plan definitions",
+      "subtitle": "Packages define plans only; subscription requests have a separate inbox for review and decisions.",
+      "requestNote": "Upgrade and renewal requests appear on the Subscription Requests page, not here."
+    },
+    "subscriptions": {
+      "kicker": "Hotel subscription lifecycle",
+      "subtitle": "Track every subscription status, remaining duration, payment, and renewal from one center."
+    },
+    "requests": {
+      "kicker": "Independent transaction inbox"
+    }
+  },
+  "print": {
+    "popupBlocked": "Unable to open the print window. Please allow pop-up windows."
+  }
+}

@@ -1,0 +1,2038 @@
+{
+  "app": {
+    "name": "فندقي",
+    "subtitle": "منصة إدارة وتشغيل الفنادق",
+    "initial": "ف",
+    "title": "فندقي | منصة إدارة وتشغيل الفنادق",
+    "loading": "جاري التحميل..."
+  },
+  "login": {
+    "eyebrow": "منصة إدارة الفنادق",
+    "title": "تسجيل الدخول",
+    "description": "ادخل إلى حسابك للمتابعة.",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "button": "تسجيل الدخول",
+    "remember": "تذكرني",
+    "forgot": "نسيت كلمة المرور؟",
+    "security": "دخول آمن",
+    "languageIconLabel": "تغيير اللغة",
+    "showPassword": "إظهار كلمة المرور",
+    "hidePassword": "إخفاء كلمة المرور",
+    "visualTitle": "منصة واحدة لإدارة العمل الفندقي",
+    "visualDescription": "واجهات مخصصة لصاحب المنصة، مدير الفندق، وموظف الاستقبال.",
+    "feature1": "إدارة مركزية",
+    "feature2": "تنظيم تشغيلي",
+    "feature3": "وصول حسب الصلاحية",
+    "error": "بيانات الدخول غير صحيحة",
+    "visualLabel": "تعريف منصة فندقي",
+    "visualMetricBookings": "حجوزات",
+    "visualMetricBookingsNote": "متابعة يومية",
+    "visualMetricRooms": "الغرف",
+    "visualMetricRoomsNote": "إشغال وتنظيف",
+    "visualMetricAlerts": "تنبيهات",
+    "visualMetricAlertsNote": "تشغيل فوري",
+    "loginBenefitsLabel": "ميزات تسجيل الدخول",
+    "loginBenefitSecure": "دخول آمن",
+    "loginBenefitAlerts": "تنبيهات فورية",
+    "loginBenefitHotel": "إدارة الفندق"
+  },
+  "roles": {
+    "platform_owner": "صاحب المنصة",
+    "hotel_manager": "مدير الفندق",
+    "receptionist": "موظف الاستقبال",
+    "cashier": "كاشير",
+    "housekeeping": "موظف التنظيف",
+    "maintenance": "موظف الصيانة",
+    "restaurant": "موظف المطعم",
+    "room_service": "خدمة الغرف",
+    "supervisor": "مشرف التشغيل"
+  },
+  "nav": {
+    "dashboard": "لوحة التحكم",
+    "hotels": "الفنادق",
+    "subscriptions": "الاشتراكات",
+    "subscription_requests": "طلبات الاشتراك",
+    "platform_users": "المستخدمون",
+    "platform_settings": "إعدادات المنصة",
+    "rooms": "الغرف والطوابق",
+    "reservations": "الحجوزات",
+    "guests": "النزلاء",
+    "hotel_settings": "إعدادات الفندق",
+    "front_desk": "الاستقبال",
+    "check_in_out": "الدخول والمغادرة",
+    "payments": "المدفوعات",
+    "hotel_managers": "مديرو الفنادق",
+    "packages": "الباقات",
+    "staff": "الموظفون",
+    "room_service": "المطعم والكافتريا",
+    "housekeeping": "التنظيف",
+    "maintenance": "الصيانة",
+    "reports": "التقارير",
+    "subscription_plan": "الاشتراك والباقات",
+    "notifications": "الإشعارات"
+  },
+  "topbar": {
+    "languageIconLabel": "تغيير اللغة",
+    "logout": "تسجيل الخروج",
+    "refresh": "تحديث",
+    "refreshDone": "تم تحديث الواجهة",
+    "notifications": {
+      "openPage": "كل الإشعارات",
+      "clearTitle": "لا توجد تنبيهات حالياً",
+      "clearNote": "كل شيء تحت السيطرة",
+      "subscriptionRequestsTitle": "طلبات اشتراك واردة",
+      "subscriptionRequestsNote": "طلب بانتظار موافقة صاحب المنصة",
+      "endingSoonTitle": "اشتراكات قاربت على الانتهاء",
+      "endingSoonNote": "اشتراك يحتاج متابعة",
+      "expiredTitle": "اشتراكات منتهية",
+      "expiredNote": "اشتراك منتهي",
+      "suspendedHotelsTitle": "فنادق موقوفة",
+      "suspendedHotelsNote": "فندق يحتاج مراجعة",
+      "arrivalsTitle": "وصول اليوم",
+      "arrivalsNote": "حجز بانتظار تسجيل الدخول",
+      "departuresTitle": "مغادرة اليوم",
+      "departuresNote": "حجز يحتاج استكمال المغادرة",
+      "balanceTitle": "مبالغ مستحقة",
+      "balanceNote": "حجز عليه متبقي",
+      "cleaningTitle": "غرف تحت التنظيف",
+      "cleaningNote": "غرفة بانتظار التجهيز",
+      "maintenanceTitle": "بلاغات صيانة مفتوحة",
+      "maintenanceUrgent": "عاجلة",
+      "maintenanceNote": "إجمالي البلاغات",
+      "roomAccountTitle": "طلبات على حساب الغرف",
+      "roomAccountNote": "مرحلة على حساب النزلاء",
+      "label": "الإشعارات",
+      "title": "الإشعارات",
+      "subtitle": "متابعة سريعة لأهم ما يحتاج انتباهك"
+    },
+    "closeNavigation": "إغلاق القائمة",
+    "openNavigation": "فتح القائمة"
+  },
+  "toast": {
+    "loginSuccess": "تم تسجيل الدخول بنجاح",
+    "logoutSuccess": "تم تسجيل الخروج"
+  },
+  "page": {
+    "dashboard": "لوحة التحكم",
+    "hotels": "الفنادق",
+    "hotel_managers": "مديرو الفنادق",
+    "subscriptions": "الاشتراكات",
+    "subscription_requests": "طلبات الاشتراك",
+    "platform_settings": "إعدادات المنصة",
+    "rooms": "الغرف والطوابق",
+    "reservations": "الحجوزات",
+    "guests": "النزلاء",
+    "hotel_settings": "إعدادات الفندق",
+    "front_desk": "الاستقبال",
+    "check_in_out": "الدخول والمغادرة",
+    "payments": "المدفوعات",
+    "packages": "الباقات",
+    "staff": "الموظفون",
+    "room_service": "المطعم والكافتريا",
+    "housekeeping": "التنظيف",
+    "maintenance": "الصيانة",
+    "reports": "التقارير",
+    "notifications": "الإشعارات",
+    "subscription_plan": "الاشتراك والباقات"
+  },
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "close": "إغلاق",
+    "yes": "نعم",
+    "no": "لا",
+    "next": "التالي",
+    "previous": "السابق",
+    "user": "مستخدم",
+    "listSeparator": "، ",
+    "remove": "إزالة"
+  },
+  "hotel": {
+    "actions": {
+      "add": "إضافة فندق جديد",
+      "view": "عرض",
+      "edit": "تعديل",
+      "manager": "تعيين مدير",
+      "activate": "تفعيل",
+      "suspend": "إيقاف",
+      "archive": "أرشفة"
+    },
+    "filters": {
+      "search": "بحث باسم الفندق أو المدير",
+      "status": "الحالة",
+      "location": "الدولة أو المدينة",
+      "all": "الكل"
+    },
+    "columns": {
+      "name": "اسم الفندق",
+      "location": "الدولة / المدينة",
+      "manager": "مدير الفندق",
+      "phone": "الهاتف",
+      "email": "البريد الإلكتروني",
+      "status": "الحالة",
+      "createdAt": "تاريخ الإنشاء",
+      "actions": "الإجراءات"
+    },
+    "status": {
+      "active": "فعال",
+      "suspended": "موقوف",
+      "archived": "مؤرشف"
+    },
+    "emptyTitle": "لا توجد فنادق بعد",
+    "emptyText": "ابدأ بإضافة أول فندق من زر إضافة فندق جديد.",
+    "modal": {
+      "addTitle": "إضافة فندق جديد",
+      "editTitle": "تعديل فندق",
+      "managerTitle": "تعيين مدير الفندق",
+      "viewTitle": "تفاصيل الفندق"
+    },
+    "form": {
+      "hotelInfo": "بيانات الفندق",
+      "managerInfo": "بيانات مدير الفندق",
+      "name": "اسم الفندق",
+      "country": "الدولة",
+      "city": "المدينة",
+      "address": "العنوان",
+      "phone": "رقم الهاتف",
+      "email": "البريد الإلكتروني",
+      "managerName": "اسم مدير الفندق",
+      "managerPassword": "كلمة مرور المدير",
+      "status": "حالة الفندق",
+      "managerPasswordConfirm": "تأكيد كلمة المرور"
+    },
+    "details": {
+      "updatedAt": "آخر تحديث"
+    },
+    "validation": {
+      "passwordMismatch": "كلمتا المرور غير متطابقتين"
+    }
+  },
+  "manager": {
+    "filters": {
+      "search": "بحث باسم المدير أو الفندق أو البريد",
+      "status": "حالة الحساب",
+      "hotelStatus": "حالة الفندق",
+      "all": "الكل"
+    },
+    "columns": {
+      "manager": "مدير الفندق",
+      "email": "البريد الإلكتروني",
+      "hotel": "الفندق",
+      "location": "الدولة / المدينة",
+      "accountStatus": "حالة الحساب",
+      "hotelStatus": "حالة الفندق",
+      "updatedAt": "آخر تحديث",
+      "actions": "الإجراءات"
+    },
+    "status": {
+      "active": "فعال",
+      "suspended": "موقوف"
+    },
+    "actions": {
+      "edit": "تعديل المدير",
+      "activate": "تفعيل الحساب",
+      "suspend": "إيقاف الحساب"
+    },
+    "emptyTitle": "لا يوجد مديرو فنادق بعد",
+    "emptyText": "يتم إنشاء مدير الفندق من قسم الفنادق عند إضافة أو تعديل فندق."
+  },
+  "subscription": {
+    "trial": {
+      "autoNotes": "اشتراك تجريبي تلقائي لمدة 7 أيام عند إنشاء الحساب."
+    },
+    "actions": {
+      "add": "إضافة / تحديث اشتراك",
+      "setup": "ضبط الاشتراك",
+      "edit": "تعديل",
+      "view": "عرض",
+      "activate": "تفعيل",
+      "suspend": "إيقاف",
+      "renew": "تجديد"
+    },
+    "filters": {
+      "search": "بحث باسم الفندق أو المدير أو البريد",
+      "status": "حالة الاشتراك",
+      "plan": "الباقة",
+      "all": "الكل"
+    },
+    "columns": {
+      "hotel": "الفندق",
+      "plan": "الباقة",
+      "status": "حالة الاشتراك",
+      "period": "مدة الاشتراك",
+      "amount": "المبلغ الشهري",
+      "payment": "حالة الدفع",
+      "updatedAt": "آخر تحديث",
+      "actions": "الإجراءات",
+      "remaining": "الأيام المتبقية"
+    },
+    "status": {
+      "trial": "تجريبي",
+      "active": "فعال",
+      "expired": "منتهي",
+      "suspended": "موقوف",
+      "not_set": "غير مضبوط"
+    },
+    "plan": {
+      "trial": "تجريبية",
+      "basic": "أساسية",
+      "professional": "احترافية",
+      "premium": "مميزة",
+      "not_set": "غير محددة"
+    },
+    "payment": {
+      "paid": "مدفوع",
+      "unpaid": "غير مدفوع",
+      "partial": "جزئي"
+    },
+    "emptyNoHotelsTitle": "لا توجد فنادق للاشتراكات",
+    "emptyNoHotelsText": "أضف فندقًا أولًا من قسم الفنادق، ثم ارجع لضبط الاشتراك.",
+    "emptyFilteredTitle": "لا توجد نتائج مطابقة",
+    "emptyFilteredText": "غيّر البحث أو الفلاتر لعرض الاشتراكات.",
+    "modal": {
+      "formTitle": "إضافة / تعديل اشتراك",
+      "viewTitle": "تفاصيل الاشتراك"
+    },
+    "form": {
+      "subscriptionInfo": "بيانات الاشتراك",
+      "hotel": "الفندق",
+      "plan": "الباقة",
+      "status": "حالة الاشتراك",
+      "paymentStatus": "حالة الدفع",
+      "startDate": "تاريخ البداية",
+      "endDate": "تاريخ النهاية التلقائي",
+      "monthlyAmount": "سعر الباقة",
+      "currency": "العملة",
+      "notes": "ملاحظات",
+      "durationDays": "عدد أيام الباقة",
+      "remainingDays": "الأيام المتبقية",
+      "price": "السعر"
+    },
+    "validation": {
+      "addHotelFirst": "أضف فندقًا أولًا قبل إنشاء اشتراك.",
+      "hotelRequired": "يجب اختيار الفندق.",
+      "dateOrder": "تاريخ النهاية يجب أن يكون بعد تاريخ البداية.",
+      "addPackageFirst": "أضف باقة فعالة أولًا قبل إنشاء اشتراك.",
+      "packageRequired": "يجب اختيار الباقة."
+    },
+    "details": {
+      "automaticDates": "يتم حساب تاريخ النهاية تلقائيًا من تاريخ البداية وعدد أيام الباقة المختارة."
+    },
+    "emptyNoPackagesTitle": "لا توجد باقات فعالة",
+    "emptyNoPackagesText": "أضف باقة فعالة أولًا من قسم الباقات، ثم ارجع لضبط اشتراكات الفنادق.",
+    "remaining": {
+      "expired": "منتهي",
+      "today": "ينتهي اليوم",
+      "day": "يوم"
+    },
+    "toast": {
+      "renewed": "تم تجديد الاشتراك من تاريخ اليوم."
+    },
+    "requests": {
+      "approve": "موافقة وتفعيل",
+      "reject": "رفض",
+      "kicker": "متابعة صاحب المنصة",
+      "title": "طلبات الاشتراك الواردة",
+      "note": "طلبات تغيير أو تجديد أو تمديد الباقات التي يرسلها مدراء الفنادق تظهر هنا مباشرة.",
+      "pending": "قيد الانتظار",
+      "emptyTitle": "لا توجد طلبات اشتراك واردة",
+      "emptyText": "عندما يطلب مدير الفندق تغيير الباقة أو التجديد ستظهر الطلبات هنا مباشرة.",
+      "pageHint": "صندوق مستقل لمراجعة طلبات التجديد أو تغيير الباقة القادمة من الفنادق.",
+      "toast": {
+        "alreadyResolved": "تمت معالجة هذا الطلب سابقًا",
+        "rejected": "تم رفض طلب الاشتراك",
+        "hotelMissing": "تعذر العثور على الفندق المرتبط بالطلب",
+        "packageMissing": "تعذر العثور على الباقة المطلوبة",
+        "approved": "تمت الموافقة على الطلب وتفعيل الاشتراك"
+      },
+      "rejected": "مرفوضة"
+    }
+  },
+  "package": {
+    "defaultTrial": {
+      "name": "باقة تجريبية مجانية",
+      "description": "باقة تلقائية لمدة 7 أيام لكل فندق جديد حتى يبدأ العمل مباشرة دون إيقاف.",
+      "notes": "تُفعّل تلقائيًا عند تسجيل فندق جديد."
+    },
+    "actions": {
+      "add": "إضافة باقة جديدة",
+      "view": "عرض",
+      "edit": "تعديل",
+      "activate": "تفعيل",
+      "suspend": "إيقاف",
+      "archive": "أرشفة"
+    },
+    "filters": {
+      "search": "بحث باسم الباقة أو الوصف",
+      "status": "حالة الباقة",
+      "all": "الكل"
+    },
+    "columns": {
+      "name": "اسم الباقة",
+      "duration": "المدة",
+      "price": "السعر",
+      "limits": "الحدود",
+      "features": "الميزات",
+      "status": "الحالة",
+      "updatedAt": "آخر تحديث",
+      "actions": "الإجراءات"
+    },
+    "status": {
+      "active": "فعالة",
+      "suspended": "موقوفة",
+      "archived": "مؤرشفة"
+    },
+    "boolean": {
+      "yes": "نعم",
+      "no": "لا"
+    },
+    "units": {
+      "days": "يوم"
+    },
+    "emptyTitle": "لا توجد باقات بعد",
+    "emptyText": "ابدأ بإضافة أول باقة اشتراك، ثم استخدمها داخل قسم الاشتراكات.",
+    "modal": {
+      "addTitle": "إضافة باقة جديدة",
+      "editTitle": "تعديل باقة",
+      "viewTitle": "تفاصيل الباقة"
+    },
+    "form": {
+      "packageInfo": "بيانات الباقة",
+      "name": "اسم الباقة",
+      "description": "وصف مختصر",
+      "durationDays": "عدد أيام الباقة",
+      "price": "السعر",
+      "currency": "العملة",
+      "status": "حالة الباقة",
+      "maxUsers": "عدد المستخدمين المسموح",
+      "maxRooms": "عدد الغرف المسموح",
+      "restaurantSupport": "دعم المطعم / الكافتريا",
+      "reportsSupport": "دعم التقارير",
+      "trialSupport": "تدعم الوضع التجريبي",
+      "notes": "ملاحظات"
+    }
+  },
+  "settings": {
+    "actions": {
+      "save": "حفظ الإعدادات",
+      "uploadLogo": "رفع شعار",
+      "removeLogo": "إزالة الشعار",
+      "exportBackup": "تصدير نسخة احتياطية",
+      "importBackup": "استيراد نسخة احتياطية",
+      "clearDemoData": "مسح بيانات التشغيل"
+    },
+    "sections": {
+      "identity": "هوية المنصة",
+      "defaults": "الإعدادات الافتراضية",
+      "billing": "الفواتير والترقيم",
+      "support": "الدعم ووسائل التواصل",
+      "security": "الأمان",
+      "notifications": "التنبيهات",
+      "terms": "شروط الاشتراك",
+      "backup": "النسخ الاحتياطي",
+      "support_old": "الدعم والملاحظات"
+    },
+    "fields": {
+      "logo": "شعار المنصة",
+      "platformName": "اسم المنصة بالعربي",
+      "platformNameEn": "اسم المنصة بالإنكليزي",
+      "platformEmail": "البريد الرسمي",
+      "platformPhone": "رقم الهاتف الرسمي",
+      "defaultCurrency": "العملة الافتراضية",
+      "defaultLanguage": "اللغة الافتراضية",
+      "invoiceTitle": "عنوان الفاتورة",
+      "invoiceFooter": "ملاحظة أسفل الفاتورة",
+      "supportEmail": "بريد الدعم",
+      "supportPhone": "هاتف الدعم",
+      "notes": "ملاحظات داخلية",
+      "currentPassword": "كلمة المرور الحالية",
+      "newPassword": "كلمة المرور الجديدة",
+      "confirmPassword": "تأكيد كلمة المرور الجديدة",
+      "invoicePrefix": "بادئة رقم الفاتورة",
+      "invoiceLastNumber": "آخر رقم فاتورة",
+      "subscriptionPrefix": "بادئة رقم الاشتراك",
+      "subscriptionLastNumber": "آخر رقم اشتراك",
+      "subscriptionExpireBeforeDays": "تنبيه قبل انتهاء الاشتراك بعدد أيام",
+      "notifySubscriptionExpired": "تنبيه عند انتهاء الاشتراك",
+      "notifyNewHotel": "تنبيه عند إضافة فندق جديد",
+      "notifyHotelSuspended": "تنبيه عند إيقاف فندق",
+      "supportWhatsapp": "رقم واتساب الدعم",
+      "supportWhatsappLink": "رابط واتساب الدعم",
+      "websiteUrl": "رابط الموقع الرسمي",
+      "facebookUrl": "رابط فيسبوك",
+      "instagramUrl": "رابط إنستغرام",
+      "subscriptionTerms": "شروط الاشتراك",
+      "suspensionPolicy": "سياسة الإيقاف",
+      "legalNote": "ملاحظة قانونية مختصرة",
+      "defaultCountry": "الدولة الافتراضية",
+      "timezone": "المنطقة الزمنية",
+      "dateFormat": "صيغة التاريخ",
+      "timeFormat": "صيغة الوقت",
+      "taxRate": "نسبة الضريبة %",
+      "subscriptionWarningMessage": "رسالة التنبيه قبل انتهاء الاشتراك",
+      "subscriptionExpiredMessage": "رسالة انتهاء الاشتراك"
+    },
+    "toast": {
+      "saved": "تم حفظ إعدادات المنصة",
+      "savedWithPassword": "تم حفظ الإعدادات وتحديث كلمة المرور",
+      "backupExported": "تم تصدير النسخة الاحتياطية",
+      "backupImported": "تم استيراد النسخة الاحتياطية",
+      "backupInvalid": "ملف النسخة الاحتياطية غير صالح",
+      "demoDataCleared": "تم مسح بيانات التشغيل المحلية"
+    },
+    "validation": {
+      "currentPasswordWrong": "كلمة المرور الحالية غير صحيحة",
+      "passwordTooShort": "كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل",
+      "passwordMismatch": "كلمتا المرور غير متطابقتين"
+    },
+    "confirm": {
+      "clearDemoData": "سيتم مسح الفنادق والباقات والاشتراكات المحلية. هل أنت متأكد؟"
+    },
+    "backup": {
+      "helper": "التصدير والاستيراد يعملان على بيانات النسخة المحلية الحالية فقط."
+    },
+    "tabsLabel": "تبويبات إعدادات المنصة",
+    "preview": {
+      "invoicePreview": "معاينة الفاتورة",
+      "currency": "العملة",
+      "subtotal": "المجموع قبل الضريبة",
+      "tax": "الضريبة",
+      "total": "الإجمالي",
+      "footerFallback": "هذه معاينة تقريبية لشكل الفاتورة."
+    },
+    "timeFormat": {
+      "twentyFour": "24 ساعة",
+      "twelve": "12 ساعة"
+    },
+    "language": {
+      "arabic": "العربية",
+      "english": "English"
+    },
+    "defaults": {
+      "subscriptionWarningMessage": "تنبيه: اشتراك الفندق سينتهي قريبًا، يرجى التجديد لتجنب إيقاف الخدمة.",
+      "subscriptionExpiredMessage": "انتهى اشتراك الفندق، يرجى التجديد لإعادة تفعيل الخدمة."
+    },
+    "pageSubtitle": "إعدادات مركزية لهوية المنصة، الاشتراكات، الفواتير، الأمان، الدعم، والنسخ الاحتياطي."
+  },
+  "dashboard": {
+    "title": "لوحة التحكم",
+    "description": "ملخص ذكي لحالة المنصة بناءً على الفنادق والباقات والاشتراكات الحالية.",
+    "cards": {
+      "hotelsTotal": "إجمالي الفنادق",
+      "hotelsActive": "فنادق فعالة",
+      "hotelsSuspended": "فنادق موقوفة",
+      "managers": "مديرو الفنادق",
+      "packagesActive": "باقات فعالة",
+      "subscriptionsActive": "اشتراكات فعالة",
+      "endingSoon": "تنتهي قريبًا",
+      "expired": "اشتراكات منتهية",
+      "paidAmount": "إجمالي المدفوع",
+      "unpaidAmount": "إجمالي غير المدفوع",
+      "subscriptionRequests": "طلبات الاشتراك",
+      "platformScale": "حجم التشغيل",
+      "platformRevenue": "إيراد متوقع"
+    },
+    "notes": {
+      "allHotels": "اضغط لعرض كل الفنادق",
+      "activeHotels": "اضغط لعرض الفنادق الفعالة",
+      "suspendedHotels": "اضغط لعرض الفنادق الموقوفة",
+      "activeManagers": "مدير فعال",
+      "totalPackages": "إجمالي الباقات",
+      "activeSubscriptions": "اشتراكات فعالة أو تجريبية",
+      "within": "خلال",
+      "days": "يوم",
+      "expiredSubscriptions": "تحتاج متابعة أو تجديد",
+      "paidAmount": "حسب الاشتراكات المدفوعة",
+      "unpaidAmount": "غير مدفوع أو جزئي",
+      "subscriptionRequests": "طلبات بانتظار موافقة صاحب المنصة",
+      "platformScale": "غرف مسجلة عبر الفنادق"
+    },
+    "sections": {
+      "quickActions": "اختصارات سريعة",
+      "endingSoon": "اشتراكات قريبة الانتهاء",
+      "ownerInbox": "صندوق القرارات",
+      "ownerInboxHint": "طلبات تحتاج موافقة أو رفض من صاحب المنصة.",
+      "newHotels": "آخر الفنادق المسجلة",
+      "newHotelsHint": "متابعة التسجيلات الجديدة والتجارب التلقائية."
+    },
+    "quick": {
+      "addHotel": "إضافة فندق",
+      "addHotelNote": "فتح نموذج فندق جديد",
+      "addPackage": "إضافة باقة",
+      "addPackageNote": "إنشاء باقة اشتراك",
+      "addSubscription": "إضافة اشتراك",
+      "addSubscriptionNote": "ربط فندق بباقة"
+    },
+    "empty": {
+      "endingSoonTitle": "لا توجد اشتراكات قريبة الانتهاء",
+      "endingSoonText": "سيظهر هنا أي اشتراك يقترب من نهاية مدته حسب إعدادات التنبيه."
+    }
+  },
+  "managerInterface": {
+    "currentHotel": "الفندق الحالي",
+    "noHotelTitle": "لا يوجد فندق مرتبط بهذا الحساب",
+    "noHotelText": "يجب أن يضيف صاحب المنصة فندقًا ويربط بريد المدير بهذا الحساب قبل استخدام واجهة المدير."
+  },
+  "managerDashboard": {
+    "title": "لوحة مدير الفندق",
+    "description": "لوحة تشغيل ذكية تمنح المدير وصولًا مباشرًا إلى الحجوزات، النزلاء، الغرف، المطعم، الصيانة، المالية والتقارير.",
+    "cards": {
+      "roomsTotal": "إجمالي الغرف",
+      "roomsAvailable": "غرف متاحة",
+      "roomsOccupied": "غرف مشغولة",
+      "roomsMaintenance": "تحت الصيانة",
+      "roomsCleaning": "تحتاج تنظيف",
+      "floorsTotal": "عدد الطوابق"
+    },
+    "notes": {
+      "roomsTotal": "كل الغرف المسجلة",
+      "roomsAvailable": "جاهزة للحجز",
+      "roomsOccupied": "مشغولة حاليًا",
+      "roomsMaintenance": "غير متاحة مؤقتًا",
+      "roomsCleaning": "قيد التنظيف",
+      "floorsTotal": "طوابق تحتوي غرفًا"
+    },
+    "quick": {
+      "title": "اختصارات سريعة",
+      "newReservation": "حجز جديد",
+      "arrivals": "وصول اليوم",
+      "newFoodOrder": "طلب مطعم / كافتريا",
+      "cleaning": "التنظيف",
+      "maintenance": "بلاغ صيانة",
+      "reports": "التقارير"
+    },
+    "sections": {
+      "smartCards": "كروت لوحة التحكم الذكية",
+      "smartCardsHint": "اضغط على أي كرت للانتقال مباشرة"
+    },
+    "smart": {
+      "reservationsToday": "حجوزات اليوم",
+      "arrivalsToday": "وصول اليوم",
+      "inHouse": "مقيمون حاليًا",
+      "departuresToday": "مغادرة اليوم",
+      "roomsAvailable": "غرف متاحة",
+      "roomsOccupied": "غرف مشغولة",
+      "cleaningRooms": "غرف تحت التنظيف",
+      "maintenanceOpen": "بلاغات صيانة مفتوحة",
+      "guests": "النزلاء",
+      "foodOrdersToday": "طلبات اليوم",
+      "roomAccount": "على حساب الغرف",
+      "balanceDue": "متبقي مالي",
+      "financialReport": "التقرير المالي",
+      "hotelSettings": "إعدادات الفندق",
+      "staff": "الموظفون",
+      "open": "فتح",
+      "manage": "إدارة"
+    },
+    "smartNotes": {
+      "reservationsToday": "وصول أو مغادرة أو تعديل اليوم",
+      "arrivalsToday": "نزلاء يجب تسجيل دخولهم",
+      "inHouse": "حجوزات داخل الفندق الآن",
+      "departuresToday": "تحقق مالي قبل الخروج",
+      "roomsAvailable": "جاهزة لحجز جديد",
+      "roomsOccupied": "مرتبطة بنزلاء حاليين",
+      "cleaningRooms": "بعد المغادرة قبل الإتاحة",
+      "maintenanceOpen": "تحتاج متابعة تشغيلية",
+      "urgentMaintenance": "عاجل",
+      "totalGuestEntries": "إجمالي سجلات النزلاء",
+      "foodRevenueToday": "إيراد اليوم",
+      "roomAccount": "طلبات مرحلة على حساب الحجز",
+      "withBalance": "حجز عليه مبلغ",
+      "financialReport": "إقامات وطلبات وذمم",
+      "hotelSettings": "هوية الفندق والخدمات",
+      "staff": "صلاحيات وحسابات وصور",
+      "roomsOverview": "كل غرف الفندق"
+    }
+  },
+  "room": {
+    "actions": {
+      "add": "إضافة غرفة",
+      "view": "عرض",
+      "edit": "تعديل",
+      "archive": "أرشفة",
+      "restore": "استعادة"
+    },
+    "filters": {
+      "search": "بحث برقم الغرفة أو الملاحظة",
+      "status": "الحالة",
+      "type": "نوع الغرفة",
+      "floor": "الطابق",
+      "all": "الكل",
+      "title": "فلترة الغرف",
+      "note": "ابحث أو اختر الحالة والنوع والطابق بدون تداخل مع بطاقات الغرف."
+    },
+    "columns": {
+      "number": "رقم الغرفة",
+      "floor": "الطابق",
+      "type": "النوع",
+      "capacity": "السعة",
+      "status": "الحالة",
+      "price": "السعر",
+      "createdAt": "تاريخ الإنشاء",
+      "updatedAt": "آخر تحديث",
+      "actions": "الإجراءات"
+    },
+    "status": {
+      "available": "متاحة",
+      "occupied": "مشغولة",
+      "cleaning": "تنظيف",
+      "maintenance": "صيانة",
+      "out_of_service": "خارج الخدمة",
+      "archived": "مؤرشفة",
+      "booked": "محجوزة"
+    },
+    "type": {
+      "single": "مفردة",
+      "double": "مزدوجة",
+      "triple": "ثلاثية",
+      "suite": "سويت",
+      "family": "عائلية",
+      "suite_room": "غرفة داخل سويت",
+      "deluxe": "غرفة مميزة",
+      "wing": "جناح"
+    },
+    "emptyTitle": "لا توجد غرف بعد",
+    "emptyText": "ابدأ بإضافة أول غرفة لهذا الفندق.",
+    "modal": {
+      "addTitle": "إضافة غرفة",
+      "editTitle": "تعديل غرفة",
+      "viewTitle": "تفاصيل الغرفة"
+    },
+    "form": {
+      "roomInfo": "بيانات الغرفة",
+      "number": "رقم الغرفة",
+      "floor": "الطابق",
+      "type": "نوع الغرفة",
+      "capacity": "السعة",
+      "status": "حالة الغرفة",
+      "price": "السعر",
+      "currency": "العملة",
+      "notes": "ملاحظات",
+      "floorPrefix": "الطابق",
+      "priceLockHelper": "هذا السعر يحدده مدير الفندق ويُستخدم لاحقًا في الحجوزات بدون أن يغيّره موظف الاستقبال."
+    },
+    "cards": {
+      "total": "إجمالي الغرف",
+      "totalNote": "عدد الغرف المسجلة في الفندق",
+      "floors": "إجمالي الطوابق",
+      "floorsNote": "الطوابق المفعلة والمستخدمة",
+      "available": "متاحة",
+      "availableNote": "جاهزة للحجز حالياً",
+      "occupied": "مشغولة",
+      "occupiedNote": "عليها نزلاء أو حجز نشط",
+      "attention": "تحتاج متابعة",
+      "attentionNote": "تنظيف أو صيانة أو إيقاف",
+      "floorLabel": "نظرة على الطابق",
+      "roomsWord": "غرف",
+      "roomLabel": "غرفة",
+      "noNotes": "لا توجد ملاحظات على هذه الغرفة",
+      "booked": "محجوزة"
+    },
+    "archiveHelper": "الغرف المؤرشفة لا تُحذف؛ تجدها من فلتر الحالة باختيار مؤرشفة، ويمكن استعادتها من نفس الكرت.",
+    "page": {
+      "description": "إدارة مركزية للطوابق والغرف مع حالات التشغيل والأسعار والسعة."
+    },
+    "floors": {
+      "editAction": "تعديل الطوابق",
+      "overviewTitle": "نظرة الطوابق",
+      "modalTitle": "تعديل عدد الطوابق",
+      "modalSection": "إعدادات الطوابق",
+      "countLabel": "عدد الطوابق المفعلة",
+      "countHelper": "لا يمكن تقليل العدد عن أعلى طابق مستخدم حاليًا داخل الغرف.",
+      "usedFloors": "الطوابق المستخدمة حاليًا",
+      "usedFloorsHelper": "هذه الطوابق مأخوذة من الغرف المسجلة، وتساعدك على معرفة الحد الأدنى الآمن.",
+      "saveAction": "حفظ الطوابق",
+      "savedToast": "تم تحديث عدد الطوابق بنجاح."
+    }
+  },
+  "hotelSettings": {
+    "description": "إعدادات تشغيل الفندق والتواصل والسياسات والفواتير التي يعتمد عليها إنشاء الغرف والحجوزات والخدمات لاحقًا.",
+    "logoAlt": "شعار الفندق",
+    "sections": {
+      "identity": "هوية الفندق",
+      "operation": "إعدادات التشغيل",
+      "policies": "السياسات",
+      "billing": "الفواتير",
+      "services": "المطعم والكافتريا",
+      "contact": "معلومات التواصل"
+    },
+    "fields": {
+      "displayName": "اسم الفندق الظاهر",
+      "country": "الدولة",
+      "city": "المدينة",
+      "address": "العنوان",
+      "phone": "رقم الهاتف",
+      "email": "البريد الإلكتروني",
+      "floorsCount": "عدد الطوابق",
+      "defaultCurrency": "العملة الافتراضية",
+      "roomTypes": "أنواع الغرف المتاحة",
+      "checkInTime": "وقت الدخول",
+      "checkOutTime": "وقت المغادرة",
+      "cancellationPolicy": "سياسة الإلغاء",
+      "paymentPolicy": "سياسة الدفع",
+      "invoiceTitle": "عنوان الفاتورة",
+      "invoiceFooter": "ملاحظة أسفل الفاتورة",
+      "taxRate": "نسبة الضريبة",
+      "notes": "ملاحظات داخلية",
+      "workStartTime": "بداية دوام الفندق",
+      "workEndTime": "نهاية دوام الفندق",
+      "restaurantName": "اسم المطعم",
+      "restaurantHasTables": "استقبال طلبات من طاولات المطعم",
+      "restaurantTablesCount": "عدد طاولات المطعم",
+      "restaurantRoomDelivery": "استقبال طلبات من غرف الفندق عبر المطعم",
+      "restaurantServiceScope": "نطاق طلبات المطعم",
+      "restaurantNotes": "ملاحظات المطعم",
+      "cafeteriaName": "اسم الكافتريا",
+      "cafeteriaHasTables": "استقبال طلبات من طاولات الكافتريا",
+      "cafeteriaTablesCount": "عدد طاولات الكافتريا",
+      "cafeteriaRoomDelivery": "استقبال طلبات من غرف الفندق عبر الكافتريا",
+      "cafeteriaServiceScope": "نطاق طلبات الكافتريا",
+      "cafeteriaNotes": "ملاحظات الكافتريا",
+      "restaurantScheduleMode": "طريقة عمل المطعم",
+      "restaurantShiftCount": "عدد ورديات المطعم",
+      "cafeteriaScheduleMode": "طريقة عمل الكافتريا",
+      "cafeteriaShiftCount": "عدد ورديات الكافتريا",
+      "shiftStart": "بداية الوردية",
+      "shiftEnd": "نهاية الوردية",
+      "reception24_7": "الاستقبال يعمل 24/7",
+      "receptionShiftCount": "عدد ورديات الاستقبال",
+      "receptionShiftStart": "بداية وردية الاستقبال",
+      "receptionShiftEnd": "نهاية وردية الاستقبال",
+      "restaurantExternalOrders": "تسجيل طلبات خارجية للضيف من المطعم",
+      "cafeteriaExternalOrders": "تسجيل طلبات خارجية للضيف من الكافتريا",
+      "receptionPhone": "هاتف الاستقبال",
+      "reservationsPhone": "هاتف الحجوزات",
+      "whatsappNumber": "رقم واتساب الفندق",
+      "supportPhone": "هاتف الدعم / خدمة الضيوف",
+      "emergencyPhone": "رقم الطوارئ الداخلي",
+      "contactEmail": "بريد التواصل الرسمي",
+      "websiteUrl": "رابط الموقع الإلكتروني",
+      "facebookUrl": "رابط فيسبوك",
+      "instagramUrl": "رابط إنستغرام",
+      "googleMapsUrl": "رابط الموقع على الخريطة",
+      "depositEnabled": "يوجد عربون للحجز",
+      "depositAmount": "قيمة العربون الافتراضية",
+      "depositRefundable": "العربون قابل للاسترداد",
+      "securityDepositRequired": "يوجد تأمين عند الدخول",
+      "securityDepositAmount": "قيمة التأمين الافتراضية",
+      "autoCleaningAfterCheckout": "تحويل الغرفة للتنظيف تلقائيًا بعد المغادرة",
+      "defaultCleaningMinutes": "مدة التنظيف الافتراضية بالدقائق",
+      "taxNumber": "الرقم الضريبي",
+      "commercialRegister": "رقم السجل التجاري",
+      "bookingPrefix": "بادئة رقم الحجز",
+      "bookingLastNumber": "آخر رقم حجز",
+      "hotelInvoicePrefix": "بادئة رقم فاتورة الفندق",
+      "hotelInvoiceLastNumber": "آخر رقم فاتورة",
+      "serviceOrderPrefix": "بادئة رقم طلب الخدمة",
+      "serviceOrderLastNumber": "آخر رقم طلب خدمة"
+    },
+    "actions": {
+      "save": "حفظ الإعدادات",
+      "uploadLogo": "رفع شعار",
+      "removeLogo": "إزالة الشعار",
+      "addRoomType": "إضافة نوع",
+      "removeRoomType": "حذف نوع الغرفة"
+    },
+    "toast": {
+      "saved": "تم حفظ إعدادات الفندق"
+    },
+    "tabsLabel": "تبويبات إعدادات الفندق",
+    "roomTypes": {
+      "placeholder": "مثال: سويت، جناح، غرفة مميزة",
+      "helper": "أضف كل أنواع الغرف التي يستخدمها الفندق، وستظهر تلقائيًا عند إضافة غرفة جديدة.",
+      "empty": "لا توجد أنواع غرف بعد",
+      "duplicate": "نوع الغرفة موجود مسبقًا"
+    },
+    "services": {
+      "description": "فعّل المطعم أو الكافتريا فقط إذا كانت موجودة في الفندق. الاسم المستخدم للخدمة هو اسم الفندق نفسه، ومن هنا يتم تحديد مصادر الطلبات: غرفة، طاولة، أو طلب خارجي للضيف.",
+      "restaurantTitle": "يوجد مطعم",
+      "cafeteriaTitle": "يوجد كافتريا",
+      "restaurantHelper": "تفعيل إعدادات تسجيل طلبات المطعم داخل الفندق.",
+      "cafeteriaHelper": "تفعيل إعدادات تسجيل طلبات الكافتريا داخل الفندق.",
+      "serviceUsesHotelName": "اسم الخدمة يعتمد على اسم الفندق ولا يحتاج اسمًا منفصلًا:",
+      "orderSourcesTitle": "مصادر تسجيل الطلبات",
+      "orderSourcesHelper": "يمكن تسجيل الطلبات من غرفة، من طاولة، أو كطلب خارجي للضيف عند شراء شيء من خارج الفندق."
+    },
+    "serviceScope": {
+      "inside": "الخدمة داخل المكان فقط",
+      "room_delivery": "توصيل للغرف فقط",
+      "both": "داخل المكان + توصيل للغرف"
+    },
+    "scheduleMode": {
+      "24_7": "يعمل 24/7",
+      "shifts": "يعمل حسب ورديات"
+    },
+    "receptionShifts": {
+      "helper": "هذه الورديات تخص موظفي الاستقبال، وليست المطعم أو الكافتريا."
+    }
+  },
+  "foodServices": {
+    "description": "إدارة أصناف المطعم والكافتريا وتسجيل الطلبات المسلّمة مباشرة، مع فواتير طباعة وترحيل طلبات الغرف إلى الحسابات المالية.",
+    "emptyTitle": "لا توجد خدمات طعام مفعلة",
+    "emptyText": "فعّل المطعم أو الكافتريا من إعدادات الفندق أولًا.",
+    "scope": "نطاق الخدمة",
+    "tables": "الطاولات",
+    "roomDelivery": "طلبات الغرف",
+    "externalOrders": "طلبات خارجية",
+    "ordersTitle": "سجل فواتير المطعم والكافتريا",
+    "ordersEmptyTitle": "لا توجد طلبات بعد",
+    "ordersEmptyText": "ابدأ بتسجيل أول طلب من زر تسجيل طلب جديد.",
+    "sourcesMissingTitle": "لا توجد مصادر طلبات مفعلة",
+    "sourcesMissingText": "فعّل خدمات المطعم أو الكافتريا من إعدادات الفندق، ويمكن تسجيل طلبات الضيافة والزوار حتى بدون غرفة.",
+    "actions": {
+      "addOrder": "تسجيل طلب جديد",
+      "printInvoice": "طباعة الفاتورة"
+    },
+    "modal": {
+      "addTitle": "تسجيل طلب"
+    },
+    "fields": {
+      "serviceType": "نوع الخدمة",
+      "sourceType": "مصدر الطلب",
+      "roomNumber": "رقم الغرفة",
+      "tableNumber": "رقم الطاولة",
+      "guestName": "اسم الضيف",
+      "externalVendor": "مصدر الشراء الخارجي",
+      "orderText": "تفاصيل الطلب",
+      "amount": "الإجمالي",
+      "notes": "ملاحظات",
+      "notSelected": "غير محدد",
+      "paymentMethod": "طريقة الدفع",
+      "selectGuest": "اختر النزيل من الغرفة",
+      "selectRoom": "اختر الغرفة",
+      "selectRoomOptional": "اختر الغرفة عند الحاجة",
+      "selectGuestOptional": "اختر النزيل من الغرفة عند الحاجة",
+      "walkInGuestName": "اسم الزائر / الضيافة"
+    },
+    "placeholders": {
+      "table": "مثال: 5",
+      "guest": "اختياري",
+      "externalVendor": "مثال: مطعم خارجي / سوبر ماركت / صيدلية",
+      "orderText": "اكتب تفاصيل الطلب المطلوب",
+      "walkInGuest": "مثال: ضيف خارجي / ضيافة / زائر"
+    },
+    "columns": {
+      "source": "المصدر",
+      "details": "التفاصيل",
+      "request": "الأصناف",
+      "amount": "المبلغ",
+      "status": "الحالة",
+      "createdAt": "تاريخ التسجيل",
+      "paymentMethod": "طريقة الدفع"
+    },
+    "source": {
+      "room": "طلب من غرفة",
+      "table": "طلب من طاولة",
+      "external": "طلب خارجي للضيف",
+      "hospitality": "زائر / ضيافة"
+    },
+    "service": {
+      "restaurant": "المطعم",
+      "cafeteria": "الكافتريا",
+      "external": "طلب خارجي"
+    },
+    "status": {
+      "pending": "قيد المتابعة",
+      "preparing": "قيد التحضير",
+      "delivered": "تم التسليم",
+      "cancelled": "ملغي"
+    },
+    "noActiveGuestsTitle": "لا يوجد نزلاء داخل الفندق",
+    "noActiveGuestsText": "يمكن تسجيل طلبات الزوار والضيافة بدون غرفة، أما طلبات الغرف فتُربط بالنزلاء الموجودين داخل الغرف.",
+    "roomAccountHelper": "إذا كان الطلب من غرفة، اختر النزيل من الغرفة ليتم جلب الغرفة والحجز تلقائيًا. طلبات الزوار والضيافة تبقى مفتوحة ويمكن دفعها نقدي أو إلكتروني أو تسجيلها على حساب الطاولة.",
+    "paymentMethod": {
+      "cash": "نقدي",
+      "electronic": "إلكتروني",
+      "room_account": "على حساب الغرفة / الطاولة"
+    },
+    "financialStatus": {
+      "paid": "مدفوع",
+      "roomAccount": "مرحل على حساب الغرفة / الطاولة"
+    },
+    "validation": {
+      "guestRequired": "يجب اختيار النزيل من الغرفة أو كتابة اسم الزائر/الضيافة.",
+      "tableRequired": "يجب إدخال رقم الطاولة للطلبات القادمة من الطاولة.",
+      "roomGuestRequired": "طلبات الغرفة يجب ربطها بنزيل موجود داخل الغرفة حتى يتم جلب بيانات الغرفة والحجز.",
+      "guestNameRequired": "اختر النزيل من الغرفة أو اكتب اسم الزائر / الضيافة.",
+      "roomAccountGuestRequired": "الترحيل على حساب الغرفة يحتاج نزيلًا مرتبطًا بحجز داخل الغرفة.",
+      "itemsRequired": "يجب اختيار صنف واحد على الأقل من المنيو."
+    },
+    "finance": {
+      "roomCharges": "طلبات الغرفة / الطاولة"
+    },
+    "menu": {
+      "title": "الأصناف / المنيو",
+      "addItem": "إضافة صنف",
+      "modalTitle": "إضافة صنف للمطعم والكافتريا",
+      "categoryLabel": "تصنيف الصنف",
+      "name": "اسم الصنف",
+      "namePlaceholder": "مثال: شاي / قهوة / وجبة إفطار",
+      "price": "السعر",
+      "availabilityLabel": "حالة الصنف",
+      "description": "وصف اختياري",
+      "descriptionPlaceholder": "مكونات أو ملاحظة قصيرة عن الصنف",
+      "emptyTitle": "لا توجد أصناف بعد",
+      "emptyText": "أضف أصناف المشروبات والأطعمة حتى يتم اختيارها داخل الطلبات بدل الكتابة اليدوية.",
+      "emptyForOrderText": "أضف أصنافًا من المنيو أولًا حتى يمكن تسجيل الطلبات.",
+      "selectItem": "اختر الصنف",
+      "quantity": "الكمية",
+      "orderItemsTitle": "الأصناف المطلوبة",
+      "chooseItemsHelper": "اختر الأطعمة والمشروبات من المنيو ويتم حساب الإجمالي تلقائيًا.",
+      "addItemRow": "إضافة صنف",
+      "category": {
+        "drinks": "مشروبات",
+        "food": "أطعمة",
+        "dessert": "حلويات / سناك",
+        "hospitality": "ضيافة",
+        "extras": "إضافات"
+      },
+      "availability": {
+        "available": "متاح",
+        "unavailable": "غير متاح"
+      }
+    },
+    "seed": {
+      "tea": "شاي",
+      "coffee": "قهوة",
+      "water": "مياه",
+      "breakfast": "وجبة إفطار",
+      "sandwich": "سندويش دجاج",
+      "hospitality": "ضيافة مجانية"
+    },
+    "invoice": {
+      "title": "فاتورة طلب"
+    }
+  },
+  "staff": {
+    "actions": {
+      "add": "إضافة موظف",
+      "view": "عرض",
+      "edit": "تعديل",
+      "activate": "تفعيل",
+      "suspend": "إيقاف",
+      "archive": "أرشفة",
+      "changePassword": "تغيير كلمة السر",
+      "changeShift": "تغيير الوردية",
+      "managePermissions": "الصلاحيات",
+      "restore": "استعادة"
+    },
+    "filters": {
+      "search": "بحث باسم الموظف أو البريد أو الهاتف",
+      "role": "الدور",
+      "status": "الحالة",
+      "all": "الكل"
+    },
+    "columns": {
+      "name": "اسم الموظف",
+      "role": "الدور",
+      "contact": "التواصل",
+      "shift": "الوردية",
+      "status": "الحالة",
+      "permissions": "الصلاحيات",
+      "createdAt": "تاريخ الإنشاء",
+      "updatedAt": "آخر تحديث",
+      "actions": "الإجراءات"
+    },
+    "roles": {
+      "receptionist": "موظف استقبال",
+      "cashier": "كاشير",
+      "housekeeping": "تنظيف",
+      "maintenance": "صيانة",
+      "restaurant": "مطعم",
+      "room_service": "خدمة غرف",
+      "supervisor": "مشرف"
+    },
+    "status": {
+      "active": "فعال",
+      "suspended": "موقوف",
+      "archived": "مؤرشف"
+    },
+    "shifts": {
+      "morning": "صباحية",
+      "evening": "مسائية",
+      "night": "ليلية",
+      "flexible": "حسب الحاجة"
+    },
+    "permissions": {
+      "reservations": "الحجوزات",
+      "check_in_out": "الدخول والمغادرة",
+      "payments": "المدفوعات",
+      "rooms": "الغرف",
+      "room_service": "خدمة الغرف",
+      "housekeeping": "التنظيف",
+      "maintenance": "الصيانة",
+      "reports": "التقارير"
+    },
+    "emptyTitle": "لا يوجد موظفون بعد",
+    "emptyText": "ابدأ بإضافة أول موظف لهذا الفندق وتحديد الدور والصلاحيات.",
+    "modal": {
+      "addTitle": "إضافة موظف",
+      "editTitle": "تعديل موظف",
+      "viewTitle": "تفاصيل الموظف",
+      "passwordTitle": "تغيير كلمة سر الموظف",
+      "shiftTitle": "تغيير وردية الموظف",
+      "permissionsTitle": "إدارة صلاحيات الموظف"
+    },
+    "form": {
+      "basicInfo": "بيانات الموظف",
+      "fullName": "اسم الموظف",
+      "role": "الدور",
+      "phone": "الهاتف",
+      "email": "البريد الإلكتروني",
+      "password": "كلمة المرور",
+      "confirmPassword": "تأكيد كلمة المرور",
+      "shift": "الوردية",
+      "status": "حالة الحساب",
+      "permissions": "الصلاحيات",
+      "notes": "ملاحظات"
+    },
+    "validation": {
+      "passwordMismatch": "كلمتا المرور غير متطابقتين",
+      "emailExists": "هذا البريد مستخدم لموظف آخر داخل نفس الفندق"
+    },
+    "cards": {
+      "total": "إجمالي الموظفين",
+      "totalNote": "كل الموظفين المسجلين في الفندق",
+      "active": "الموظفون الفعالون",
+      "activeNote": "جاهزون للعمل حالياً",
+      "suspended": "الموقوفون",
+      "suspendedNote": "بحاجة لمراجعة أو إعادة تفعيل",
+      "reception": "الاستقبال",
+      "receptionNote": "عدد موظفي الاستقبال",
+      "service": "فريق الخدمات",
+      "serviceNote": "تنظيف وصيانة وخدمة ومطعم",
+      "permissions": "الصلاحيات",
+      "noPermissions": "لا توجد صلاحيات محددة",
+      "noNotes": "لا توجد ملاحظات على هذا الموظف",
+      "noEmail": "لا يوجد بريد إلكتروني",
+      "noPhone": "لا يوجد رقم هاتف",
+      "currentShift": "الوردية الحالية"
+    },
+    "toast": {
+      "passwordChanged": "تم تغيير كلمة سر الموظف بنجاح",
+      "shiftChanged": "تم تغيير وردية الموظف بنجاح",
+      "permissionsChanged": "تم تحديث صلاحيات الموظف بنجاح"
+    },
+    "pageDescription": "إدارة الموظفين وصلاحياتهم ووردياتهم من مكان واحد."
+  },
+  "reservation": {
+    "actions": {
+      "add": "إضافة حجز",
+      "view": "عرض",
+      "edit": "تعديل",
+      "confirm": "تأكيد",
+      "cancel": "إلغاء",
+      "print": "طباعة",
+      "printCustomer": "طباعة للزبون",
+      "viewDocument": "عرض الوثيقة"
+    },
+    "filters": {
+      "search": "بحث باسم الضيف أو رقم الحجز أو الهاتف",
+      "status": "حالة الحجز",
+      "room": "الغرفة",
+      "all": "الكل",
+      "employee": "موظف الحجز"
+    },
+    "columns": {
+      "number": "رقم الحجز",
+      "guest": "الضيف",
+      "room": "الغرفة",
+      "period": "الفترة",
+      "status": "الحالة",
+      "amount": "المبلغ",
+      "paid": "مدفوع",
+      "actions": "الإجراءات"
+    },
+    "status": {
+      "pending": "قيد الانتظار",
+      "confirmed": "مؤكد",
+      "cancelled": "ملغي",
+      "checked_in": "تم الدخول",
+      "completed": "مكتمل",
+      "archived": "مؤرشف"
+    },
+    "source": {
+      "direct": "مباشر",
+      "phone": "هاتف",
+      "whatsapp": "واتساب",
+      "online": "أونلاين",
+      "other": "أخرى"
+    },
+    "modal": {
+      "addTitle": "إضافة حجز",
+      "editTitle": "تعديل حجز",
+      "viewTitle": "تفاصيل الحجز"
+    },
+    "form": {
+      "reservationInfo": "بيانات الحجز",
+      "number": "رقم الحجز",
+      "guestName": "الاسم الكامل",
+      "guestPhone": "هاتف الضيف",
+      "guestEmail": "بريد الضيف",
+      "room": "الغرفة",
+      "roomShort": "غرفة",
+      "guestsCount": "عدد الأشخاص",
+      "checkInDate": "تاريخ الدخول",
+      "checkOutDate": "تاريخ المغادرة",
+      "nights": "عدد الليالي",
+      "roomPrice": "سعر الغرفة",
+      "totalAmount": "الإجمالي",
+      "paidAmount": "المدفوع",
+      "currency": "العملة",
+      "status": "حالة الحجز",
+      "source": "مصدر الحجز",
+      "notes": "ملاحظات",
+      "priceLockHelper": "السعر مأخوذ من سعر الغرفة الذي حدده مدير الفندق، وسيستخدم لاحقًا في الفواتير ولا يغيره موظف الاستقبال.",
+      "guestIdentity": "بيانات النزيل",
+      "nationalId": "الرقم الوطني",
+      "guestFirstName": "الاسم",
+      "guestLastName": "الكنية",
+      "fatherName": "اسم الأب",
+      "motherName": "اسم الأم",
+      "birthDate": "المواليد",
+      "documentInfo": "الوثائق",
+      "documentType": "نوع الوثيقة",
+      "documentImage": "صورة الوثيقة",
+      "scanDocument": "سحب من الماسح الضوئي",
+      "noDocumentSelected": "لم يتم اختيار ملف",
+      "scannerHint": "تم تحديد مصدر الوثيقة كماسح ضوئي. سيتم ربط الماسح فعليًا عند تجهيز خدمة الماسح.",
+      "documentRequired": "يجب رفع صورة الهوية أو الوثيقة الأساسية قبل حفظ الحجز.",
+      "noEmail": "لا يوجد إيميل"
+    },
+    "units": {
+      "nights": "ليالي"
+    },
+    "emptyTitle": "لا توجد حجوزات بعد",
+    "emptyText": "ابدأ بإضافة أول حجز بعد تجهيز الغرف.",
+    "noRoomsTitle": "لا توجد غرف جاهزة للحجز",
+    "noRoomsText": "أضف غرفة من قسم الغرف والطوابق أولًا حتى تتمكن من إنشاء حجز.",
+    "documentType": {
+      "national_id": "هوية شخصية",
+      "passport": "جواز سفر",
+      "family_book": "دفتر عائلة",
+      "residence": "إقامة",
+      "other": "أخرى",
+      "kinship_proof": "إثبات قرابة"
+    },
+    "companions": {
+      "title": "المرافقون",
+      "hasCompanions": "يوجد مرافقون",
+      "adultCount": "عدد البالغين المرافقين",
+      "childrenCount": "عدد الأطفال",
+      "relationship": "صلة القرابة",
+      "childrenRelationship": "صلة قرابة الأطفال",
+      "adultTitle": "مرافق بالغ",
+      "groupType": "نوع المرافقين",
+      "groupCompanions": "مرافقون",
+      "groupFamily": "عائلتي",
+      "familyBookRequired": "عند اختيار عائلتي يجب أن يكون إثبات القرابة دفتر عائلة، مع بقاء وثيقة كل بالغ مطلوبة.",
+      "documentType": "نوع وثيقة المرافق",
+      "documentImage": "صورة وثيقة المرافق",
+      "scanDocument": "سحب وثيقة المرافق من الماسح",
+      "noDocumentSelected": "لم يتم اختيار وثيقة للمرافق",
+      "documentRequired": "يجب رفع وثيقة شخصية للمرافق البالغ رقم",
+      "clickToComplete": "اضغط لإكمال بيانات المرافق",
+      "documentsTitle": "وثائق المرافقين البالغين",
+      "documentsHelper": "تُستكمل هنا وثائق كل مرافق بالغ بدل وضعها داخل بيانات المرافقين.",
+      "noAdultDocuments": "لا توجد وثائق مرافقين مطلوبة حالياً.",
+      "documentForAdult": "وثيقة هذا المرافق"
+    },
+    "wizard": {
+      "steps": {
+        "guest": "بيانات النزيل",
+        "documents": "الوثائق",
+        "companions": "المرافقون",
+        "booking": "بيانات الحجز"
+      }
+    },
+    "relationship": {
+      "spouse": "زوج/زوجة",
+      "son": "ابن",
+      "daughter": "ابنة",
+      "father": "أب",
+      "mother": "أم",
+      "brother": "أخ",
+      "sister": "أخت",
+      "relative": "قريب",
+      "friend": "صديق",
+      "other": "أخرى"
+    },
+    "familyProof": {
+      "title": "دفتر عائلة أو إثبات قرابة",
+      "helper": "عند اختيار عائلتي أو صلة قرابة عائلية، يجب رفع دفتر عائلة أو إثبات قرابة بالإضافة إلى وثيقة كل شخص بالغ.",
+      "type": "نوع إثبات القرابة",
+      "file": "صورة دفتر العائلة / إثبات القرابة",
+      "scan": "سحب إثبات القرابة من الماسح",
+      "noFile": "لم يتم اختيار دفتر عائلة أو إثبات قرابة",
+      "required": "يجب رفع دفتر عائلة أو إثبات قرابة عند وجود علاقة عائلية."
+    },
+    "validation": {
+      "title": "يرجى إكمال بيانات الحجز",
+      "stepPrefix": "المطلوب في خطوة",
+      "requiredField": "يرجى تعبئة",
+      "field": "الحقل",
+      "adultCompanionPrefix": "المرافق البالغ",
+      "companionsEmpty": "تم اختيار وجود مرافقين، لكن لم يتم تحديد عدد البالغين أو الأطفال.",
+      "invalidNights": "عدد الليالي يجب أن يكون 1 على الأقل.",
+      "saveFailed": "تعذر حفظ الحجز. غالبًا حجم ملفات الوثائق كبير على التخزين المحلي، تم حفظ أسماء الملفات فقط في النسخة المحلية. جرّب إعادة الحفظ أو استخدم ملفات أصغر.",
+      "roomAlreadyReserved": "هذه الغرفة محجوزة حاليًا، اختر غرفة أخرى."
+    },
+    "details": {
+      "guestSection": "بيانات النزيل",
+      "bookingSection": "بيانات الحجز",
+      "moneySection": "المبالغ",
+      "docsSection": "الوثائق والمرافقون",
+      "documentReady": "تم رفع الوثيقة",
+      "documentMissing": "الوثيقة غير مرفوعة",
+      "notRequired": "غير مطلوب",
+      "previewUnavailable": "لا توجد صورة محفوظة للعرض. قد يكون الملف كبيرًا جدًا للتخزين المحلي.",
+      "documentsView": "عرض الوثائق",
+      "overviewTab": "نظرة عامة",
+      "tabsLabel": "أقسام تفاصيل الحجز",
+      "stayPeriod": "فترة الإقامة",
+      "totalConfirmed": "إجمالي قيمة الحجز",
+      "remainingAmount": "المتبقي",
+      "quickSummary": "ملخص سريع"
+    },
+    "success": {
+      "title": "تم الحجز بنجاح",
+      "text": "تم تسجيل الحجز ويمكنك الآن طباعة معلومات الحجز للزبون."
+    },
+    "receipt": {
+      "title": "ملخص الحجز",
+      "generatedAt": "تاريخ الطباعة",
+      "customerCopy": "نسخة الزبون",
+      "popupBlocked": "المتصفح منع نافذة الطباعة. اسمح بالنوافذ المنبثقة ثم أعد المحاولة.",
+      "hotelDocument": "مستند رسمي صادر عن الفندق",
+      "balance": "المتبقي",
+      "termsTitle": "ملاحظات وشروط الحجز",
+      "termsText": "يرجى إبراز هذه الورقة عند الوصول. يتم اعتماد بيانات الحجز حسب سياسة الفندق، وتخضع أوقات الدخول والمغادرة والتعديلات لشروط الإدارة. يقر الضيف بصحة المعلومات المقدمة ويوافق على الالتزام بسياسات الفندق والتعليمات المعمول بها أثناء الإقامة.",
+      "customerSignature": "توقيع الزبون",
+      "hotelSignature": "ختم / توقيع الفندق",
+      "formIntro": "يوضح هذا النموذج تفاصيل الحجز والوثائق المقدمة والشروط الإدارية المعتمدة.",
+      "documentsTitle": "الوثائق المقدمة",
+      "documentsHelper": "يتم تسجيل نوع الوثيقة فقط دون عرض أو طباعة صور الوثائق للزبون.",
+      "documentsText": "الوثائق التالية تم تسجيل نوعها ضمن ملف الحجز:"
+    },
+    "cards": {
+      "total": "إجمالي الحجوزات",
+      "totalNote": "كل الحجوزات المسجلة في الفندق",
+      "pending": "قيد الانتظار",
+      "pendingNote": "بحاجة لتأكيد أو متابعة",
+      "confirmed": "مؤكدة",
+      "confirmedNote": "تم تثبيتها بنجاح",
+      "activeStay": "إقامات نشطة",
+      "activeStayNote": "حجوزات مؤكدة أو داخل الإقامة",
+      "revenue": "قيمة الحجوزات",
+      "revenueNote": "إجمالي قيمة الحجوزات",
+      "guests": "عدد الأشخاص",
+      "companions": "المرافقون",
+      "remaining": "المتبقي",
+      "lastUpdate": "آخر تحديث",
+      "noNotes": "لا توجد ملاحظات على هذا الحجز"
+    },
+    "staff": {
+      "bookedBy": "موظف الحجز",
+      "managerShift": "إدارة الفندق"
+    },
+    "documents": {
+      "mainTitle": "وثيقة صاحب الحجز",
+      "mainHelper": "اختر نوع الوثيقة وارفع صورة واضحة أو اسحبها من الماسح.",
+      "optional": "اختياري"
+    },
+    "room": "الغرفة",
+    "noRoom": "بدون غرفة",
+    "paid": "مدفوع",
+    "pageDescription": "صفحة مركزية لإدارة الحجوزات، متابعة الحالات، الفلاتر، تفاصيل الضيف، الطباعة، والتأكيد أو الإلغاء من مكان واحد.",
+    "page": {
+      "kicker": "إدارة الحجوزات والإقامات"
+    }
+  },
+  "avatar": {
+    "label": "الصورة الشخصية",
+    "title": "صورة شخصية اختيارية",
+    "helper": "ارفع صورة واضحة لتظهر بشكل احترافي في كرت المدير أو الموظف.",
+    "choose": "اختيار صورة",
+    "remove": "حذف الصورة",
+    "noFile": "لم يتم اختيار صورة",
+    "tooLarge": "تعذر حفظ الصورة. استخدم صورة أصغر من 650KB."
+  },
+  "guests": {
+    "pageHint": "يعرض هذا القسم النزلاء تلقائيًا من الحجوزات المسجلة، بدون تكرار إدخال البيانات.",
+    "primaryRelation": "صاحب الحجز",
+    "childrenName": "أطفال / قاصرون",
+    "noDocuments": "لا يوجد نوع وثيقة مسجل",
+    "documentsTitle": "الوثائق المقدمة",
+    "documentsHelper": "يتم عرض نوع الوثيقة فقط داخل ملف النزيل، بدون صور أو نسخ للزبون.",
+    "remaining": "المتبقي",
+    "emptyTitle": "لا يوجد نزلاء بعد",
+    "emptyText": "أضف حجزًا جديدًا وسيظهر صاحب الحجز والمرافقون هنا تلقائيًا.",
+    "modalTitle": "ملف النزيل",
+    "type": {
+      "primary": "صاحب الحجز",
+      "companion": "مرافق بالغ",
+      "children": "أطفال"
+    },
+    "stayStatus": {
+      "all": "الكل",
+      "arriving": "وصول اليوم",
+      "active": "مقيم حاليًا",
+      "upcoming": "قادمة",
+      "departed": "مغادر",
+      "cancelled": "ملغي",
+      "pending": "قيد الانتظار",
+      "confirmed": "مؤكد",
+      "checked_in": "داخل الإقامة",
+      "completed": "مكتمل"
+    },
+    "cards": {
+      "total": "إجمالي النزلاء",
+      "totalNote": "صاحب الحجز والمرافقون والأطفال",
+      "active": "مقيمون حاليًا",
+      "activeNote": "داخل فترة الإقامة",
+      "arriving": "وصول اليوم",
+      "arrivingNote": "نزلاء تاريخ دخولهم اليوم",
+      "upcoming": "قادمة",
+      "upcomingNote": "حجوزات لاحقة",
+      "remaining": "المتبقي المالي",
+      "remainingNote": "على ملفات النزلاء المرتبطة بالحجوزات"
+    },
+    "filters": {
+      "search": "بحث باسم النزيل أو رقمه أو الحجز أو الغرفة",
+      "status": "حالة الإقامة",
+      "type": "نوع النزيل",
+      "room": "الغرفة",
+      "all": "الكل"
+    },
+    "actions": {
+      "view": "عرض الملف",
+      "reservation": "عرض الحجز"
+    },
+    "details": {
+      "personalSection": "بيانات النزيل",
+      "bookingSection": "بيانات الحجز والإقامة",
+      "name": "الاسم",
+      "type": "نوع النزيل",
+      "relationship": "الصفة / القرابة",
+      "remaining": "المتبقي"
+    }
+  },
+  "checkInOut": {
+    "pageHint": "شاشة تشغيل يومية لمتابعة وصول النزلاء، المقيمين حاليًا، المغادرات، والتنبيهات المالية المرتبطة بالغرف.",
+    "tabsLabel": "تبويبات الدخول والمغادرة",
+    "tabs": {
+      "arrivals": "وصول اليوم",
+      "in_house": "مقيمون حاليًا",
+      "departures": "مغادرة اليوم",
+      "attention": "بحاجة متابعة",
+      "log": "السجل",
+      "inHouse": "داخل الفندق"
+    },
+    "cards": {
+      "arrivals": "وصول مستحق",
+      "arrivalsNote": "حجوزات جاهزة لتسجيل الدخول",
+      "inHouse": "داخل الفندق",
+      "inHouseNote": "إقامات فعالة الآن",
+      "departures": "مغادرة مستحقة",
+      "departuresNote": "نزلاء يجب متابعتهم للخروج",
+      "balance": "متبقي مالي",
+      "balanceNote": "إجمالي المتبقي على الحالات النشطة"
+    },
+    "filters": {
+      "search": "بحث",
+      "date": "تاريخ التشغيل",
+      "room": "الغرفة"
+    },
+    "status": {
+      "arrival_due": "جاهز للدخول",
+      "in_house": "داخل الفندق",
+      "departure_due": "مغادرة مستحقة",
+      "upcoming": "قادم لاحقًا",
+      "departed": "غادر",
+      "cancelled": "ملغي",
+      "pending": "قيد الانتظار",
+      "confirmed": "مؤكد"
+    },
+    "fields": {
+      "roomState": "حالة الغرفة",
+      "persons": "أشخاص",
+      "actualCheckIn": "الدخول الفعلي",
+      "actualCheckOut": "الخروج الفعلي"
+    },
+    "actions": {
+      "checkIn": "تسجيل دخول",
+      "checkOut": "تسجيل خروج"
+    },
+    "balanceWarning": "تنبيه متبقي مالي",
+    "noActualTimes": "لم يتم تسجيل وقت فعلي بعد",
+    "emptyTitle": "لا توجد عمليات مطابقة",
+    "emptyText": "غيّر التاريخ أو الفلاتر لعرض حجوزات أخرى.",
+    "empty": {
+      "arrivals": {
+        "title": "لا يوجد وصول مستحق",
+        "text": "لا توجد حجوزات جاهزة للدخول حسب تاريخ التشغيل الحالي."
+      },
+      "in_house": {
+        "title": "لا يوجد نزلاء داخل الفندق",
+        "text": "عند تسجيل الدخول ستظهر الإقامات الفعالة هنا."
+      },
+      "departures": {
+        "title": "لا توجد مغادرات مستحقة",
+        "text": "لا يوجد نزلاء يجب تسجيل خروجهم حسب تاريخ التشغيل الحالي."
+      },
+      "attention": {
+        "title": "لا توجد حالات بحاجة متابعة",
+        "text": "لا توجد مغادرات مستحقة أو مبالغ متبقية ضمن الحالات الحالية."
+      },
+      "log": {
+        "title": "لا يوجد سجل بعد",
+        "text": "سيظهر هنا سجل الدخول والمغادرة بعد تنفيذ العمليات."
+      }
+    },
+    "toast": {
+      "checkedIn": "تم تسجيل دخول النزيل وتحديث الغرفة إلى مشغولة.",
+      "checkedOut": "تم تسجيل خروج النزيل وتحويل الغرفة إلى التنظيف، ولن تصبح متاحة إلا بعد تأكيد تم التنظيف.",
+      "checkedOutWithBalance": "لا يتم تسجيل الخروج عند وجود متبقي مالي.",
+      "checkoutBlockedBalance": "لا يمكن تسجيل خروج النزيل لأن عليه دفعات مالية متبقية. يجب تسديد المبلغ أولًا. المتبقي:",
+      "cannotCheckIn": "لا يمكن تسجيل الدخول لهذه الحالة.",
+      "cannotCheckOut": "لا يمكن تسجيل الخروج لهذه الحالة."
+    }
+  },
+  "housekeeping": {
+    "pageHint": "بعد تسجيل المغادرة تتحول الغرفة تلقائيًا إلى تنظيف. عند إنهاء الترتيب والتنظيف اضغط تم التنظيف لتعود الغرفة متاحة للحجز.",
+    "cards": {
+      "cleaning": "قيد التنظيف",
+      "cleaningNote": "غرف خرج منها نزلاء وتحتاج تجهيز",
+      "available": "متاحة",
+      "availableNote": "جاهزة للحجز بعد التنظيف",
+      "occupied": "مشغولة",
+      "occupiedNote": "غرف عليها إقامة حالية",
+      "attention": "تحتاج متابعة",
+      "attentionNote": "صيانة أو خارج الخدمة"
+    },
+    "filters": {
+      "search": "بحث بالغرفة أو النزيل أو الحجز",
+      "status": "حالة الغرفة",
+      "floor": "الطابق",
+      "all": "الكل"
+    },
+    "flow": {
+      "afterCheckout": "بعد المغادرة",
+      "availableAfterClean": "تعود متاحة بعد التنظيف"
+    },
+    "fields": {
+      "cleaningStartedAt": "بدء التنظيف",
+      "lastReservation": "آخر حجز",
+      "lastGuest": "آخر نزيل"
+    },
+    "actions": {
+      "markClean": "تم التنظيف",
+      "sendMaintenance": "إرسال للصيانة"
+    },
+    "cleaningHint": "الغرفة غير متاحة للحجز حتى يتم تأكيد انتهاء التنظيف.",
+    "emptyTitle": "لا توجد غرف مطابقة",
+    "emptyText": "غيّر الفلاتر أو انتظر تسجيل مغادرة جديدة لتظهر غرف التنظيف هنا.",
+    "toast": {
+      "markedClean": "تم تأكيد تنظيف الغرفة وأصبحت متاحة للحجز.",
+      "cannotMarkClean": "لا يمكن تأكيد التنظيف إلا لغرفة حالتها تنظيف.",
+      "sentMaintenance": "تم تحويل الغرفة إلى الصيانة."
+    }
+  },
+  "payments": {
+    "description": "الحسابات المالية للطلبات والمدفوعات، مع فرز واضح للطلبات المرحّلة على حساب الغرفة.",
+    "emptyTitle": "لا توجد حركات مطابقة للفرز",
+    "emptyText": "غيّر الفلاتر أو أضف طلبًا جديدًا من قسم المطعم والكافتريا.",
+    "roomChargeOrdersTitle": "فرز طلبات المطعم والكافتريا حسب الدفع وحساب الغرفة",
+    "cards": {
+      "totalOrders": "إجمالي الطلبات",
+      "totalOrdersNote": "كل طلبات المطعم والكافتريا المسجلة",
+      "roomAccount": "على حساب الغرفة",
+      "roomAccountNote": "مبالغ مرحّلة يجب أخذها بالحسبان قبل المغادرة",
+      "cashElectronic": "نقدي / إلكتروني",
+      "cashElectronicNote": "طلبات تم دفعها مباشرة",
+      "ordersCount": "عدد الطلبات",
+      "ordersCountNote": "إجمالي الحركات المسجلة"
+    },
+    "filters": {
+      "search": "بحث باسم النزيل أو الغرفة أو الطلب",
+      "method": "طريقة الدفع / الترحيل",
+      "all": "الكل",
+      "title": "فلترة المدفوعات",
+      "note": "ابحث أو اختر طريقة الدفع بدون تداخل مع كروت الطلبات."
+    },
+    "columns": {
+      "guest": "النزيل",
+      "roomTable": "الغرفة / الطاولة",
+      "order": "الطلب",
+      "method": "طريقة الدفع",
+      "amount": "المبلغ",
+      "createdAt": "وقت التسجيل"
+    }
+  },
+  "maintenance": {
+    "pageHint": "إدارة بلاغات الصيانة وربطها بالغرف. عند إنهاء الصيانة تعود الغرفة إلى التنظيف أولًا ثم تصبح متاحة بعد تأكيد تم التنظيف.",
+    "autoTicketDescription": "بلاغ صيانة تلقائي من دورة التنظيف أو حالة الغرفة.",
+    "cleaningAfterResolve": "تنظيف بعد انتهاء الصيانة",
+    "common": {
+      "newTicket": "بلاغ جديد",
+      "generalLocation": "مرفق عام",
+      "unassigned": "غير معيّن"
+    },
+    "cards": {
+      "open": "بلاغات مفتوحة",
+      "openNote": "بانتظار البدء أو التعيين",
+      "inProgress": "قيد المعالجة",
+      "inProgressNote": "فريق الصيانة يعمل عليها",
+      "critical": "أولوية عالية",
+      "criticalNote": "عاجلة أو مرتفعة ولم تُغلق",
+      "resolved": "تم إنجازها",
+      "resolvedNote": "بلاغات صيانة مغلقة"
+    },
+    "filters": {
+      "search": "بحث بالبلاغ أو الغرفة أو الوصف",
+      "status": "حالة البلاغ",
+      "priority": "الأولوية",
+      "room": "الغرفة",
+      "all": "الكل"
+    },
+    "status": {
+      "open": "مفتوح",
+      "in_progress": "قيد المعالجة",
+      "waiting_parts": "بانتظار قطع",
+      "resolved": "تم الإنجاز",
+      "cancelled": "ملغي"
+    },
+    "priority": {
+      "low": "منخفضة",
+      "medium": "متوسطة",
+      "high": "مرتفعة",
+      "urgent": "عاجلة"
+    },
+    "types": {
+      "electric": "كهرباء",
+      "plumbing": "سباكة",
+      "ac": "تكييف",
+      "internet": "إنترنت",
+      "furniture": "أثاث",
+      "appliance": "جهاز/معدات",
+      "door": "أبواب وأقفال",
+      "cleaning_damage": "ملاحظة تنظيف/تلف",
+      "other": "أخرى"
+    },
+    "source": {
+      "manual": "يدوي",
+      "housekeeping": "من التنظيف",
+      "room_status": "من حالة الغرفة"
+    },
+    "fields": {
+      "createdAt": "تاريخ البلاغ",
+      "assignedTo": "المسؤول",
+      "source": "المصدر",
+      "updatedAt": "آخر تحديث"
+    },
+    "actions": {
+      "add": "إضافة بلاغ صيانة",
+      "save": "حفظ البلاغ",
+      "edit": "تعديل",
+      "start": "بدء المعالجة",
+      "resolve": "إنهاء الصيانة",
+      "waitingParts": "بانتظار قطع",
+      "cancel": "إلغاء البلاغ"
+    },
+    "modal": {
+      "addTitle": "إضافة بلاغ صيانة",
+      "editTitle": "تعديل بلاغ الصيانة"
+    },
+    "form": {
+      "room": "الغرفة / الموقع",
+      "type": "نوع المشكلة",
+      "priority": "الأولوية",
+      "assignedTo": "تعيين إلى",
+      "description": "وصف المشكلة",
+      "descriptionPlaceholder": "اكتب وصفًا مختصرًا وواضحًا للمشكلة أو الإجراء المطلوب."
+    },
+    "activeHint": "الغرفة المرتبطة لا يجب أن تعود متاحة قبل إنهاء الصيانة ثم التنظيف.",
+    "resolvedHint": "تم إنجاز البلاغ. إذا كان مرتبطًا بغرفة فقد تم تحويلها إلى التنظيف.",
+    "emptyTitle": "لا توجد بلاغات صيانة مطابقة",
+    "emptyText": "أضف بلاغًا جديدًا أو غيّر الفلاتر لعرض بلاغات أخرى.",
+    "toast": {
+      "saved": "تم حفظ بلاغ الصيانة.",
+      "updated": "تم تحديث بلاغ الصيانة.",
+      "in_progress": "تم بدء معالجة بلاغ الصيانة.",
+      "waiting_parts": "تم تحويل البلاغ إلى انتظار قطع.",
+      "resolved": "تم إنهاء الصيانة وتحويل الغرفة إلى التنظيف إذا كانت مرتبطة بغرفة.",
+      "cancelled": "تم إلغاء بلاغ الصيانة."
+    }
+  },
+  "accountStatement": {
+    "title": "كشف حساب النزيل",
+    "print": "طباعة كشف الحساب",
+    "printShort": "كشف حساب",
+    "paidOrders": "طلبات مدفوعة",
+    "remaining": "المتبقي",
+    "bookingTotal": "قيمة الإقامة",
+    "bookingPaid": "مدفوع الحجز",
+    "roomOrdersTotal": "طلبات على حساب الغرفة",
+    "generatedAt": "تاريخ الطباعة",
+    "customerCopy": "نسخة الزبون",
+    "type": {
+      "roomStay": "إقامة الغرفة",
+      "payment": "دفعة"
+    },
+    "method": {
+      "roomCharge": "أجرة إقامة",
+      "bookingPayment": "دفعة حجز"
+    },
+    "desc": {
+      "bookingPayment": "مدفوع من قيمة الحجز"
+    },
+    "columns": {
+      "type": "البند",
+      "desc": "الوصف",
+      "method": "الطريقة",
+      "debit": "مدين",
+      "credit": "مدفوع"
+    }
+  },
+  "reports": {
+    "description": "تقارير تشغيلية ومالية مختصرة تساعد الإدارة على قراءة أداء الفندق بسرعة وبدقة.",
+    "tabsLabel": "أنواع التقارير",
+    "printTitle": "تقرير الفندق",
+    "generatedAt": "تاريخ إنشاء التقرير",
+    "emptyTitle": "لا توجد بيانات ضمن الفترة المحددة",
+    "emptyText": "غيّر الفترة الزمنية أو أضف بيانات تشغيلية لعرض التقرير.",
+    "types": {
+      "overview": "نظرة عامة",
+      "reservations": "الحجوزات",
+      "financial": "المالية",
+      "rooms": "الغرف والإشغال",
+      "food": "المطعم والكافتريا",
+      "maintenance": "الصيانة"
+    },
+    "periods": {
+      "today": "اليوم",
+      "last7": "آخر 7 أيام",
+      "month": "هذا الشهر",
+      "custom": "فترة مخصصة"
+    },
+    "filters": {
+      "period": "الفترة",
+      "from": "من تاريخ",
+      "to": "إلى تاريخ"
+    },
+    "actions": {
+      "print": "طباعة التقرير",
+      "export": "تصدير CSV"
+    },
+    "cards": {
+      "reservations": "الحجوزات",
+      "reservationsNote": "ضمن الفترة المحددة",
+      "revenue": "إجمالي الحركة",
+      "revenueNote": "إقامة + طلبات",
+      "occupancy": "نسبة الإشغال",
+      "activeGuests": "النزلاء المقيمون",
+      "activeGuestsNote": "حسب الحجوزات الحالية",
+      "roomAccount": "على حساب الغرف",
+      "roomAccountNote": "طلبات غير مدفوعة مباشرة",
+      "pendingOps": "متابعة تشغيلية",
+      "pendingOpsNote": "تنظيف وصيانة وبلاغات مفتوحة"
+    },
+    "sections": {
+      "financialOverview": "ملخص مالي سريع",
+      "roomStatus": "حالة الغرف",
+      "smartInsights": "مؤشرات إدارية",
+      "reservations": "تقرير الحجوزات",
+      "financial": "تفصيل الحسابات المالية",
+      "roomAccountOrders": "طلبات مرحلة على حساب الغرف",
+      "roomsByFloor": "توزيع الغرف حسب الطوابق",
+      "rooms": "تقرير الغرف",
+      "foodByPayment": "طلبات المطعم حسب الدفع",
+      "topFoodItems": "الأصناف الأكثر طلبًا",
+      "foodOrders": "سجل طلبات المطعم والكافتريا",
+      "maintenanceByStatus": "الصيانة حسب الحالة",
+      "maintenanceByPriority": "الصيانة حسب الأولوية",
+      "maintenanceTickets": "سجل بلاغات الصيانة"
+    },
+    "table": {
+      "item": "البند",
+      "value": "القيمة",
+      "note": "ملاحظة"
+    },
+    "columns": {
+      "no": "الرقم",
+      "guest": "النزيل",
+      "room": "الغرفة",
+      "dates": "التواريخ",
+      "status": "الحالة",
+      "total": "الإجمالي",
+      "paid": "المدفوع",
+      "due": "المتبقي",
+      "item": "البند",
+      "floor": "الطابق",
+      "type": "النوع",
+      "reservation": "الحجز",
+      "quantity": "الكمية",
+      "source": "المصدر",
+      "method": "طريقة الدفع",
+      "location": "الموقع",
+      "priority": "الأولوية",
+      "assignedTo": "المسؤول",
+      "date": "التاريخ"
+    },
+    "financial": {
+      "bookingRevenue": "إجمالي قيمة الإقامات",
+      "bookingRevenueNote": "قيمة الحجوزات ضمن الفترة",
+      "bookingPaid": "مدفوعات الحجوزات",
+      "bookingPaidNote": "المبالغ المسددة من الحجوزات",
+      "cashOrders": "طلبات نقدية",
+      "cashOrdersNote": "مطعم وكافتريا نقدي",
+      "electronicOrders": "طلبات إلكترونية",
+      "electronicOrdersNote": "مطعم وكافتريا إلكتروني",
+      "roomAccount": "طلبات على حساب الغرفة",
+      "roomAccountNote": "تضاف إلى كشف حساب النزيل",
+      "dueTotal": "إجمالي المتبقي",
+      "dueTotalNote": "يمنع الخروج عند وجود متبقي",
+      "foodRevenue": "إيراد المطعم والكافتريا"
+    },
+    "insights": {
+      "bestArea": "أقوى مصدر حركة",
+      "food": "المطعم والكافتريا",
+      "reservations": "الحجوزات",
+      "bestAreaNote": "حسب إجمالي الفترة",
+      "checkoutRisk": "مخاطر الخروج",
+      "checkoutRiskNote": "مبالغ يجب تحصيلها قبل المغادرة",
+      "operationalLoad": "ضغط التشغيل",
+      "operationalLoadNote": "غرف تحتاج تنظيف أو صيانة"
+    },
+    "export": {
+      "reservationsCount": "عدد الحجوزات",
+      "completedReservations": "حجوزات مكتملة",
+      "checkedInReservations": "مقيمون حاليًا",
+      "reservationTotal": "قيمة الحجوزات",
+      "bookingPaid": "مدفوع الحجز",
+      "dueTotal": "المتبقي",
+      "foodTotal": "طلبات المطعم",
+      "foodRoomAccount": "على حساب الغرف",
+      "foodPaid": "طلبات مدفوعة",
+      "grandTotal": "إجمالي الحركة",
+      "roomsCount": "عدد الغرف",
+      "occupied": "مشغولة",
+      "occupancyRate": "نسبة الإشغال",
+      "activeGuests": "نزلاء مقيمون",
+      "cleaningRooms": "غرف تنظيف",
+      "maintenanceRooms": "غرف صيانة",
+      "maintenanceOpen": "بلاغات صيانة مفتوحة"
+    }
+  },
+  "notifications": {
+    "cards": {
+      "total": "إجمالي الإشعارات",
+      "totalNote": "كل التنبيهات الحالية",
+      "urgent": "إشعارات تحتاج متابعة",
+      "urgentNote": "تنبيهات مرتبطة بالعمل الجاري",
+      "priority": "إشعارات عاجلة / تحذيرية",
+      "priorityNote": "تحتاج سرعة متابعة",
+      "safe": "إشعارات مطمئنة",
+      "safeNote": "حالات مستقرة أو لا تحتاج تدخل"
+    },
+    "pageNote": "هذه الإشعارات حقيقية ومولدة من بيانات الحجوزات والغرف والمدفوعات والصيانة",
+    "actions": {
+      "refresh": "تحديث",
+      "openSection": "فتح القسم",
+      "openNotification": "فتح الإشعار",
+      "markRead": "تعليم كمقروء",
+      "markAllRead": "تعليم الكل كمقروء"
+    },
+    "status": {
+      "read": "مقروء",
+      "unread": "غير مقروء"
+    },
+    "emptyUnreadTitle": "لا توجد إشعارات غير مقروءة",
+    "emptyReadTitle": "لا توجد إشعارات مقروءة",
+    "emptyTitle": "لا توجد إشعارات حالية",
+    "emptyUnreadText": "كل التنبيهات الحالية تمت قراءتها أو لا يوجد ما يحتاج متابعة الآن.",
+    "emptyText": "عندما يحدث شيء مهم داخل الفندق ستظهر التنبيهات هنا تلقائيًا.",
+    "truePageSubtitle": "تنبيهات تشغيلية حقيقية لما يحدث داخل الفندق. فتح الإشعار يجعله مقروءًا ويزيله من عداد الجرس.",
+    "filters": {
+      "statusLabel": "فلترة الإشعارات حسب القراءة",
+      "all": "الكل",
+      "unread": "غير مقروء",
+      "read": "مقروء",
+      "urgent": "عاجل غير مقروء"
+    },
+    "feedTitle": "سجل تنبيهات الفندق",
+    "toast": {
+      "allRead": "تم تعليم كل الإشعارات كمقروءة"
+    },
+    "kicker": "مركز التنبيهات"
+  },
+  "subscriptionPlan": {
+    "description": "تابع الباقة المفعلة على فندقك واطلب تمديد أو تجديد أو تغيير الباقة من نفس الصفحة.",
+    "currentTitle": "الباقة الحالية",
+    "currentHint": "هذه المعلومات تأتي من اشتراك الفندق المسجل عند صاحب المنصة",
+    "endingSoon": "قارب على الانتهاء",
+    "activePackage": "الباقة المفعلة",
+    "noPackageText": "لا توجد باقة مفعلة بعد. يمكنك إرسال طلب لصاحب المنصة.",
+    "requestsTitle": "طلبات الاشتراك",
+    "requestsHint": "يتم تسجيل طلبك ليظهر لصاحب المنصة لاحقًا",
+    "noRequestsTitle": "لا توجد طلبات بعد",
+    "noRequestsText": "يمكنك إرسال طلب تمديد أو تجديد أو تغيير باقة من الأزرار الموجودة في الصفحة.",
+    "availablePackagesTitle": "الباقات المتاحة",
+    "availablePackagesHint": "اختر أي باقة لإرسال طلب تغيير الباقة لصاحب المنصة",
+    "currentBadge": "الباقة الحالية",
+    "noPackagesTitle": "لا توجد باقات متاحة",
+    "noPackagesText": "سيتم عرض الباقات هنا بعد إضافتها وتفعيلها من لوحة صاحب المنصة.",
+    "actions": {
+      "extend": "طلب تمديد",
+      "renew": "طلب تجديد",
+      "change": "تغيير الباقة",
+      "requestThisPackage": "طلب هذه الباقة",
+      "requestSent": "تم إرسال الطلب",
+      "renewRequestSent": "تم إرسال طلب التجديد",
+      "renewNow": "تجديد الآن"
+    },
+    "cards": {
+      "status": "حالة الاشتراك",
+      "statusNote": "حالة الباقة الحالية",
+      "package": "الباقة المفعلة",
+      "packageNote": "لم يتم اختيار باقة بعد",
+      "remaining": "الأيام المتبقية",
+      "noEndDate": "لا يوجد تاريخ انتهاء",
+      "requests": "طلباتك",
+      "requestsNote": "طلبات تمديد أو تغيير أو تجديد"
+    },
+    "requestType": {
+      "extend": "طلب تمديد",
+      "renew": "طلب تجديد",
+      "change": "طلب تغيير باقة"
+    },
+    "requestStatus": {
+      "pending": "قيد الانتظار",
+      "approved": "مقبول",
+      "rejected": "مرفوض",
+      "done": "تم التنفيذ"
+    },
+    "toast": {
+      "requestSent": "تم إرسال الطلب لصاحب المنصة",
+      "packageRequestAlreadySent": "تم إرسال طلب لهذه الباقة سابقًا ولا يمكن إرسال طلب آخر لنفس الباقة.",
+      "renewRequestAlreadySent": "تم إرسال طلب تجديد سابقًا ولا يمكن إرسال طلب تجديد آخر لنفس الباقة.",
+      "extendRequestAlreadySent": "تم إرسال طلب تمديد سابقًا ولا يمكن إرسال طلب تمديد آخر لنفس الباقة.",
+      "requestAlreadySent": "تم إرسال هذا الطلب سابقًا ولا يمكن تكراره.",
+      "renewalLockedWithDays": "لا يمكن طلب التجديد أو التمديد الآن لأن حسابك ما زال فعالًا. يتفعل الطلب قبل 7 أيام من انتهاء الاشتراك. يمكنك تغيير الباقة في أي وقت.",
+      "renewalLocked": "لا يمكن طلب التجديد أو التمديد الآن لأن حسابك ما زال فعالًا. يتفعل الطلب قبل 7 أيام من انتهاء الاشتراك فقط. يمكنك تغيير الباقة في أي وقت."
+    },
+    "packageUnavailable": "غير متاحة حاليًا",
+    "renewalWarning": {
+      "title": "اقترب موعد التجديد",
+      "text": "يمكنك إرسال طلب تجديد الآن قبل انتهاء الاشتراك."
+    },
+    "requestsTable": {
+      "type": "نوع الطلب",
+      "requestedPackage": "الباقة المطلوبة",
+      "currentPackage": "الباقة الحالية",
+      "status": "الحالة",
+      "createdAt": "تاريخ الطلب"
+    },
+    "head": {
+      "packagesCount": "باقة",
+      "requestsCount": "طلب"
+    },
+    "packageManagedByPlatform": "باقة تشغيلية معتمدة من صاحب المنصة."
+  },
+  "staffDashboard": {
+    "title": "لوحة الموظف التشغيلية",
+    "description": "واجهة مختصرة تعرض فقط المهام المناسبة لدور الموظف وصلاحياته داخل الفندق.",
+    "todayWork": "مهام اليوم"
+  },
+  "frontDesk": {
+    "title": "مركز الاستقبال اليومي",
+    "description": "وصول، مغادرة، مقيمون، ذمم مالية، واختصارات تشغيلية في واجهة واحدة.",
+    "noArrivalsTitle": "لا يوجد وصول الآن",
+    "noArrivalsText": "أي حجز موعد دخوله اليوم سيظهر هنا.",
+    "noInHouseTitle": "لا يوجد مقيمون حاليًا",
+    "noInHouseText": "الحجوزات المسجلة دخول تظهر هنا.",
+    "noDeparturesTitle": "لا توجد مغادرة اليوم",
+    "noDeparturesText": "أي حجز موعد خروجه اليوم سيظهر هنا."
+  },
+  "platformOwner": {
+    "description": "إدارة الفنادق والاشتراكات والباقات من مكان واحد"
+  },
+  "register": {
+    "haveNoAccount": "لا تملك حساب فندق؟",
+    "createAccount": "إنشاء حساب جديد",
+    "eyebrow": "تسجيل فندق جديد",
+    "title": "إنشاء حساب جديد",
+    "description": "افتح حساب فندق محلي للتجربة، ثم ادخل مباشرة إلى لوحة إدارة الفندق.",
+    "benefitsLabel": "ميزات الحساب الجديد",
+    "benefitHotel": "حساب فندق",
+    "benefitManager": "مدير أساسي",
+    "benefitLocal": "تخزين محلي",
+    "hotelName": "اسم الفندق",
+    "managerName": "اسم المدير",
+    "email": "البريد الإلكتروني",
+    "phone": "رقم الهاتف",
+    "country": "الدولة",
+    "city": "المدينة",
+    "password": "كلمة المرور",
+    "passwordConfirm": "تأكيد كلمة المرور",
+    "submit": "إنشاء الحساب والدخول",
+    "alreadyHaveAccount": "لديك حساب بالفعل؟",
+    "backToLogin": "العودة لتسجيل الدخول",
+    "validationRequired": "يرجى تعبئة الحقول الأساسية",
+    "validationPasswordLength": "كلمة المرور يجب أن تكون 6 أحرف على الأقل",
+    "validationPasswordMatch": "كلمتا المرور غير متطابقتين",
+    "validationDuplicateEmail": "يوجد حساب بهذا البريد الإلكتروني بالفعل",
+    "toastCreated": "تم إنشاء الحساب وتسجيل الدخول بنجاح"
+  },
+  "forgot": {
+    "eyebrow": "استعادة آمنة",
+    "title": "استعادة كلمة المرور",
+    "description": "أدخل بريد حساب الفندق، وسنعرض رسالة استعادة تجريبية مناسبة للنسخة المحلية.",
+    "safeTitle": "حماية حساب الفندق",
+    "safeText": "في النسخة الإنتاجية سيتم إرسال رابط عبر البريد الإلكتروني.",
+    "submit": "إرسال تعليمات الاستعادة",
+    "remembered": "تذكرت كلمة المرور؟",
+    "toastSent": "تم تجهيز تعليمات الاستعادة لهذا البريد في النسخة المحلية",
+    "toastCheckEmail": "إذا كان البريد موجودًا ستصلك تعليمات الاستعادة"
+  },
+  "owner": {
+    "hotel": {
+      "rooms": "الغرف",
+      "staff": "الموظفون",
+      "reservations": "الحجوزات",
+      "openTasks": "مهام مفتوحة",
+      "profileKicker": "ملف عميل المنصة",
+      "health": "حالة العميل"
+    },
+    "hotels": {
+      "kicker": "إدارة عملاء المنصة",
+      "subtitle": "ملفات الفنادق، حالة الاشتراك، المدير، وحجم التشغيل في كروت واضحة بدل الجداول."
+    },
+    "common": {
+      "needsAttention": "تحتاج متابعة"
+    },
+    "managers": {
+      "kicker": "إدارة مسؤولي الفنادق",
+      "subtitle": "متابعة حسابات مدراء الفنادق وربط كل مدير بحالة الفندق والاشتراك."
+    },
+    "package": {
+      "usedBy": "فندق يستخدمها"
+    },
+    "packages": {
+      "kicker": "تعريف خطط البيع",
+      "subtitle": "الباقات هنا لتعريف الخطط فقط؛ أما طلبات الاشتراك فلها صندوق مستقل للمراجعة والقرار.",
+      "requestNote": "طلبات الترقية والتجديد تظهر في صفحة طلبات الاشتراك وليس هنا."
+    },
+    "subscriptions": {
+      "kicker": "دورة حياة اشتراكات الفنادق",
+      "subtitle": "متابعة حالة كل اشتراك، المدة المتبقية، الدفع، والتجديد من مركز واحد."
+    },
+    "requests": {
+      "kicker": "صندوق معاملات مستقل"
+    }
+  },
+  "print": {
+    "popupBlocked": "تعذر فتح نافذة الطباعة. تأكد من السماح بالنوافذ المنبثقة."
+  }
+}

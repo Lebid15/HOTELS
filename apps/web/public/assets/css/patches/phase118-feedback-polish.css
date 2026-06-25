@@ -1,0 +1,228 @@
+/* Phase 118 — consolidated feedback polish: status clarity, payment closure, food categories, action/icon contrast, reports and headers. */
+
+:root,
+[data-theme="light"] {
+  --phase118-icon-ink: var(--color-primary);
+  --phase118-icon-ink-strong: var(--color-primary-hover);
+  --phase118-pill-bg: color-mix(in srgb, var(--color-surface) 88%, var(--color-primary-soft) 12%);
+  --phase118-pill-border: color-mix(in srgb, var(--color-primary) 26%, var(--color-border) 74%);
+}
+
+/* 1) Departed / left must read as final red state everywhere. */
+.guest-card--departed::before,
+.checkio-card--departed::before,
+.checkio-card--completed::before {
+  background: var(--ds-action-danger-bg);
+}
+
+.guest-stay-badge--departed,
+.guest-stay-badge--completed,
+[data-checkio-status="departed"],
+[data-checkio-status="completed"],
+.ds-badge[data-status="departed"],
+.ds-badge[data-status="completed"] {
+  color: var(--fandqi-white);
+  background: var(--ds-action-danger-bg);
+  border-color: color-mix(in srgb, var(--color-danger) 46%, transparent);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--color-danger) 22%, transparent);
+}
+
+/* 2) Checkout balance settlement modal. */
+.checkio-payment-modal .checkio-payment-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.checkio-payment-summary {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.checkio-payment-summary > div {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: var(--ds-border-width) solid color-mix(in srgb, var(--color-primary) 16%, var(--color-border) 84%);
+  border-radius: var(--ds-control-radius);
+  background: var(--phase118-pill-bg);
+}
+
+.checkio-payment-summary span {
+  color: var(--color-muted-strong);
+  font-size: var(--text-xs);
+  font-weight: 850;
+}
+
+.checkio-payment-summary strong {
+  color: var(--color-heading);
+  font-weight: 950;
+  overflow-wrap: anywhere;
+}
+
+.checkio-card-actions--central [data-action="checkio-settle-balance"] {
+  color: var(--fandqi-white);
+  background: var(--ds-action-danger-bg);
+  border-color: color-mix(in srgb, var(--color-danger) 38%, transparent);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--color-danger) 20%, transparent);
+}
+
+/* 3) Food and drinks need separate visual category backgrounds. */
+.food-services-central-page .food-page-actions,
+.food-services-central-page .fandqi-ui-section-actions {
+  gap: var(--space-3);
+}
+
+.food-services-central-page .food-central-head .fandqi-ui-section-kicker {
+  display: none;
+}
+
+.food-services-central-page .food-menu-card[data-food-menu-category="food"] {
+  border-color: color-mix(in srgb, var(--color-warning) 30%, var(--color-border) 70%);
+  background:
+    radial-gradient(circle at 12% 12%, color-mix(in srgb, var(--color-warning-soft) 82%, transparent), transparent 36%),
+    linear-gradient(135deg, color-mix(in srgb, var(--color-warning-soft) 58%, var(--color-surface) 42%), var(--color-surface));
+}
+
+.food-services-central-page .food-menu-card[data-food-menu-category="drinks"] {
+  border-color: color-mix(in srgb, var(--color-accent) 30%, var(--color-border) 70%);
+  background:
+    radial-gradient(circle at 12% 12%, color-mix(in srgb, var(--color-accent-soft) 82%, transparent), transparent 36%),
+    linear-gradient(135deg, color-mix(in srgb, var(--color-accent-soft) 58%, var(--color-surface) 42%), var(--color-surface));
+}
+
+.food-services-central-page .food-menu-card[data-food-menu-category="hospitality"],
+.food-services-central-page .food-menu-card[data-food-menu-category="extras"] {
+  border-color: color-mix(in srgb, var(--color-luxury) 28%, var(--color-border) 72%);
+  background:
+    radial-gradient(circle at 12% 12%, color-mix(in srgb, var(--color-luxury-soft) 82%, transparent), transparent 36%),
+    linear-gradient(135deg, color-mix(in srgb, var(--color-luxury-soft) 56%, var(--color-surface) 44%), var(--color-surface));
+}
+
+/* 4 + 5) Cleaning and maintenance action/icon visibility. */
+.housekeeping-central-page :is(.field-label, .housekeeping-meta-item, .housekeeping-flow-band, .dashboard-panel-head, .fandqi-ui-section-kicker) :is(svg, .svg-icon),
+.maintenance-central-page :is(.field-label, .maintenance-meta-item, .maintenance-room-band, .dashboard-panel-head, .fandqi-ui-section-kicker) :is(svg, .svg-icon) {
+  color: var(--phase118-icon-ink-strong);
+  stroke: currentColor;
+  opacity: 1;
+}
+
+.housekeeping-central-page .housekeeping-card-actions--central [data-action="housekeeping-view-room"] {
+  color: var(--fandqi-white);
+  background: var(--ds-action-primary-bg);
+  border-color: color-mix(in srgb, var(--color-primary) 36%, transparent);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--color-primary) 18%, transparent);
+}
+
+.housekeeping-central-page .housekeeping-card-actions--central .ds-btn:hover,
+.maintenance-central-page .maintenance-card-actions--central .ds-btn:hover {
+  color: var(--fandqi-white);
+  transform: translateY(-1px);
+}
+
+/* 6) Payments summary cards regain colored premium metric style. */
+.payments-central-page .payment-summary-card[data-ui-component="payments-summary-card"] {
+  color: var(--fandqi-white);
+  border-color: color-mix(in srgb, var(--color-primary) 34%, transparent);
+  background: var(--ds-action-primary-bg);
+  box-shadow: 0 16px 32px color-mix(in srgb, var(--color-primary) 22%, transparent);
+}
+
+.payments-central-page .payment-summary-card--warning[data-ui-component="payments-summary-card"] {
+  background: var(--ds-action-warning-bg);
+  border-color: color-mix(in srgb, var(--color-warning) 42%, transparent);
+  box-shadow: 0 16px 32px color-mix(in srgb, var(--color-warning) 20%, transparent);
+}
+
+.payments-central-page .payment-summary-card--success[data-ui-component="payments-summary-card"] {
+  background: var(--ds-action-success-bg);
+  border-color: color-mix(in srgb, var(--color-success) 42%, transparent);
+  box-shadow: 0 16px 32px color-mix(in srgb, var(--color-success) 20%, transparent);
+}
+
+.payments-central-page .payment-summary-card--accent[data-ui-component="payments-summary-card"] {
+  background: var(--ds-action-accent-bg);
+  border-color: color-mix(in srgb, var(--color-accent) 42%, transparent);
+  box-shadow: 0 16px 32px color-mix(in srgb, var(--color-accent) 20%, transparent);
+}
+
+.payments-central-page .payment-summary-card--luxury[data-ui-component="payments-summary-card"] {
+  background: var(--ds-action-luxury-bg);
+  border-color: color-mix(in srgb, var(--color-luxury) 42%, transparent);
+  box-shadow: 0 16px 32px color-mix(in srgb, var(--color-luxury) 20%, transparent);
+}
+
+.payments-central-page .payment-summary-card :is(.dashboard-card-icon, .fandqi-ui-metric-icon) {
+  color: var(--fandqi-white);
+  background: color-mix(in srgb, var(--fandqi-white) 20%, transparent);
+  border-color: color-mix(in srgb, var(--fandqi-white) 30%, transparent);
+  opacity: 1;
+}
+
+.payments-central-page .payment-summary-card :is(.dashboard-card-title, .fandqi-ui-metric-title, .fandqi-ui-metric-value, .fandqi-ui-metric-note, small, strong, svg, .svg-icon) {
+  color: var(--fandqi-white);
+  stroke: currentColor;
+  opacity: 1;
+}
+
+/* 7) Reports: varied cards, visible icons, hover-safe buttons, better mini stats. */
+.reports-central-page .reports-central-summary-card[data-ui-component="reports-summary-card"] {
+  color: var(--fandqi-white);
+  overflow: hidden;
+}
+
+.reports-central-page .reports-central-summary-card[data-report-summary="reservations"] { background: var(--ds-action-primary-bg); }
+.reports-central-page .reports-central-summary-card[data-report-summary="revenue"] { background: var(--ds-action-success-bg); }
+.reports-central-page .reports-central-summary-card[data-report-summary="occupancy"] { background: var(--ds-action-accent-bg); }
+.reports-central-page .reports-central-summary-card[data-report-summary="activeGuests"] { background: var(--ds-action-luxury-bg); }
+.reports-central-page .reports-central-summary-card[data-report-summary="roomAccount"] { background: var(--ds-action-neutral-bg); }
+.reports-central-page .reports-central-summary-card[data-report-summary="pendingOps"] { background: var(--ds-action-warning-bg); }
+
+.reports-central-page .reports-central-summary-card :is(.dashboard-card-icon, .fandqi-ui-metric-icon) {
+  color: var(--fandqi-white);
+  background: color-mix(in srgb, var(--fandqi-white) 20%, transparent);
+  border-color: color-mix(in srgb, var(--fandqi-white) 30%, transparent);
+}
+
+.reports-central-page .reports-central-summary-card :is(.dashboard-card-title, .fandqi-ui-metric-title, .fandqi-ui-metric-value, .fandqi-ui-metric-note, small, strong, svg, .svg-icon) {
+  color: var(--fandqi-white);
+  stroke: currentColor;
+  opacity: 1;
+}
+
+.reports-central-page .reports-head-stats span {
+  min-height: 44px;
+  border-color: var(--phase118-pill-border);
+  background: linear-gradient(135deg, var(--phase118-pill-bg), color-mix(in srgb, var(--color-accent-soft) 18%, var(--color-surface) 82%));
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--color-primary) 12%, transparent);
+}
+
+.reports-central-page .reports-head-stats :is(svg, .svg-icon) {
+  color: var(--phase118-icon-ink-strong);
+  stroke: currentColor;
+  opacity: 1;
+}
+
+.reports-central-page :is(.report-period-btn, .report-tab, .reports-top-actions .ds-btn):hover,
+.reports-central-page :is(.report-period-btn, .report-tab, .reports-top-actions .ds-btn):focus-visible {
+  color: var(--fandqi-white);
+  background: var(--ds-action-primary-bg);
+  border-color: color-mix(in srgb, var(--color-primary) 36%, transparent);
+}
+
+.reports-central-page :is(.report-period-btn, .report-tab, .reports-top-actions .ds-btn):hover :is(svg, .svg-icon),
+.reports-central-page :is(.report-period-btn, .report-tab, .reports-top-actions .ds-btn):focus-visible :is(svg, .svg-icon) {
+  color: var(--fandqi-white);
+  stroke: currentColor;
+}
+
+/* 8 + 9) Header correction moved to Phase 119 scoped patch. */
+
+@media (max-width: 760px) {
+  .checkio-payment-summary,
+  .reports-central-page .reports-summary-grid[data-ui-component="reports-summary-grid"],
+  .payments-central-page .payments-central-summary-grid[data-ui-component="payments-summary-grid"] {
+    grid-template-columns: 1fr;
+  }
+}
