@@ -12,8 +12,12 @@ export default function Home() {
     const fetchHotels = async () => {
       try {
         const token = localStorage.getItem('access_token');
+        if (!token) {
+          router.push('/login');
+          return;
+        }
         const res = await fetch(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/hotels/', {
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) {
           if (res.status === 401) router.push('/login');

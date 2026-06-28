@@ -1,108 +1,148 @@
-# خطة عمل مشروع إدارة الفنادق
+# خطة عمل مشروع فندقي (Fandqi)
 
-## ملخص الوضع الحالي
-- المشروع موجود في `d:\hotels`.
-- الواجهة الحالية مبنية باستخدام JavaScript عادي وملفات HTML/CSS في `apps/web/public`.
-- لا يوجد React في الواجهة الحالية.
-- الباكند الحالي هو خادم Node.js بسيط في `apps/server/server.mjs` يقوم بخدمة الملفات الثابتة.
+## الهدف
+نظام SaaS متعدد المستأجرين لإدارة الفنادق — 3 أدوار: صاحب المنصة، مدير الفندق، موظف الاستقبال.
 
-## ما يلزم
-- أنت تفضل واجهة أمامية React.
-- وأفضل باكند هو Django.
-- سنبني خطة لتحويل المشروع من الواجهة الحالية إلى React، ومن خادم الملفات الثابتة إلى Django API.
+---
 
-## خطوات مقترحة
-1. تحديد الصفحات والمكونات الأساسية التي يجب إعادة بنائها في React:
-   - تسجيل الدخول.
-   - لوحة صاحب المنصة.
-   - إدارة الفنادق.
-   - مديرو الفنادق.
-   - الاشتراكات والباقات.
-   - غرفة الاستقبال/الحجوزات.
-   - إعدادات المنصة.
-2. تصميم هيكل البيانات والنماذج في Django:
-   - نماذج: Hotel، Manager، ReceptionStaff، Subscription، Package، Reservation، Guest، Payment، Notification.
-   - وظائف: إنشاء/تعديل/حذف/بحث/تصفية.
-3. تحديد واجهة API المناسبة:
-   - REST API أو GraphQL مع Django.
-   - نقاط نهاية للحجوزات، الفنادق، المستخدمين، الباقات، الإعدادات.
-4. إعداد بيئة العمل:
-   - React front-end عبر Next.js.
-   - Django back-end مع Django REST Framework.
-5. مراجعة النقاط التي تحتاج تعديلًا في المشروع الحالي:
-   - تحويل ملفات HTML/JS الحالية إلى مكونات React.
-   - نقل حالة التطبيق إلى React state و/أو Redux إذا لزم.
-   - ربط الواجهة بـ API بدلاً من التخزين المحلي.
+## البنية التقنية
+- **Backend**: Django 5.1.4 + Django REST Framework + JWT (`djangorestframework-simplejwt`)
+- **Frontend**: Next.js 16 + React 19 + Tailwind CSS 4
+- **قاعدة البيانات**: SQLite (تطوير) → PostgreSQL (إنتاج)
+- **Django**: `backend/` | **Next.js**: `frontend/` | **الكود القديم**: `apps/web/public/`
 
-## ما سأفعله الآن
-- أضيف هذا الملف كخطة أولية للنقاش.
-- نحتفظ بـ `info.md` لاحقًا لإعدادات الرفع على السيرفر.
+---
 
-## ملاحظة
-- `info.md` سيبقى ملفًا مخصصًا لإعدادات الرفع فقط، ولن أضيف إليه أي معلومات الآن حتى تصل مرحلة النشر.
+## المستخدمون التجريبيون
+| المستخدم | كلمة المرور | الدور |
+|---|---|---|
+| platform | 123456 | صاحب المنصة |
+| manager | 123456 | مدير الفندق |
+| reception | 123456 | موظف الاستقبال |
 
-## خطة تقنية مقترحة
+أوامر البذر: `python manage.py seed_users` | `python manage.py seed_data` | `python manage.py seed_hotels`
 
-### البنية المقترحة
-- `backend/` : مشروع Django مع Django REST Framework.
-- `frontend/` : تطبيق React حديث عبر Next.js + Tailwind CSS.
-- PostgreSQL كقاعدة بيانات رئيسية عبر إعدادات Django.
-- نسخة الواجهة ستبقى محافظة على التصميم الحالي الموجود في `apps/web/public`، مع تحويله إلى مكونات React وطبقات Tailwind.
+---
 
-### أهداف التصميم
-- الاحتفاظ بنفس المظهر المرئي والتجربة القديمة.
-- بناء الواجهة على React مع JSX وأنتقال سلس بين الصفحات.
-- استخدام Tailwind لتسريع كتابة الأنماط مع تخصيصات تحاكي `app.css` الحالية.
-- جعل البيانات تتواصل مع الباكند عبر REST API وليس LocalStorage.
+## نماذج Django (Models) المنجزة
 
-### نواة العمل
-1. إنشاء مشروع Django أساسي مع تطبيق API.
-2. إعداد نماذج البيانات الأساسية:
-   - Hotel
-   - Manager
-   - Package
-   - Subscription
-   - Reservation
-   - Guest
-   - Payment
-   - PlatformSetting
-3. بناء واجهة API عبر Django REST Framework.
-4. إنشاء تطبيق React جديد بصفحة واحدة (SPA) ومكتبة مكونات مشتركة.
-5. نقل الصفحة الحالية إلى React:
-   - تحويل القوائم، الجداول، النماذج، والأزرار.
-   - الحفاظ على RTL وi18n التي يحتاجها المشروع.
-6. إعداد Tailwind مع تخصيص الألوان والتباينات لتطابق التصميم القديم.
+| النموذج | الملف | الحقول الرئيسية |
+|---|---|---|
+| Hotel | api/models.py | name, country, city, address, phone, email, status, floors_count, manager_name, manager_email |
+| Package | api/models.py | name, description, duration_days, price, currency, max_users, max_rooms, restaurant_support, reports_support, trial_support, status |
+| Subscription | api/models.py | hotel, package, status, payment_status, start_date, end_date, monthly_amount, currency |
+| SubscriptionRequest | api/models.py | hotel, package, status, notes |
+| Room | api/models.py | hotel, number, floor, type, capacity, status, price, currency |
+| Staff | api/models.py | hotel, full_name, role, phone, email, shift, status, permissions |
 
-### أولويات التنفيذ
-- المرحلة الأولى: بناء السكافولد الأساسي وتهيئة البيئة.
-- المرحلة الثانية: نماذج API الأساسية وإدارة الفنادق.
-- المرحلة الثالثة: تسجيل الدخول والأدوار، ثم الاشتراكات والحجوزات.
-- المرحلة الرابعة: ربط الواجهة مع الباكند ونسخ تجربة المستخدم الحالية.
+---
 
-### ملاحظات
-- سأتجنب إزالة أي ميزة من النسخة الحالية.
-- الهدف هو إعادة بناء المشروع مع نفس الوظائف والمظهر، لكن مع بنية حديثة قابلة للتوسيع.
-- `info.md` سيتم ملؤه لاحقًا بمعلومات البناء/النشر عندما نصل لمرحلة الرفع على السيرفر.
+## نقاط API المنجزة
 
-## سجل التقدم (محدَّث)
+| المسار | الوصف |
+|---|---|
+| `POST /api/token/` | تسجيل الدخول JWT |
+| `GET /api/current-user/` | بيانات المستخدم الحالي + الدور |
+| `GET /api/platform/stats/` | إحصائيات لوحة تحكم صاحب المنصة |
+| `GET/POST /api/hotels/` | قائمة وإنشاء الفنادق |
+| `GET/PUT/DELETE /api/hotels/{id}/` | تعديل وحذف فندق |
+| `POST /api/hotels/{id}/set_status/` | تغيير حالة فندق |
+| `GET/POST /api/packages/` | الباقات |
+| `POST /api/packages/{id}/set_status/` | تغيير حالة باقة |
+| `GET/POST /api/subscriptions/` | الاشتراكات |
+| `POST /api/subscriptions/{id}/renew/` | تجديد اشتراك |
+| `GET/POST /api/subscription-requests/` | طلبات الاشتراك |
+| `POST /api/subscription-requests/{id}/approve/` | موافقة على طلب |
+| `POST /api/subscription-requests/{id}/reject/` | رفض طلب |
+| `GET/POST /api/rooms/` | الغرف (مع فلتر `?hotel=id`) |
+| `GET/POST /api/staff/` | الموظفون (مع فلتر `?hotel=id`) |
 
-- [x] إنشاء مشروع Django أساسي في `backend/` وإضافة تطبيق `api`.
-- [x] إنشاء مشروع Next.js + Tailwind في `frontend/`.
-- [x] نقل الواجهة لتعمل عبر Next.js مع صفحة عرض الفنادق في `frontend/src/app/page.tsx`.
-- [x] إضافة نموذج `Hotel` وتهيئة Django REST API (`backend/api/models.py`, `backend/api/serializers.py`, `backend/api/views.py`, `backend/api/urls.py`).
-- [x] تفعيل CORS وDRF في `backend/core/settings.py`.
-- [x] إضافة دعم JWT عبر `djangorestframework-simplejwt` ونقاط نهاية التوكن (`/api/token/`).
-- [x] حماية عمليات الإنشاء/التعديل على الفنادق عبر `IsAuthenticatedOrReadOnly`.
-- [x] إضافة صفحة تسجيل دخول في `frontend/src/app/login/page.tsx` وتخزين التوكن في `localStorage`.
-- [x] إضافة أوامر seed لتهيئة مستخدمين تجريبيين وفنادق (`seed_users`, `seed_hotels`).
-- [x] تصحيح بيئة Python الافتراضية في `backend` لاستخدام `d:\hotels\.venv`.
-- [x] تشغيل Next.js مباشرة عبر `node node_modules/next/dist/bin/next dev` عندما لم يتعرف PowerShell على الأمر `next`.
-- [x] تشغيل الخوادم محليًا: Django على `http://127.0.0.1:8000/` وNext.js على `http://localhost:3001/`.
+---
 
-## التالي (قابل للتنفيذ الآن)
+## صفحات Next.js المنجزة
 
-- إنشاء نموذج واجهة لإضافة/تعديل فندق في `frontend` وربطه بنقطة نهاية مؤمنة.
-- إضافة تجديد التوكن وتسجيل الخروج في الواجهة.
-- تحويل صفحات أخرى من `apps/web/public` إلى مكونات Next.js مع الحفاظ على المظهر والـ RTL.
+### المصادقة
+- [x] `/login` — تسجيل دخول مع RTL وحسابات تجريبية، يوجّه حسب الدور
 
-سأحدّث هذا القسم في كل مرة أنفّذ مهمة جديدة.
+### صاحب المنصة `/platform`
+- [x] Layout مع sidebar (الفنادق، المديرون، الباقات، الاشتراكات، الطلبات، الإعدادات) + topbar مع تسجيل خروج
+- [x] `/platform` — لوحة تحكم بإحصائيات حقيقية من API
+- [x] `/platform/hotels` — قائمة الفنادق مع بحث وفلتر + CRUD (إضافة/تعديل/عرض/تفعيل/إيقاف/أرشفة)
+
+### مدير الفندق `/manager`
+- [x] `/manager` — لوحة تحكم مبدئية (placeholder)
+
+### موظف الاستقبال `/reception`
+- [x] `/reception` — لوحة تحكم مبدئية (placeholder)
+
+---
+
+## سجل التقدم (محدَّث 2026-06-28)
+
+- [x] إنشاء مشروع Django + Next.js + Tailwind
+- [x] JWT Auth + seed users
+- [x] نموذج Hotel أساسي + API
+- [x] صفحة تسجيل دخول RTL
+- [x] توجيه حسب الدور (platform/manager/reception)
+- [x] تسجيل خروج في كل الصفحات
+- [x] **توسيع نموذج Hotel** (status, phone, email, address, manager_name, floors_count)
+- [x] **إضافة نماذج Package, Subscription, SubscriptionRequest, Room, Staff**
+- [x] **إنشاء API endpoints** لجميع النماذج الجديدة
+- [x] **لوحة تحكم صاحب المنصة** مع إحصائيات حقيقية من API
+- [x] **صفحة الفنادق** مع CRUD كامل (إضافة/تعديل/عرض/تفعيل/إيقاف/أرشفة)
+- [x] **Sidebar layout** لصاحب المنصة
+
+---
+
+## المراحل القادمة
+
+### المرحلة الثالثة — صاحب المنصة (باقي الصفحات)
+- [ ] `/platform/packages` — CRUD الباقات
+- [ ] `/platform/subscriptions` — إدارة اشتراكات الفنادق
+- [ ] `/platform/subscription-requests` — موافقة/رفض طلبات الاشتراك
+- [ ] `/platform/managers` — قائمة مديري الفنادق
+- [ ] `/platform/settings` — إعدادات المنصة
+
+### المرحلة الرابعة — مدير الفندق
+- [ ] Layout مع sidebar لمدير الفندق
+- [ ] `/manager` — لوحة تحكم بإحصائيات (غرف، حجوزات، نزلاء)
+- [ ] `/manager/rooms` — CRUD الغرف والطوابق
+- [ ] `/manager/staff` — CRUD الموظفين وصلاحياتهم
+- [ ] `/manager/hotel-settings` — إعدادات الفندق
+
+### المرحلة الخامسة — الحجوزات والنزلاء
+- [ ] نموذج Reservation في Django
+- [ ] نموذج Guest في Django (مع وثائق ومرافقين)
+- [ ] `/manager/reservations` — نظام الحجز الكامل
+- [ ] `/manager/guests` — سجلات النزلاء
+- [ ] `/manager/check-in-out` — الاستقبال والمغادرة
+
+### المرحلة السادسة — الخدمات
+- [ ] نماذج MenuItem, FoodOrder, HousekeepingTask, MaintenanceReport, Payment, Notification
+- [ ] `/manager/food-services` — المطعم والكافتريا
+- [ ] `/manager/housekeeping` — التنظيف
+- [ ] `/manager/maintenance` — الصيانة
+- [ ] `/manager/payments` — المدفوعات
+- [ ] `/manager/reports` — التقارير
+- [ ] `/manager/notifications` — الإشعارات
+
+### المرحلة السابعة — موظف الاستقبال
+- [ ] Layout مع sidebar لموظف الاستقبال
+- [ ] `/reception/check-in-out` — الدخول والمغادرة
+- [ ] `/reception/reservations` — الحجوزات (صلاحيات محدودة)
+- [ ] `/reception/payments` — المدفوعات
+
+### المرحلة الثامنة — التحسينات
+- [ ] دعم اللغتين العربية والإنجليزية (i18n)
+- [ ] تجديد JWT Token تلقائياً
+- [ ] طباعة الفواتير والوثائق
+- [ ] PostgreSQL للإنتاج
+
+---
+
+## ملاحظات تقنية
+- RTL في كل الصفحات (`dir="rtl"`)
+- توكن JWT مخزون في `localStorage` (access_token, refresh_token, role)
+- Backend Django يعمل على `http://localhost:8000`
+- Frontend Next.js يعمل على `http://localhost:3000`
+- `react.FormEvent` مهجور في React 19 — نستخدم `e: { preventDefault(): void }`
