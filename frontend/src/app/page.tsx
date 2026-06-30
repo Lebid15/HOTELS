@@ -1,83 +1,201 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { Building2, MapPin, Search } from "lucide-react";
+import { apiUrl } from "@/lib/api";
 
-export default function Home() {
-  const [hotels, setHotels] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const router = useRouter();
+interface HotelCard {
+  id: number;
+  slug: string;
+  name: string;
+  stars: number | null;
+  hotel_type: string;
+  country: string;
+  governorate: string;
+  city: string;
+  cover_image: string;
+  amenities: string[];
+  public_description_short: string;
+  is_featured: boolean;
+  min_price: number | null;
+  min_currency: string;
+}
 
-  useEffect(() => {
-    const fetchHotels = async () => {
-      try {
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-          router.push('/login');
-          return;
-        }
-        const res = await fetch(process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/hotels/', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
-          if (res.status === 401) router.push('/login');
-          throw new Error('Failed to fetch hotels');
-        }
-        const data = await res.json();
-        setHotels(data);
-      } catch (err) {
-        // silent
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchHotels();
-  }, [router]);
-
+function HotelCardComp({ hotel }: { hotel: HotelCard }) {
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900">
-      <div className="mx-auto max-w-6xl rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/40">
-        <header className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Fandqi Central</p>
-            <h1 className="mt-2 text-4xl font-semibold text-slate-900">قائمة الفنادق</h1>
+    <Link href={`/hotels/${hotel.slug}`} className="pub-hotel-card">
+      {hotel.cover_image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={hotel.cover_image} alt={hotel.name} className="pub-hotel-card-img" />
+      ) : (
+        <div className="pub-hotel-card-img-placeholder">
+          <Building2 size={48} />
+        </div>
+      )}
+      <div className="pub-hotel-card-body">
+        {hotel.stars != null && (
+          <div className="pub-stars">{"★".repeat(hotel.stars)}{"☆".repeat(Math.max(0, 5 - hotel.stars))}</div>
+        )}
+        <div className="pub-hotel-card-name">{hotel.name}</div>
+        <div className="pub-hotel-card-loc">
+          <MapPin size={12} />
+          {[hotel.city, hotel.governorate, hotel.country].filter(Boolean).join("، ")}
+        </div>
+        {hotel.amenities?.length > 0 && (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: ".75rem" }}>
+            {hotel.amenities.slice(0, 3).map(a => (
+              <span key={a} className="pub-amenity-chip">{a}</span>
+            ))}
           </div>
-          <div className="rounded-full bg-slate-100 px-4 py-2 text-slate-600">Next.js + Django API</div>
-        </header>
-
-        <div className="overflow-x-auto">
-          {loading ? (
-            <p>جارٍ التحميل...</p>
-          ) : (
-            <table className="min-w-full divide-y divide-slate-200 text-right">
-              <thead className="bg-slate-50 text-slate-500">
-                <tr>
-                  <th className="px-4 py-3 text-sm font-semibold uppercase tracking-wider">الاسم</th>
-                  <th className="px-4 py-3 text-sm font-semibold uppercase tracking-wider">المدينة</th>
-                  <th className="px-4 py-3 text-sm font-semibold uppercase tracking-wider">الدولة</th>
-                  <th className="px-4 py-3 text-sm font-semibold uppercase tracking-wider">الحالة</th>
-                  <th className="px-4 py-3 text-sm font-semibold uppercase tracking-wider">آخر تحديث</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200 bg-white">
-                {hotels.map((hotel: any) => (
-                  <tr key={hotel.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-4 text-base font-medium text-slate-900">{hotel.name}</td>
-                    <td className="px-4 py-4 text-sm text-slate-600">{hotel.city}</td>
-                    <td className="px-4 py-4 text-sm text-slate-600">{hotel.country}</td>
-                    <td className="px-4 py-4 text-sm font-semibold text-slate-700">
-                      {hotel.is_active ? 'مفعل' : 'متوقف'}
-                    </td>
-                    <td className="px-4 py-4 text-sm text-slate-500">
-                      {new Date(hotel.updated_at).toLocaleString('ar-EG')}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+        )}
+        <div className="pub-hotel-card-footer">
+          {hotel.min_price != null ? (
+            <div className="pub-price">
+              {hotel.min_price.toLocaleString("ar")}
+              {" "}<span className="pub-price-label">{hotel.min_currency} / ليلة</span>
+            </div>
+          ) : <div />}
+          <span className="ds-btn ds-btn-primary ds-btn-sm" style={{ pointerEvents: "none" }}>عرض</span>
         </div>
       </div>
-    </main>
+    </Link>
+  );
+}
+
+export default function Home() {
+  const router = useRouter();
+  const [featured, setFeatured] = useState<HotelCard[]>([]);
+  const [search, setSearch]     = useState({ city: "", check_in: "", check_out: "", guests: "1" });
+
+  // صفحة الزوار مفصولة تمامًا عن تسجيل الدخول — مجرد عرض عام للفنادق.
+  useEffect(() => {
+    fetch(apiUrl("/public/hotels/?featured=1"))
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setFeatured(Array.isArray(data) ? data.slice(0, 6) : []))
+      .catch(() => {});
+  }, []);
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (search.city)      params.set("city", search.city);
+    if (search.check_in)  params.set("check_in", search.check_in);
+    if (search.check_out) params.set("check_out", search.check_out);
+    if (search.guests !== "1") params.set("guests", search.guests);
+    router.push(`/hotels?${params}`);
+  }
+
+  return (
+    <div className="pub-shell">
+      {/* ── Header ─────────────────────────────────────────── */}
+      <header className="pub-header">
+        <div className="pub-header-inner">
+          <Link href="/" className="pub-logo">Fandqi</Link>
+          <nav>
+            <ul className="pub-nav-links">
+              <li><Link href="/" className="pub-nav-link">الرئيسية</Link></li>
+              <li><Link href="/hotels" className="pub-nav-link">الفنادق</Link></li>
+              <li><Link href="/manage-booking" className="pub-nav-link">إدارة حجزي</Link></li>
+            </ul>
+          </nav>
+          <Link href="/hotels" className="ds-btn ds-btn-primary ds-btn-sm">احجز الآن</Link>
+        </div>
+      </header>
+
+      {/* ── Hero ─────────────────────────────────────────────── */}
+      <section className="pub-hero">
+        <div className="pub-container">
+          <h1>ابحث عن فندقك المثالي</h1>
+          <p>آلاف الفنادق والشقق الفندقية في مكان واحد — احجز مجانًا وادفع عند الوصول</p>
+          <form onSubmit={handleSearch} className="pub-search-box">
+            <div className="pub-search-field">
+              <label>المدينة أو المنطقة</label>
+              <input
+                type="text"
+                placeholder="دمشق، حلب، اللاذقية..."
+                value={search.city}
+                onChange={e => setSearch(s => ({ ...s, city: e.target.value }))}
+              />
+            </div>
+            <div className="pub-search-field">
+              <label>تاريخ الوصول</label>
+              <input
+                type="date"
+                value={search.check_in}
+                onChange={e => setSearch(s => ({ ...s, check_in: e.target.value }))}
+              />
+            </div>
+            <div className="pub-search-field">
+              <label>تاريخ المغادرة</label>
+              <input
+                type="date"
+                value={search.check_out}
+                onChange={e => setSearch(s => ({ ...s, check_out: e.target.value }))}
+              />
+            </div>
+            <button type="submit" className="ds-btn ds-btn-success"
+              style={{ padding: ".7rem 1.5rem", borderRadius: 10, gap: 8, whiteSpace: "nowrap" }}>
+              <Search size={18} />
+              بحث
+            </button>
+          </form>
+        </div>
+      </section>
+
+      {/* ── Featured Hotels ───────────────────────────────────── */}
+      {featured.length > 0 && (
+        <section className="pub-section" style={{ background: "#fff" }}>
+          <div className="pub-container">
+            <h2 className="pub-section-title">الفنادق المميزة</h2>
+            <p className="pub-section-sub">اختيارات مميزة بتقييمات عالية وخدمات استثنائية</p>
+            <div className="pub-hotel-grid">
+              {featured.map(h => <HotelCardComp key={h.id} hotel={h} />)}
+            </div>
+            <div style={{ textAlign: "center", marginTop: "2rem" }}>
+              <Link href="/hotels" className="ds-btn ds-btn-neutral">عرض جميع الفنادق</Link>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── How it works ─────────────────────────────────────── */}
+      <section className="pub-section">
+        <div className="pub-container">
+          <h2 className="pub-section-title" style={{ textAlign: "center" }}>كيف تحجز مع فندقي؟</h2>
+          <p className="pub-section-sub" style={{ textAlign: "center" }}>ثلاث خطوات بسيطة لتأكيد إقامتك</p>
+          <div className="pub-steps-grid">
+            <div className="pub-step">
+              <div className="pub-step-num">١</div>
+              <h3>اختر الفندق</h3>
+              <p>تصفح الفنادق وفلترها حسب المدينة والتقييم والمرافق</p>
+            </div>
+            <div className="pub-step">
+              <div className="pub-step-num">٢</div>
+              <h3>حدد التواريخ والغرفة</h3>
+              <p>اختر تواريخ الإقامة ونوع الغرفة المناسبة وأكمل بياناتك</p>
+            </div>
+            <div className="pub-step">
+              <div className="pub-step-num">٣</div>
+              <h3>ادفع عند الوصول</h3>
+              <p>لا حاجة لبطاقة ائتمانية — احجز مجانًا وادفع عند وصولك للفندق</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ───────────────────────────────────────────── */}
+      <footer className="pub-footer">
+        <div className="pub-container">
+          <p style={{ fontWeight: "700", fontSize: "1rem", color: "#fff", marginBottom: ".5rem" }}>Fandqi</p>
+          <p>منصة فندقي — نظام الحجز الفندقي الاحترافي</p>
+          <p style={{ marginTop: ".75rem" }}>
+            <Link href="/hotels" style={{ color: "rgba(255,255,255,.6)", marginLeft: "1.5rem" }}>الفنادق</Link>
+            <Link href="/manage-booking" style={{ color: "rgba(255,255,255,.6)" }}>إدارة حجزي</Link>
+          </p>
+        </div>
+      </footer>
+    </div>
   );
 }
