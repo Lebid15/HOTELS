@@ -198,6 +198,80 @@ class DocPrivacyTests(BaseAPITest):
 
 
 # ── B‑1 + الحجز العام ─────────────────────────────────────────────────────
+class PublicVisibilityTests(TestCase):
+    """المرحلة 2: ظهور الفنادق العامّة مضبوط خادميًا (كل الشروط)."""
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+        self.pkg = Package.objects.create(name='Std', allow_public_listing=True)
+
+    def _mk(self, **over):
+        d = dict(name='Grand', city='Damascus', status=Hotel.STATUS_ACTIVE, public_listing_enabled=True)
+        d.update(over)
+        h = Hotel.objects.create(**d)
+        sub = over.pop('_sub', None)
+        if sub != 'none':
+            Subscription.objects.create(hotel=h, package=self.pkg,
+                                        status=over.get('_sub_status', Subscription.STATUS_ACTIVE))
+        return h
+
+    def _visible_names(self):
+        data = self.client.get('/api/public/hotels/').json()
+        rows = data if isinstance(data, list) else data.get('results', [])
+        return {r['name'] for r in rows}
+
+    def test_eligible_hotel_shows(self):
+        h = Hotel.objects.create(name='Eligible', city='Homs', status=Hotel.STATUS_ACTIVE, public_listing_enabled=True)
+        Subscription.objects.create(hotel=h, package=self.pkg, status=Subscription.STATUS_ACTIVE)
+        self.assertIn('Eligible', self._visible_names())
+
+    def test_archived_hidden(self):
+        h = Hotel.objects.create(name='Archived', city='Homs', status=Hotel.STATUS_ARCHIVED, public_listing_enabled=True)
+        Subscription.objects.create(hotel=h, package=self.pkg, status=Subscription.STATUS_ACTIVE)
+        self.assertNotIn('Archived', self._visible_names())
+
+    def test_suspended_hidden(self):
+        h = Hotel.objects.create(name='Suspended', city='Homs', status=Hotel.STATUS_SUSPENDED, public_listing_enabled=True)
+        Subscription.objects.create(hotel=h, package=self.pkg, status=Subscription.STATUS_ACTIVE)
+        self.assertNotIn('Suspended', self._visible_names())
+
+    def test_listing_disabled_hidden(self):
+        h = Hotel.objects.create(name='NoListing', city='Homs', status=Hotel.STATUS_ACTIVE, public_listing_enabled=False)
+        Subscription.objects.create(hotel=h, package=self.pkg, status=Subscription.STATUS_ACTIVE)
+        self.assertNotIn('NoListing', self._visible_names())
+
+    def test_no_subscription_hidden(self):
+        Hotel.objects.create(name='NoSub', city='Homs', status=Hotel.STATUS_ACTIVE, public_listing_enabled=True)
+        self.assertNotIn('NoSub', self._visible_names())
+
+    def test_expired_subscription_hidden(self):
+        h = Hotel.objects.create(name='Expired', city='Homs', status=Hotel.STATUS_ACTIVE, public_listing_enabled=True)
+        Subscription.objects.create(hotel=h, package=self.pkg, status=Subscription.STATUS_EXPIRED)
+        self.assertNotIn('Expired', self._visible_names())
+
+    def test_end_date_past_hidden(self):
+        h = Hotel.objects.create(name='EndedPast', city='Homs', status=Hotel.STATUS_ACTIVE, public_listing_enabled=True)
+        Subscription.objects.create(hotel=h, package=self.pkg, status=Subscription.STATUS_ACTIVE,
+                                    end_date=date.today() - timedelta(days=1))
+        self.assertNotIn('EndedPast', self._visible_names())
+
+    def test_package_disallows_listing_hidden(self):
+        pkg2 = Package.objects.create(name='NoPub', allow_public_listing=False)
+        h = Hotel.objects.create(name='PkgNoPub', city='Homs', status=Hotel.STATUS_ACTIVE, public_listing_enabled=True)
+        Subscription.objects.create(hotel=h, package=pkg2, status=Subscription.STATUS_ACTIVE)
+        self.assertNotIn('PkgNoPub', self._visible_names())
+
+    def test_missing_city_hidden(self):
+        h = Hotel.objects.create(name='NoCity', city='', status=Hotel.STATUS_ACTIVE, public_listing_enabled=True)
+        Subscription.objects.create(hotel=h, package=self.pkg, status=Subscription.STATUS_ACTIVE)
+        self.assertNotIn('NoCity', self._visible_names())
+
+    def test_hidden_hotel_detail_404(self):
+        h = Hotel.objects.create(name='HiddenD', city='Homs', status=Hotel.STATUS_ACTIVE, public_listing_enabled=False)
+        r = self.client.get(f'/api/public/hotels/{h.id}/')
+        self.assertEqual(r.status_code, 404)
+
+
 class PublicBookingTests(TestCase):
     def setUp(self):
         cache.clear()

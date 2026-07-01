@@ -1563,8 +1563,24 @@ from .serializers import PublicHotelCardSerializer, PublicHotelDetailSerializer,
 
 
 def _public_hotels_qs():
-    # كل فندق مسجّل يظهر في الموقع — يُستثنى فقط الفنادق المؤرشفة (المحذوفة).
-    return Hotel.objects.exclude(status=Hotel.STATUS_ARCHIVED).select_related('subscription')
+    """المرحلة 2 (ضبط الظهور العام) — مصدر مركزي واحد لشروط ظهور الفندق للعامّة.
+    لا يظهر الفندق إلا إذا تحقّقت **كل** الشروط:
+      1) الحالة = فعّال (تلقائيًا: غير موقوف من المنصّة وغير مؤرشف)
+      2) `public_listing_enabled` مفعّل
+      3) بيانات أساسية مكتملة (اسم + مدينة)
+      4) اشتراك فعّال/تجريبي، باقته تسمح بالظهور، وغير منتهٍ
+    يُستخدم في قائمة/تفاصيل الفنادق + التوفّر + التقييمات (لا يظهر ما هو مخفيّ)."""
+    today = timezone.localdate()
+    return (
+        Hotel.objects
+        .filter(status=Hotel.STATUS_ACTIVE, public_listing_enabled=True)
+        .exclude(name='').exclude(city='')
+        .filter(subscription__status__in=[Subscription.STATUS_ACTIVE, Subscription.STATUS_TRIAL],
+                subscription__package__allow_public_listing=True)
+        .filter(Q(subscription__end_date__isnull=True) | Q(subscription__end_date__gte=today))
+        .select_related('subscription', 'subscription__package')
+        .distinct()
+    )
 
 
 def _ensure_slug(hotel):
