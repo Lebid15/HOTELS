@@ -74,15 +74,28 @@ def _user_hotel_active(user) -> bool:
     return status == Hotel.STATUS_ACTIVE
 
 
+def _user_staff_permissions(user):
+    """م5 (C6): قائمة صلاحيات الموظف الدقيقة من سجلّ Staff المرتبط (أو [] إن لم يوجد)."""
+    from .models import Staff
+    try:
+        p = Staff.objects.filter(user=user).values_list('permissions', flat=True).first()
+        return p if isinstance(p, list) else []
+    except Exception:
+        return []
+
+
 class BaseHotelResourcePermission(permissions.BasePermission):
     """B‑8/H‑5: تصنيف الوصول حسب الدور للموارد المرتبطة بفندق.
 
     - مالك المنصّة: كل شيء.
     - بلا دور صالح (H‑6): لا وصول.
     - مدير/استقبال: يُحجبان إن كان فندقهما موقوفًا (H‑5).
-    - المدير: وصول كامل. الاستقبال: محدود بالطرق في `reception_methods` (افتراضيًا قراءة فقط).
+    - المدير: وصول كامل. الاستقبال: محدود بالطرق في `reception_methods`.
+    - **م5 (C6):** إن كان لموظّف الاستقبال قائمة صلاحيات دقيقة مضبوطة في سجلّ Staff،
+      يُلزَم بامتلاك `required_permission` للقسم (توافق خلفي: بلا قائمة → يُحكَم بالدور فقط).
     """
     reception_methods = permissions.SAFE_METHODS
+    required_permission = None   # م5: صلاحية القسم الدقيقة (اختيارية)
     message = 'ليس لديك صلاحية لهذه العملية.'
 
     def has_permission(self, request, view):
@@ -100,22 +113,31 @@ class BaseHotelResourcePermission(permissions.BasePermission):
             return False
         if role == 'manager':
             return True
-        if request.method in self.reception_methods:
-            return True
-        self.message = 'هذه العملية متاحة لمدير الفندق فقط.'
-        return False
+        if request.method not in self.reception_methods:
+            self.message = 'هذه العملية متاحة لمدير الفندق فقط.'
+            return False
+        # م5 (C6): إلزام الصلاحية الدقيقة إن كانت مضبوطة لهذا الموظّف
+        if self.required_permission:
+            perms = _user_staff_permissions(u)
+            if perms and self.required_permission not in perms:
+                self.message = 'ليس لديك صلاحية للوصول إلى هذا القسم.'
+                return False
+        return True
 
 
 class RoomPermission(BaseHotelResourcePermission):
     reception_methods = permissions.SAFE_METHODS                     # الاستقبال: قراءة فقط
+    required_permission = 'rooms'
 
 
 class ReservationPermission(BaseHotelResourcePermission):
     reception_methods = ('GET', 'HEAD', 'OPTIONS', 'POST', 'PATCH', 'PUT')  # بلا حذف
+    required_permission = 'reservations'
 
 
 class MaintenancePermission(BaseHotelResourcePermission):
     reception_methods = ('GET', 'HEAD', 'OPTIONS', 'POST')           # إبلاغ + قراءة
+    required_permission = 'maintenance'
 
 
 class StaffPermission(BaseHotelResourcePermission):
@@ -128,6 +150,7 @@ class SubscriptionRequestPermission(BaseHotelResourcePermission):
 
 class PaymentPermission(BaseHotelResourcePermission):
     reception_methods = ('GET', 'HEAD', 'OPTIONS', 'POST')           # الاستقبال يسجّل الدفعات
+    required_permission = 'payments'
 
 
 class ExpensePermission(BaseHotelResourcePermission):
@@ -144,15 +167,19 @@ class ShiftHandoverPermission(BaseHotelResourcePermission):
 
 class MenuItemPermission(BaseHotelResourcePermission):
     reception_methods = permissions.SAFE_METHODS                     # الاستقبال يرى القائمة فقط
+    required_permission = 'room_service'
 
 
 class FoodOrderPermission(BaseHotelResourcePermission):
     reception_methods = ('GET', 'HEAD', 'OPTIONS', 'POST', 'PATCH', 'PUT')  # الاستقبال ينشئ/يحدّث الطلبات (بلا حذف)
+    required_permission = 'room_service'
 
 
 class FolioPermission(BaseHotelResourcePermission):
     reception_methods = ('GET', 'HEAD', 'OPTIONS', 'POST', 'PATCH', 'PUT')  # الاستقبال يضيف رسومًا/يسوّي (بلا حذف)
+    required_permission = 'payments'
 
 
 class GuestProfilePermission(BaseHotelResourcePermission):
     reception_methods = ('GET', 'HEAD', 'OPTIONS', 'POST', 'PATCH')   # الاستقبال يعدّل أعلام/ملاحظات النزلاء
+    required_permission = 'reservations'

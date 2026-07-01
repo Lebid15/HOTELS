@@ -1086,6 +1086,37 @@ class DirectBookingAndGuestLookupTests(BaseAPITest):
         self.assertEqual(self.client.get('/api/reservations/guest_lookup/?q=ab').json(), [])
 
 
+# ── م5 (C6): إلزام الصلاحيات الدقيقة خادميًا ────────────────────────────────
+class GranularPermissionTests(BaseAPITest):
+    def _staff_for(self, user, perms):
+        from .models import Staff
+        Staff.objects.create(hotel=self.hotelA, user=user, full_name='R', role='receptionist', permissions=perms)
+
+    def _pay(self):
+        return self.client.post('/api/payments/', {'reservation': self.resA.id, 'amount': 10,
+                                                   'currency': 'USD', 'method': 'cash'}, format='json')
+
+    def test_reception_without_section_perm_denied(self):
+        self._staff_for(self.recA, ['reservations'])   # قائمة مضبوطة بلا payments
+        self.as_(self.recA)
+        self.assertEqual(self._pay().status_code, 403)
+
+    def test_reception_with_section_perm_allowed(self):
+        self._staff_for(self.recA, ['payments'])
+        self.as_(self.recA)
+        self.assertEqual(self._pay().status_code, 201)
+
+    def test_reception_without_staff_record_backward_compatible(self):
+        # بلا سجلّ Staff (أو قائمة فارغة) → يُحكَم بالدور فقط (لا يكسر السلوك القائم)
+        self.as_(self.recA)
+        self.assertEqual(self._pay().status_code, 201)
+
+    def test_manager_unaffected_by_granular(self):
+        self._staff_for(self.recA, ['reservations'])
+        self.as_(self.mgrA)                            # المدير له كل شيء
+        self.assertEqual(self._pay().status_code, 201)
+
+
 # ── م6: حماية العمليات المالية (إبطال بدل حذف + تدقيق) ─────────────────────
 class FinancialVoidTests(BaseAPITest):
     def _payment(self, amount=50):
