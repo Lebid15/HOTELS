@@ -295,7 +295,7 @@ class PublicBookingDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reservation
         fields = [
-            'id', 'public_booking_no', 'hotel_name', 'hotel_city', 'hotel_phone',
+            'id', 'public_booking_no', 'manage_token', 'hotel_name', 'hotel_city', 'hotel_phone',
             'guest_first_name', 'guest_last_name', 'guest_phone', 'guest_email',
             'room_type_label', 'check_in_date', 'check_out_date', 'nights_count',
             'persons_count', 'total', 'currency', 'payment_method', 'documents_status',

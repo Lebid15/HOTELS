@@ -328,6 +328,7 @@ class Reservation(models.Model):
     # ── Public / Website booking fields ──────────────────────────────────
     public_booking    = models.BooleanField(default=False)
     public_booking_no = models.CharField(max_length=30, blank=True, null=True, unique=True)
+    manage_token      = models.CharField(max_length=48, blank=True)   # م3: رمز إدارة آمن (بدل الاعتماد على الهاتف فقط)
     room_type_label   = models.CharField(max_length=50, blank=True)
     payment_method    = models.CharField(max_length=30, default='direct', blank=True)
     documents_status  = models.CharField(max_length=30, default='pending_on_arrival', blank=True)

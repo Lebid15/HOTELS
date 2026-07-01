@@ -1583,6 +1583,20 @@ def _public_hotels_qs():
     )
 
 
+def _get_bookable_hotel(hotel_id):
+    """م3: الفندق يقبل حجزًا عامًّا فقط إذا: فعّال + `public_booking_enabled` +
+    اشتراك فعّال/تجريبي غير منتهٍ + باقته تسمح باستقبال حجوزات الموقع."""
+    today = timezone.localdate()
+    return (
+        Hotel.objects
+        .filter(pk=hotel_id, status=Hotel.STATUS_ACTIVE, public_booking_enabled=True)
+        .filter(subscription__status__in=[Subscription.STATUS_ACTIVE, Subscription.STATUS_TRIAL],
+                subscription__package__allow_public_booking=True)
+        .filter(Q(subscription__end_date__isnull=True) | Q(subscription__end_date__gte=today))
+        .first()
+    )
+
+
 def _ensure_slug(hotel):
     if not hotel.slug:
         slug = f'hotel-{hotel.id}'
@@ -1732,12 +1746,9 @@ class PublicBookingCreateView(APIView):
         if check_out <= check_in:
             return Response({'error': 'تاريخ الخروج يجب أن يكون بعد تاريخ الدخول'}, status=400)
 
-        try:
-            hotel = Hotel.objects.exclude(status=Hotel.STATUS_ARCHIVED).get(pk=hotel_id)
-        except Hotel.DoesNotExist:
-            return Response({'error': 'الفندق غير متاح'}, status=404)
-
-        if not hotel.public_booking_enabled:
+        # م3: بوّابة أهلية الفندق (فعّال + حجز مفعّل + اشتراك صالح يسمح بالحجز)
+        hotel = _get_bookable_hotel(hotel_id)
+        if hotel is None:
             return Response({'error': 'الحجز من الموقع غير متاح لهذا الفندق حاليًا'}, status=400)
 
         nights = (check_out - check_in).days
@@ -1769,6 +1780,7 @@ class PublicBookingCreateView(APIView):
                 payment_method='pay_at_hotel',
                 documents_status='pending_on_arrival',
                 arrival_status=Reservation.ARRIVAL_AWAITING,
+                manage_token=secrets.token_urlsafe(24),   # م3: رمز إدارة آمن
             )
         # إشعارات best-effort (بريد + SMS + واتساب) — لا تُفشِل الحجز إن تعطّلت
         try:
@@ -1785,20 +1797,33 @@ class PublicBookingCreateView(APIView):
         return Response(PublicBookingDetailSerializer(reservation).data, status=201)
 
 
+def _resolve_public_reservation(booking_no, token='', phone='', extra_select=()):
+    """م3: يُرجع الحجز العام عبر (رقم + رمز إدارة آمن) — المسار القوي — أو
+    (رقم + هاتف) كتوافق خلفي. الرمز الآمن يمنع التخمين برقم الحجز والهاتف فقط."""
+    if not booking_no:
+        return None
+    qs = Reservation.objects.filter(public_booking_no=booking_no, public_booking=True)
+    if extra_select:
+        qs = qs.select_related(*extra_select)
+    if token:
+        return qs.filter(manage_token=token).first()
+    if phone:
+        return qs.filter(guest_phone=phone).first()
+    return None
+
+
 class PublicBookingManageView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_classes = [PublicLookupThrottle]
 
     def get(self, request):
         booking_no = request.query_params.get('no', '').strip()
+        token      = request.query_params.get('token', '').strip()
         phone      = request.query_params.get('phone', '').strip()
-        if not booking_no or not phone:
-            return Response({'error': 'يرجى إدخال رقم الحجز ورقم الهاتف'}, status=400)
-        try:
-            res = Reservation.objects.select_related('hotel').get(
-                public_booking_no=booking_no, guest_phone=phone, public_booking=True,
-            )
-        except Reservation.DoesNotExist:
+        if not booking_no or (not token and not phone):
+            return Response({'error': 'يرجى إدخال رقم الحجز مع رمز الإدارة أو رقم الهاتف'}, status=400)
+        res = _resolve_public_reservation(booking_no, token, phone, extra_select=('hotel',))
+        if res is None:
             return Response({'error': 'لم يتم العثور على حجز مطابق'}, status=404)
         return Response(PublicBookingDetailSerializer(res).data)
 
@@ -1808,15 +1833,13 @@ class PublicBookingCancelView(APIView):
     throttle_classes = [PublicWriteThrottle]
 
     def post(self, request, booking_no):
+        token  = (request.data.get('token') or '').strip()
         phone  = (request.data.get('phone') or '').strip()
         reason = (request.data.get('reason') or '').strip()
-        if not phone:
-            return Response({'error': 'رقم الهاتف مطلوب للتحقق'}, status=400)
-        try:
-            res = Reservation.objects.select_related('room').get(
-                public_booking_no=booking_no, guest_phone=phone, public_booking=True,
-            )
-        except Reservation.DoesNotExist:
+        if not token and not phone:
+            return Response({'error': 'رمز الإدارة أو رقم الهاتف مطلوب للتحقق'}, status=400)
+        res = _resolve_public_reservation(booking_no, token, phone, extra_select=('room',))
+        if res is None:
             return Response({'error': 'لم يتم العثور على الحجز'}, status=404)
 
         if res.status in [Reservation.STATUS_CHECKED_IN, Reservation.STATUS_CHECKED_OUT]:

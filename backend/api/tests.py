@@ -276,7 +276,11 @@ class PublicBookingTests(TestCase):
     def setUp(self):
         cache.clear()
         self.client = APIClient()
-        self.hotel = Hotel.objects.create(name='Pub', status=Hotel.STATUS_ACTIVE)
+        self.hotel = Hotel.objects.create(name='Pub', city='Damascus', status=Hotel.STATUS_ACTIVE,
+                                          public_booking_enabled=True)
+        # م3: الحجز العام يتطلّب اشتراكًا صالحًا تسمح باقته بالحجز
+        pkg = Package.objects.create(name='Pub', allow_public_booking=True)
+        Subscription.objects.create(hotel=self.hotel, package=pkg, status=Subscription.STATUS_ACTIVE)
         self.room = Room.objects.create(hotel=self.hotel, number='1', type='single', price=100, show_in_public=True)
         self.ci = (date.today() + timedelta(days=5)).isoformat()
         self.co = (date.today() + timedelta(days=7)).isoformat()
@@ -300,6 +304,40 @@ class PublicBookingTests(TestCase):
         self.assertEqual(self._book().status_code, 201)
         self.assertGreaterEqual(self._book().status_code, 400)  # لا غرفة متاحة
 
+    # ── م3: تحصين الحجز العام ──────────────────────────────────────────────
+    def test_booking_issues_manage_token(self):
+        r = self._book()
+        self.assertEqual(r.status_code, 201)
+        self.assertTrue(r.json().get('manage_token'))          # رمز إدارة آمن يُصدَر
+
+    def test_booking_rejected_for_suspended_hotel(self):
+        self.hotel.status = Hotel.STATUS_SUSPENDED; self.hotel.save()
+        self.assertEqual(self._book().status_code, 400)
+
+    def test_booking_rejected_without_valid_subscription(self):
+        from .models import Subscription
+        Subscription.objects.filter(hotel=self.hotel).update(status=Subscription.STATUS_EXPIRED)
+        self.assertEqual(self._book().status_code, 400)
+
+    def test_manage_with_token_succeeds_wrong_token_fails(self):
+        tok = self._book().json()['manage_token']
+        no  = Reservation.objects.filter(public_booking=True).first().public_booking_no
+        ok  = self.client.get(f'/api/public/manage-booking/?no={no}&token={tok}')
+        self.assertEqual(ok.status_code, 200)
+        bad = self.client.get(f'/api/public/manage-booking/?no={no}&token=WRONG')
+        self.assertEqual(bad.status_code, 404)                 # التخمين بالرمز يفشل
+
+    def test_manage_requires_credential(self):
+        no = self._book().json()['public_booking_no']
+        r  = self.client.get(f'/api/public/manage-booking/?no={no}')   # بلا رمز/هاتف
+        self.assertEqual(r.status_code, 400)
+
+    def test_cancel_with_token(self):
+        j   = self._book().json()
+        tok = j['manage_token']; no = j['public_booking_no']
+        r   = self.client.post(f'/api/public/bookings/{no}/cancel/', {'token': tok, 'reason': 'x'}, format='json')
+        self.assertEqual(r.status_code, 200)
+
     def test_invalid_dates_rejected(self):
         r = self.client.post('/api/public/bookings/', {
             'hotel_id': self.hotel.id, 'room_type': 'single',
@@ -322,7 +360,11 @@ class CommissionTests(TestCase):
     def setUp(self):
         cache.clear()
         self.client = APIClient()
-        self.hotel = Hotel.objects.create(name='Comm', status=Hotel.STATUS_ACTIVE)
+        self.hotel = Hotel.objects.create(name='Comm', city='Damascus', status=Hotel.STATUS_ACTIVE,
+                                          public_booking_enabled=True)
+        # م3: الحجز العام يتطلّب اشتراكًا صالحًا تسمح باقته بالحجز
+        _pkg = Package.objects.create(name='Comm', allow_public_booking=True)
+        Subscription.objects.create(hotel=self.hotel, package=_pkg, status=Subscription.STATUS_ACTIVE)
         Room.objects.create(hotel=self.hotel, number='1', type='single', price=100, show_in_public=True)
 
     def test_public_booking_creates_commission(self):
