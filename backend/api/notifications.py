@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 def _platform_name():
-    return getattr(settings, 'PLATFORM_NAME', 'Fandqi')
+    return getattr(settings, 'PLATFORM_NAME', 'funduqii')
 
 
 def build_booking_summary(reservation):
@@ -107,7 +107,7 @@ def send_sms_confirmation(reservation):
 def _send_twilio(phone, text):
     sid = getattr(settings, 'TWILIO_ACCOUNT_SID', '')
     token = getattr(settings, 'TWILIO_AUTH_TOKEN', '')
-    sender = getattr(settings, 'SMS_FROM', 'Fandqi')
+    sender = getattr(settings, 'SMS_FROM', 'funduqii')
     if not sid or not token:
         return False
     try:
@@ -129,7 +129,7 @@ def _send_generic_http(phone, text):
         return False
     payload = json.dumps({
         'to': phone, 'message': text,
-        'sender': getattr(settings, 'SMS_FROM', 'Fandqi'),
+        'sender': getattr(settings, 'SMS_FROM', 'funduqii'),
     }).encode('utf-8')
     req = _req.Request(url, data=payload, headers={
         'Content-Type': 'application/json',

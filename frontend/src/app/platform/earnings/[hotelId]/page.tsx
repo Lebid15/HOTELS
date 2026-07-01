@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { apiUrl, getAuthJsonHeaders } from "@/lib/api";
 import { subStatus, payStatus } from "@/lib/status";
+import { useLang } from "@/lib/i18n/LangContext";
 
 type Money = Record<string, number>;
 
@@ -63,6 +64,7 @@ function MoneyLines({ map, empty = "—" }: { map: Money; empty?: string }) {
 
 export default function HotelEarningsPage({ params }: { params: Promise<{ hotelId: string }> }) {
   const { hotelId } = use(params);
+  const { t } = useLang();
 
   const [data, setData]       = useState<HotelEarnings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,9 +87,10 @@ export default function HotelEarningsPage({ params }: { params: Promise<{ hotelI
     fetch(apiUrl(`/platform/earnings/hotels/${hotelId}/?${p}`), { headers: getAuthJsonHeaders() })
       .then(r => r.ok ? r.json() : Promise.reject())
       .then((d: HotelEarnings) => { setData(d); setEdit(d.commission_setting); setLoading(false); })
-      .catch(() => { setError("تعذّر تحميل تقرير الفندق"); setLoading(false); });
-  }, [hotelId, bookingStatus, commissionStatus]);
+      .catch(() => { setError(t("تعذّر تحميل تقرير الفندق")); setLoading(false); });
+  }, [hotelId, bookingStatus, commissionStatus, t]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل بيانات عند الإقلاع/تغيّر الفلاتر
   useEffect(() => { load(); }, [load]);
 
   function commissionAction(id: number, action: string, extra: Record<string, unknown> = {}) {
@@ -95,8 +98,8 @@ export default function HotelEarningsPage({ params }: { params: Promise<{ hotelI
       method: "POST", headers: getAuthJsonHeaders(), body: JSON.stringify({ action, ...extra }),
     })
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then(() => { showToast("تم تحديث العمولة"); load(); })
-      .catch(() => showToast("فشل تحديث العمولة"));
+      .then(() => { showToast(t("تم تحديث العمولة")); load(); })
+      .catch(() => showToast(t("فشل تحديث العمولة")));
   }
 
   function saveCommissionSetting() {
@@ -111,13 +114,13 @@ export default function HotelEarningsPage({ params }: { params: Promise<{ hotelI
       }),
     })
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then(() => { setSaving(false); setShowEdit(false); showToast("تم حفظ إعداد عمولة الفندق"); load(); })
-      .catch(() => { setSaving(false); showToast("فشل الحفظ"); });
+      .then(() => { setSaving(false); setShowEdit(false); showToast(t("تم حفظ إعداد عمولة الفندق")); load(); })
+      .catch(() => { setSaving(false); showToast(t("فشل الحفظ")); });
   }
 
   function exportCSV() {
     if (!data) return;
-    const head = ["رقم الحجز", "الزبون", "الهاتف", "تاريخ الحجز", "الدخول", "الخروج", "الغرفة", "قيمة الحجز", "العملة", "حالة الحجز", "نوع العمولة", "قيمة العمولة", "عملة العمولة", "حالة العمولة"];
+    const head = [t("رقم الحجز"), t("الزبون"), t("الهاتف"), t("تاريخ الحجز"), t("الدخول"), t("الخروج"), t("الغرفة"), t("قيمة الحجز"), t("العملة"), t("حالة الحجز"), t("نوع العمولة"), t("قيمة العمولة"), t("عملة العمولة"), t("حالة العمولة")];
     const rows = data.commissions.map(c => [
       c.public_booking_no, c.guest_name, c.guest_phone, c.created_at?.slice(0, 10),
       c.check_in_date, c.check_out_date, c.room_type_label, c.booking_total, c.booking_currency,
@@ -133,8 +136,8 @@ export default function HotelEarningsPage({ params }: { params: Promise<{ hotelI
     URL.revokeObjectURL(url);
   }
 
-  if (loading && !data) return <div className="ds-page" dir="rtl"><div className="ds-card-p"><p className="text-muted">جارٍ تحميل تقرير الفندق...</p></div></div>;
-  if (error || !data)  return <div className="ds-page" dir="rtl"><div className="ds-card-p"><div className="ds-alert ds-alert-danger">{error || "خطأ"}</div></div></div>;
+  if (loading && !data) return <div className="ds-page" dir="rtl"><div className="ds-card-p"><p className="text-muted">{t("جارٍ تحميل تقرير الفندق...")}</p></div></div>;
+  if (error || !data)  return <div className="ds-page" dir="rtl"><div className="ds-card-p"><div className="ds-alert ds-alert-danger">{error || t("خطأ")}</div></div></div>;
 
   const h = data.hotel; const s = data.subscription; const bs = data.bookings_summary; const eff = data.commission_setting.effective;
 
@@ -144,23 +147,23 @@ export default function HotelEarningsPage({ params }: { params: Promise<{ hotelI
 
       {/* Print header */}
       <div className="print-only" style={{ marginBottom: "1rem", textAlign: "center" }}>
-        <h2 style={{ fontWeight: 800, fontSize: 22 }}>تقرير أرباح الفندق — {h.name}</h2>
-        <p style={{ color: "#555" }}>تاريخ الإنشاء: {new Date().toLocaleDateString("ar-SY")}</p>
+        <h2 style={{ fontWeight: 800, fontSize: 22 }}>{t("تقرير أرباح الفندق")} — {h.name}</h2>
+        <p style={{ color: "#555" }}>{t("تاريخ الإنشاء")}: {new Date().toLocaleDateString("ar-SY")}</p>
       </div>
 
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1 style={{ display: "flex", alignItems: "center", gap: 8 }}><FileBarChart size={24} /> تقرير أرباح الفندق</h1>
+          <h1 style={{ display: "flex", alignItems: "center", gap: 8 }}><FileBarChart size={24} /> {t("تقرير أرباح الفندق")}</h1>
           <p>{h.name}</p>
         </div>
         <div className="page-actions">
           <Link href="/platform/earnings" className="ds-btn ds-btn-neutral ds-btn-sm" style={{ gap: 6 }}>
-            <ArrowRight size={15} /> رجوع
+            <ArrowRight size={15} /> {t("رجوع")}
           </Link>
-          <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={exportCSV} style={{ gap: 6 }}><Download size={15} /> تصدير CSV</button>
-          <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={() => window.print()} style={{ gap: 6 }}><Printer size={15} /> طباعة</button>
-          <button className="ds-btn ds-btn-primary ds-btn-sm" onClick={() => setShowEdit(true)} style={{ gap: 6 }}><Percent size={15} /> تعديل العمولة</button>
+          <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={exportCSV} style={{ gap: 6 }}><Download size={15} /> {t("تصدير CSV")}</button>
+          <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={() => window.print()} style={{ gap: 6 }}><Printer size={15} /> {t("طباعة")}</button>
+          <button className="ds-btn ds-btn-primary ds-btn-sm" onClick={() => setShowEdit(true)} style={{ gap: 6 }}><Percent size={15} /> {t("تعديل العمولة")}</button>
         </div>
       </div>
 
@@ -168,51 +171,51 @@ export default function HotelEarningsPage({ params }: { params: Promise<{ hotelI
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
         {/* Hotel info */}
         <div className="ds-card ds-card-p">
-          <h3 className="earn-section-title" style={{ marginTop: 0 }}><Building2 size={18} /> معلومات الفندق</h3>
-          <InfoRow label="الاسم" value={h.name} />
-          <InfoRow label="الموقع" value={[h.city, h.governorate].filter(Boolean).join("، ") || "—"} icon={<MapPin size={13} />} />
-          <InfoRow label="المدير" value={h.manager_name ? h.manager_name : <span className="ds-badge ds-badge-neutral">لا يوجد مدير</span>} icon={<User size={13} />} />
-          <InfoRow label="الهاتف" value={h.phone || "—"} icon={<Phone size={13} />} />
-          <InfoRow label="عملة الفندق" value={h.currency} />
+          <h3 className="earn-section-title" style={{ marginTop: 0 }}><Building2 size={18} /> {t("معلومات الفندق")}</h3>
+          <InfoRow label={t("الاسم")} value={h.name} />
+          <InfoRow label={t("الموقع")} value={[h.city, h.governorate].filter(Boolean).join("، ") || "—"} icon={<MapPin size={13} />} />
+          <InfoRow label={t("المدير")} value={h.manager_name ? h.manager_name : <span className="ds-badge ds-badge-neutral">{t("لا يوجد مدير")}</span>} icon={<User size={13} />} />
+          <InfoRow label={t("الهاتف")} value={h.phone || "—"} icon={<Phone size={13} />} />
+          <InfoRow label={t("عملة الفندق")} value={h.currency} />
         </div>
 
         {/* Subscription summary */}
         <div className="ds-card ds-card-p">
-          <h3 className="earn-section-title" style={{ marginTop: 0 }}><BadgeCheck size={18} /> ملخّص الاشتراك</h3>
-          <InfoRow label="الباقة الحالية" value={s.package_name ?? "—"} />
-          <InfoRow label="حالة الاشتراك" value={s.status ? <span className={subStatus(s.status).badge}>{subStatus(s.status).label}</span> : "—"} />
-          <InfoRow label="حالة الدفع" value={s.payment_status ? <span className={payStatus(s.payment_status).badge}>{payStatus(s.payment_status).label}</span> : "—"} />
-          <InfoRow label="قيمة الاشتراك" value={s.amount ? `${nf(s.amount)} ${s.currency ?? ""}` : "—"} />
-          <InfoRow label="تاريخ الانتهاء" value={s.end_date ? new Date(s.end_date).toLocaleDateString("ar-SY") : "—"} />
+          <h3 className="earn-section-title" style={{ marginTop: 0 }}><BadgeCheck size={18} /> {t("ملخّص الاشتراك")}</h3>
+          <InfoRow label={t("الباقة الحالية")} value={s.package_name ?? "—"} />
+          <InfoRow label={t("حالة الاشتراك")} value={s.status ? <span className={subStatus(s.status).badge}>{subStatus(s.status).label}</span> : "—"} />
+          <InfoRow label={t("حالة الدفع")} value={s.payment_status ? <span className={payStatus(s.payment_status).badge}>{payStatus(s.payment_status).label}</span> : "—"} />
+          <InfoRow label={t("قيمة الاشتراك")} value={s.amount ? `${nf(s.amount)} ${s.currency ?? ""}` : "—"} />
+          <InfoRow label={t("تاريخ الانتهاء")} value={s.end_date ? new Date(s.end_date).toLocaleDateString("ar-SY") : "—"} />
         </div>
 
         {/* Commission config */}
         <div className="ds-card ds-card-p">
-          <h3 className="earn-section-title" style={{ marginTop: 0 }}><Percent size={18} /> إعداد العمولة الفعّال</h3>
-          <InfoRow label="الحالة" value={eff.enabled ? "مفعّلة" : "معطّلة"} />
-          <InfoRow label="النوع" value={COMMISSION_TYPE_LABEL[eff.type] ?? "—"} />
-          <InfoRow label="القيمة" value={eff.type === "percentage" ? `${eff.value}%` : `${nf(eff.value)} ${eff.currency}`} />
-          <InfoRow label="المصدر" value={eff.source === "hotel" ? "إعداد خاص بالفندق" : eff.source === "platform" ? "الإعداد العام" : "معطّل"} />
-          {data.commission_setting.commission_notes && <InfoRow label="ملاحظات" value={data.commission_setting.commission_notes} />}
+          <h3 className="earn-section-title" style={{ marginTop: 0 }}><Percent size={18} /> {t("إعداد العمولة الفعّال")}</h3>
+          <InfoRow label={t("الحالة")} value={eff.enabled ? t("مفعّلة") : t("معطّلة")} />
+          <InfoRow label={t("النوع")} value={COMMISSION_TYPE_LABEL[eff.type] ? t(COMMISSION_TYPE_LABEL[eff.type]) : "—"} />
+          <InfoRow label={t("القيمة")} value={eff.type === "percentage" ? `${eff.value}%` : `${nf(eff.value)} ${eff.currency}`} />
+          <InfoRow label={t("المصدر")} value={eff.source === "hotel" ? t("إعداد خاص بالفندق") : eff.source === "platform" ? t("الإعداد العام") : t("معطّل")} />
+          {data.commission_setting.commission_notes && <InfoRow label={t("ملاحظات")} value={data.commission_setting.commission_notes} />}
         </div>
       </div>
 
       {/* Web bookings summary */}
-      <h2 className="earn-section-title"><CalendarCheck size={18} /> ملخّص حجوزات الموقع</h2>
+      <h2 className="earn-section-title"><CalendarCheck size={18} /> {t("ملخّص حجوزات الموقع")}</h2>
       <div className="ds-card ds-card-p" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: "1rem", marginBottom: "1.5rem" }}>
-        <Stat label="إجمالي الحجوزات" value={bs.total} />
-        <Stat label="بانتظار الوصول" value={bs.awaiting} />
-        <Stat label="تم الدخول" value={bs.checked_in} color="text-success" />
-        <Stat label="مكتملة" value={bs.completed} color="text-success" />
-        <Stat label="ملغاة (زبون)" value={bs.cancelled_by_guest} color="text-danger" />
-        <Stat label="ملغاة (فندق)" value={bs.cancelled_by_hotel} color="text-danger" />
-        <Stat label="لم يحضر" value={bs.no_show} color="text-warning" />
+        <Stat label={t("إجمالي الحجوزات")} value={bs.total} />
+        <Stat label={t("بانتظار الوصول")} value={bs.awaiting} />
+        <Stat label={t("تم الدخول")} value={bs.checked_in} color="text-success" />
+        <Stat label={t("مكتملة")} value={bs.completed} color="text-success" />
+        <Stat label={t("ملغاة (زبون)")} value={bs.cancelled_by_guest} color="text-danger" />
+        <Stat label={t("ملغاة (فندق)")} value={bs.cancelled_by_hotel} color="text-danger" />
+        <Stat label={t("لم يحضر")} value={bs.no_show} color="text-warning" />
         <div>
-          <p className="ds-summary-label"><HandCoins size={12} style={{ display: "inline", marginLeft: 3 }} />قيمة الحجوزات</p>
+          <p className="ds-summary-label"><HandCoins size={12} style={{ display: "inline", marginLeft: 3 }} />{t("قيمة الحجوزات")}</p>
           <div style={{ fontWeight: 800, fontSize: "var(--text-lg)" }}><MoneyLines map={bs.value_by_currency} empty="0" /></div>
         </div>
         <div>
-          <p className="ds-summary-label"><HandCoins size={12} style={{ display: "inline", marginLeft: 3 }} />ربح المنصة</p>
+          <p className="ds-summary-label"><HandCoins size={12} style={{ display: "inline", marginLeft: 3 }} />{t("ربح المنصة")}</p>
           <div style={{ fontWeight: 800, fontSize: "var(--text-lg)" }} className="text-primary"><MoneyLines map={bs.profit_by_currency} empty="0" /></div>
         </div>
       </div>
@@ -220,24 +223,24 @@ export default function HotelEarningsPage({ params }: { params: Promise<{ hotelI
       {/* Filters */}
       <div className="ds-filters no-print" style={{ marginBottom: "1rem" }}>
         <select className="select" value={bookingStatus} onChange={e => setBookingStatus(e.target.value)} style={{ width: 160 }}>
-          <option value="">كل حالات الحجز</option>
-          {Object.entries(BOOKING_STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          <option value="">{t("كل حالات الحجز")}</option>
+          {Object.entries(BOOKING_STATUS_LABEL).map(([k, v]) => <option key={k} value={k}>{t(v)}</option>)}
         </select>
         <select className="select" value={commissionStatus} onChange={e => setCommissionStatus(e.target.value)} style={{ width: 160 }}>
-          <option value="">كل حالات العمولة</option>
-          {Object.entries(COMM_STATUS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          <option value="">{t("كل حالات العمولة")}</option>
+          {Object.entries(COMM_STATUS).map(([k, v]) => <option key={k} value={k}>{t(v.label)}</option>)}
         </select>
       </div>
 
       {/* Commissions table */}
-      <h2 className="earn-section-title"><FileBarChart size={18} /> تفاصيل الحجوزات وعمولاتها</h2>
+      <h2 className="earn-section-title"><FileBarChart size={18} /> {t("تفاصيل الحجوزات وعمولاتها")}</h2>
       <div className="ds-table-wrap">
         <table className="ds-table">
           <thead>
             <tr>
-              <th>رقم الحجز</th><th>الزبون</th><th>الهاتف</th><th>الدخول</th><th>الخروج</th>
-              <th>الغرفة</th><th>قيمة الحجز</th><th>حالة الحجز</th><th>العمولة</th>
-              <th>قيمة العمولة</th><th>حالة العمولة</th><th>إجراءات</th>
+              <th>{t("رقم الحجز")}</th><th>{t("الزبون")}</th><th>{t("الهاتف")}</th><th>{t("الدخول")}</th><th>{t("الخروج")}</th>
+              <th>{t("الغرفة")}</th><th>{t("قيمة الحجز")}</th><th>{t("حالة الحجز")}</th><th>{t("العمولة")}</th>
+              <th>{t("قيمة العمولة")}</th><th>{t("حالة العمولة")}</th><th>{t("إجراءات")}</th>
             </tr>
           </thead>
           <tbody>
@@ -253,17 +256,17 @@ export default function HotelEarningsPage({ params }: { params: Promise<{ hotelI
                   <td style={{ fontSize: 12 }}>{c.check_out_date ? new Date(c.check_out_date).toLocaleDateString("ar-SY") : "—"}</td>
                   <td style={{ fontSize: 12 }}>{c.room_type_label}</td>
                   <td style={{ fontSize: 13, fontWeight: 600 }}>{nf(c.booking_total)} {c.booking_currency}</td>
-                  <td style={{ fontSize: 12 }}>{BOOKING_STATUS_LABEL[c.booking_status] ?? c.booking_status}</td>
-                  <td style={{ fontSize: 11 }}>{COMMISSION_TYPE_LABEL[c.commission_type]}<br /><strong>{c.commission_type === "percentage" ? `${c.commission_value}%` : `${nf(c.commission_value)}`}</strong></td>
+                  <td style={{ fontSize: 12 }}>{BOOKING_STATUS_LABEL[c.booking_status] ? t(BOOKING_STATUS_LABEL[c.booking_status]) : c.booking_status}</td>
+                  <td style={{ fontSize: 11 }}>{COMMISSION_TYPE_LABEL[c.commission_type] ? t(COMMISSION_TYPE_LABEL[c.commission_type]) : ""}<br /><strong>{c.commission_type === "percentage" ? `${c.commission_value}%` : `${nf(c.commission_value)}`}</strong></td>
                   <td style={{ fontWeight: 800, color: "var(--color-primary)", fontSize: 13 }}>{nf(c.commission_amount)} {c.commission_currency}</td>
-                  <td><span className="earn-mini-badge" style={{ background: cs.bg, color: cs.fg }}>{cs.label}</span></td>
+                  <td><span className="earn-mini-badge" style={{ background: cs.bg, color: cs.fg }}>{t(cs.label)}</span></td>
                   <td>
                     {actionable ? (
                       <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                        <button className="ds-btn ds-btn-success ds-btn-xs" title="تعليم كمدفوعة" onClick={() => commissionAction(c.id, "mark_paid")}><CircleCheck size={12} /></button>
-                        <button className="ds-btn ds-btn-warning ds-btn-xs" title="تعليم كمستحقة" onClick={() => commissionAction(c.id, "mark_due")}><AlertCircle size={12} /></button>
-                        <button className="ds-btn ds-btn-neutral ds-btn-xs" title="إعفاء" onClick={() => commissionAction(c.id, "waive")}><Ban size={12} /></button>
-                        <button className="ds-btn ds-btn-neutral ds-btn-xs" title="إضافة ملاحظة" onClick={() => { const n = window.prompt("ملاحظة على العمولة:", c.notes); if (n !== null) commissionAction(c.id, "note", { notes: n }); }}>+</button>
+                        <button className="ds-btn ds-btn-success ds-btn-xs" title={t("تعليم كمدفوعة")} onClick={() => commissionAction(c.id, "mark_paid")}><CircleCheck size={12} /></button>
+                        <button className="ds-btn ds-btn-warning ds-btn-xs" title={t("تعليم كمستحقة")} onClick={() => commissionAction(c.id, "mark_due")}><AlertCircle size={12} /></button>
+                        <button className="ds-btn ds-btn-neutral ds-btn-xs" title={t("إعفاء")} onClick={() => commissionAction(c.id, "waive")}><Ban size={12} /></button>
+                        <button className="ds-btn ds-btn-neutral ds-btn-xs" title={t("إضافة ملاحظة")} onClick={() => { const n = window.prompt(t("ملاحظة على العمولة:"), c.notes); if (n !== null) commissionAction(c.id, "note", { notes: n }); }}>+</button>
                       </div>
                     ) : <span style={{ fontSize: 11, color: "var(--color-muted)" }}>—</span>}
                   </td>
@@ -271,7 +274,7 @@ export default function HotelEarningsPage({ params }: { params: Promise<{ hotelI
               );
             })}
             {data.commissions.length === 0 && (
-              <tr><td colSpan={12} style={{ textAlign: "center", padding: "2rem", color: "var(--color-muted)" }}>لا توجد حجوزات مطابقة</td></tr>
+              <tr><td colSpan={12} style={{ textAlign: "center", padding: "2rem", color: "var(--color-muted)" }}>{t("لا توجد حجوزات مطابقة")}</td></tr>
             )}
           </tbody>
         </table>
@@ -282,44 +285,44 @@ export default function HotelEarningsPage({ params }: { params: Promise<{ hotelI
         <div className="ds-modal-backdrop" onClick={() => setShowEdit(false)}>
           <div className="ds-modal-card narrow" onClick={e => e.stopPropagation()}>
             <div className="ds-modal-head">
-              <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}><Percent size={18} /> إعداد عمولة خاص — {h.name}</h2>
+              <h2 style={{ display: "flex", alignItems: "center", gap: 8 }}><Percent size={18} /> {t("إعداد عمولة خاص")} — {h.name}</h2>
               <button className="icon-btn" onClick={() => setShowEdit(false)}><X size={16} strokeWidth={2.5} /></button>
             </div>
             <div className="ds-modal-body" style={{ display: "grid", gap: "1rem" }}>
               <label style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}>
                 <input type="checkbox" checked={edit.commission_enabled} onChange={e => setEdit({ ...edit, commission_enabled: e.target.checked })} />
-                تفعيل العمولة لهذا الفندق
+                {t("تفعيل العمولة لهذا الفندق")}
               </label>
               <div className="field">
-                <label className="field-label">نوع العمولة</label>
+                <label className="field-label">{t("نوع العمولة")}</label>
                 <select className="select" value={edit.commission_type} onChange={e => setEdit({ ...edit, commission_type: e.target.value })}>
-                  <option value="percentage">نسبة مئوية</option>
-                  <option value="fixed_per_booking">مبلغ مقطوع لكل حجز</option>
-                  <option value="fixed_per_guest">مبلغ مقطوع لكل زبون</option>
+                  <option value="percentage">{t("نسبة مئوية")}</option>
+                  <option value="fixed_per_booking">{t("مبلغ مقطوع لكل حجز")}</option>
+                  <option value="fixed_per_guest">{t("مبلغ مقطوع لكل زبون")}</option>
                 </select>
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                 <div className="field">
-                  <label className="field-label">{edit.commission_type === "percentage" ? "النسبة (%)" : "القيمة"}</label>
+                  <label className="field-label">{edit.commission_type === "percentage" ? t("النسبة (%)") : t("القيمة")}</label>
                   <input type="number" className="input" value={edit.commission_value} onChange={e => setEdit({ ...edit, commission_value: parseFloat(e.target.value) || 0 })} />
                 </div>
                 <div className="field">
-                  <label className="field-label">العملة</label>
+                  <label className="field-label">{t("العملة")}</label>
                   <input type="text" className="input" value={edit.commission_currency} disabled={edit.commission_type === "percentage"}
                     onChange={e => setEdit({ ...edit, commission_currency: e.target.value.toUpperCase() })} />
                 </div>
               </div>
               <div className="field">
-                <label className="field-label">ملاحظات</label>
+                <label className="field-label">{t("ملاحظات")}</label>
                 <textarea className="textarea" rows={2} value={edit.commission_notes} onChange={e => setEdit({ ...edit, commission_notes: e.target.value })} />
               </div>
               <p style={{ fontSize: 12, color: "var(--color-muted)" }}>
-                ملاحظة: تغيير العمولة لا يؤثّر على الحجوزات القديمة — تحتفظ كل عمولة بقيمتها وقت إنشائها (snapshot).
+                {t("ملاحظة: تغيير العمولة لا يؤثّر على الحجوزات القديمة — تحتفظ كل عمولة بقيمتها وقت إنشائها (snapshot).")}
               </p>
             </div>
             <div className="ds-modal-foot">
-              <button className="ds-btn ds-btn-neutral" onClick={() => setShowEdit(false)}>إلغاء</button>
-              <button className="ds-btn ds-btn-primary" onClick={saveCommissionSetting} disabled={saving}>{saving ? "جارٍ الحفظ..." : "حفظ"}</button>
+              <button className="ds-btn ds-btn-neutral" onClick={() => setShowEdit(false)}>{t("إلغاء")}</button>
+              <button className="ds-btn ds-btn-primary" onClick={saveCommissionSetting} disabled={saving}>{saving ? t("جارٍ الحفظ...") : t("حفظ")}</button>
             </div>
           </div>
         </div>

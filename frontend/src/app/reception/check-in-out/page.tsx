@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { apiUrl, getAuthHeaders as apiHeaders, getAuthJsonHeaders } from "@/lib/api";
+import { useLang } from "@/lib/i18n/LangContext";
 
 interface Room {
   id: number;
@@ -47,6 +48,7 @@ function calcNights(checkIn: string, checkOut: string): number {
 }
 
 export default function CheckInOutPage() {
+  const { t } = useLang();
   const [activeTab, setActiveTab] = useState<"checkin" | "checkout">("checkin");
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
@@ -111,43 +113,71 @@ export default function CheckInOutPage() {
     e.preventDefault();
     setCheckInError("");
     if (!guestName.trim()) {
-      setCheckInError("يرجى إدخال اسم الضيف.");
+      setCheckInError(t("يرجى إدخال اسم الضيف."));
       return;
     }
     if (!selectedRoom) {
-      setCheckInError("يرجى اختيار الغرفة.");
+      setCheckInError(t("يرجى اختيار الغرفة."));
       return;
     }
     if (!checkInDate || !checkOutDate) {
-      setCheckInError("يرجى تحديد تاريخ الوصول والمغادرة.");
+      setCheckInError(t("يرجى تحديد تاريخ الوصول والمغادرة."));
       return;
     }
     if (nights <= 0) {
-      setCheckInError("تاريخ المغادرة يجب أن يكون بعد تاريخ الوصول.");
+      setCheckInError(t("تاريخ المغادرة يجب أن يكون بعد تاريخ الوصول."));
       return;
     }
-    // Demo: show success, reset form
-    setCheckInSuccess(true);
-    setGuestName("");
-    setIdNumber("");
-    setNationality("");
-    setPhone("");
-    setSelectedRoom("");
-    setCheckInDate(todayStr());
-    setCheckOutDate(tomorrowStr());
-    setNotes("");
-    setTimeout(() => setCheckInSuccess(false), 4000);
+    void doCheckIn();
   }
 
-  function handleCheckOut(guestId: number) {
-    // Fire API call to mark reservation as checked_out
-    fetch(apiUrl(`/reservations/${guestId}/check_out/`), {
-      method: "POST",
-      headers: getAuthJsonHeaders(),
-    }).catch(() => { /* ignore — UI already updated */ });
-    setCheckoutSuccess(guestId);
-    setGuests((prev) => prev.filter((g) => g.id !== guestId));
-    setTimeout(() => setCheckoutSuccess(null), 3000);
+  async function doCheckIn() {
+    const parts = guestName.trim().split(/\s+/);
+    const first = parts[0];
+    const last = parts.slice(1).join(" ");
+    const fullNotes = [notes, nationality && `الجنسية: ${nationality}`].filter(Boolean).join(" — ");
+    try {
+      const createRes = await fetch(apiUrl("/reservations/"), {
+        method: "POST",
+        headers: getAuthJsonHeaders(),
+        body: JSON.stringify({
+          guest_first_name: first, guest_last_name: last,
+          guest_id_number: idNumber, guest_phone: phone,
+          room: Number(selectedRoom), check_in_date: checkInDate, check_out_date: checkOutDate,
+          nights_count: nights, status: "confirmed", source: "direct", notes: fullNotes,
+        }),
+      });
+      if (!createRes.ok) throw new Error();
+      const created = await createRes.json();
+      // تسجيل دخول ذرّي (يحدّث الحجز + الغرفة معًا)
+      await fetch(apiUrl(`/reservations/${created.id}/check_in/`), { method: "POST", headers: getAuthJsonHeaders() });
+      setCheckInSuccess(true);
+      setGuestName(""); setIdNumber(""); setNationality(""); setPhone("");
+      setSelectedRoom(""); setCheckInDate(todayStr()); setCheckOutDate(tomorrowStr()); setNotes("");
+      setTimeout(() => setCheckInSuccess(false), 4000);
+      // إعادة تحميل الغرف (الغرفة صارت مشغولة الآن)
+      const hotelId = localStorage.getItem("hotel_id");
+      const rr = await fetch(apiUrl(`/rooms/?hotel_id=${hotelId}`), { headers: apiHeaders() });
+      const rd = await rr.json();
+      setRooms(Array.isArray(rd) ? rd : rd.results ?? []);
+    } catch {
+      setCheckInError(t("تعذّر تسجيل الوصول، حاول مرة أخرى."));
+    }
+  }
+
+  async function handleCheckOut(guestId: number) {
+    try {
+      const r = await fetch(apiUrl(`/reservations/${guestId}/check_out/`), {
+        method: "POST",
+        headers: getAuthJsonHeaders(),
+      });
+      if (!r.ok) throw new Error();
+      setCheckoutSuccess(guestId);
+      setGuests((prev) => prev.filter((g) => g.id !== guestId));
+      setTimeout(() => setCheckoutSuccess(null), 3000);
+    } catch {
+      setCheckInError(t("تعذّر تسجيل المغادرة، حاول مرة أخرى."));
+    }
   }
 
   const filteredGuests = guests.filter((g) => {
@@ -161,12 +191,12 @@ export default function CheckInOutPage() {
       {/* Page Header */}
       <div className="page-header">
         <div>
-          <h1>الاستقبال والمغادرة</h1>
-          <p>إدارة تسجيل وصول ومغادرة الضيوف</p>
+          <h1>{t("الاستقبال والمغادرة")}</h1>
+          <p>{t("إدارة تسجيل وصول ومغادرة الضيوف")}</p>
         </div>
         <div className="page-actions">
           <span className="ds-badge ds-badge-success">
-            {loadingRooms ? "..." : `${availableCount} غرفة متاحة`}
+            {loadingRooms ? "..." : `${availableCount} ${t("غرفة متاحة")}`}
           </span>
         </div>
       </div>
@@ -177,24 +207,24 @@ export default function CheckInOutPage() {
           className={`ds-tab-btn${activeTab === "checkin" ? " active" : ""}`}
           onClick={() => setActiveTab("checkin")}
         >
-          تسجيل وصول
+          {t("تسجيل وصول")}
         </button>
         <button
           className={`ds-tab-btn${activeTab === "checkout" ? " active" : ""}`}
           onClick={() => setActiveTab("checkout")}
         >
-          تسجيل مغادرة
+          {t("تسجيل مغادرة")}
         </button>
       </div>
 
       {/* CHECK-IN TAB */}
       {activeTab === "checkin" && (
         <div className="ds-card-p">
-          <h2 style={{ marginBottom: "1.25rem" }}>تسجيل وصول ضيف جديد</h2>
+          <h2 style={{ marginBottom: "1.25rem" }}>{t("تسجيل وصول ضيف جديد")}</h2>
 
           {checkInSuccess && (
             <div className="ds-alert ds-alert-success" style={{ marginBottom: "1rem" }}>
-              تم تسجيل الوصول بنجاح!
+              {t("تم تسجيل الوصول بنجاح!")}
             </div>
           )}
 
@@ -211,21 +241,21 @@ export default function CheckInOutPage() {
             {/* Row 1: guest name + ID */}
             <div className="modal-grid">
               <div className="field">
-                <label className="field-label">اسم الضيف</label>
+                <label className="field-label">{t("اسم الضيف")}</label>
                 <input
                   className="input"
                   type="text"
-                  placeholder="الاسم الكامل"
+                  placeholder={t("الاسم الكامل")}
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
                 />
               </div>
               <div className="field">
-                <label className="field-label">رقم الهوية / الجواز</label>
+                <label className="field-label">{t("رقم الهوية / الجواز")}</label>
                 <input
                   className="input"
                   type="text"
-                  placeholder="رقم الهوية أو جواز السفر"
+                  placeholder={t("رقم الهوية أو جواز السفر")}
                   value={idNumber}
                   onChange={(e) => setIdNumber(e.target.value)}
                 />
@@ -235,21 +265,21 @@ export default function CheckInOutPage() {
             {/* Row 2: nationality + phone */}
             <div className="modal-grid">
               <div className="field">
-                <label className="field-label">الجنسية</label>
+                <label className="field-label">{t("الجنسية")}</label>
                 <input
                   className="input"
                   type="text"
-                  placeholder="الجنسية"
+                  placeholder={t("الجنسية")}
                   value={nationality}
                   onChange={(e) => setNationality(e.target.value)}
                 />
               </div>
               <div className="field">
-                <label className="field-label">رقم الهاتف</label>
+                <label className="field-label">{t("رقم الهاتف")}</label>
                 <input
                   className="input"
                   type="tel"
-                  placeholder="رقم الهاتف"
+                  placeholder={t("رقم الهاتف")}
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                 />
@@ -260,13 +290,13 @@ export default function CheckInOutPage() {
             <div className="modal-grid">
               <div className="field">
                 <label className="field-label">
-                  الغرفة
+                  {t("الغرفة")}
                   {!loadingRooms && (
                     <span
                       className="ds-badge ds-badge-success"
                       style={{ marginRight: "0.5rem", fontSize: "0.75rem" }}
                     >
-                      {availableCount} متاحة
+                      {availableCount} {t("متاحة")}
                     </span>
                   )}
                 </label>
@@ -275,17 +305,17 @@ export default function CheckInOutPage() {
                   value={selectedRoom}
                   onChange={(e) => setSelectedRoom(e.target.value)}
                 >
-                  <option value="">-- اختر غرفة --</option>
+                  <option value="">{t("-- اختر غرفة --")}</option>
                   {loadingRooms ? (
-                    <option disabled>جارٍ التحميل...</option>
+                    <option disabled>{t("جارٍ التحميل...")}</option>
                   ) : availableRooms.length === 0 ? (
-                    <option disabled>لا توجد غرف متاحة</option>
+                    <option disabled>{t("لا توجد غرف متاحة")}</option>
                   ) : (
                     availableRooms.map((r) => (
                       <option key={r.id} value={r.id}>
-                        غرفة {r.room_number}
+                        {t("غرفة")} {r.room_number}
                         {r.room_type ? ` — ${r.room_type}` : ""}
-                        {r.price_per_night ? ` — ${r.price_per_night}/ليلة` : ""}
+                        {r.price_per_night ? ` — ${r.price_per_night}/${t("ليلة")}` : ""}
                       </option>
                     ))
                   )}
@@ -296,7 +326,7 @@ export default function CheckInOutPage() {
             {/* Row 4: check-in / check-out dates */}
             <div className="modal-grid">
               <div className="field">
-                <label className="field-label">تاريخ الوصول</label>
+                <label className="field-label">{t("تاريخ الوصول")}</label>
                 <input
                   className="input"
                   type="date"
@@ -305,7 +335,7 @@ export default function CheckInOutPage() {
                 />
               </div>
               <div className="field">
-                <label className="field-label">تاريخ المغادرة</label>
+                <label className="field-label">{t("تاريخ المغادرة")}</label>
                 <input
                   className="input"
                   type="date"
@@ -317,16 +347,16 @@ export default function CheckInOutPage() {
 
             {nights > 0 && (
               <p className="text-muted" style={{ marginBottom: "1rem", fontSize: "0.9rem" }}>
-                مدة الإقامة: <strong className="text-primary">{nights} ليلة</strong>
+                {t("مدة الإقامة")}: <strong className="text-primary">{nights} {t("ليلة")}</strong>
               </p>
             )}
 
             {/* Notes */}
             <div className="field">
-              <label className="field-label">ملاحظات</label>
+              <label className="field-label">{t("ملاحظات")}</label>
               <textarea
                 className="textarea"
-                placeholder="ملاحظات إضافية (اختياري)"
+                placeholder={t("ملاحظات إضافية (اختياري)")}
                 rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -336,7 +366,7 @@ export default function CheckInOutPage() {
             {/* Submit */}
             <div style={{ display: "flex", justifyContent: "flex-start", marginTop: "0.5rem" }}>
               <button type="submit" className="ds-btn ds-btn-success">
-                تسجيل الوصول
+                {t("تسجيل الوصول")}
               </button>
             </div>
           </form>
@@ -346,11 +376,11 @@ export default function CheckInOutPage() {
       {/* CHECK-OUT TAB */}
       {activeTab === "checkout" && (
         <div className="ds-card-p">
-          <h2 style={{ marginBottom: "1.25rem" }}>تسجيل مغادرة الضيوف</h2>
+          <h2 style={{ marginBottom: "1.25rem" }}>{t("تسجيل مغادرة الضيوف")}</h2>
 
           {checkoutSuccess !== null && (
             <div className="ds-alert ds-alert-success" style={{ marginBottom: "1rem" }}>
-              تم تسجيل المغادرة بنجاح!
+              {t("تم تسجيل المغادرة بنجاح!")}
             </div>
           )}
 
@@ -359,7 +389,7 @@ export default function CheckInOutPage() {
             <input
               className="input"
               type="text"
-              placeholder="ابحث برقم الغرفة أو اسم الضيف..."
+              placeholder={t("ابحث برقم الغرفة أو اسم الضيف...")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -367,24 +397,24 @@ export default function CheckInOutPage() {
 
           {/* Guests Table */}
           {loadingGuests ? (
-            <p className="text-muted" style={{ textAlign: "center", padding: "2rem 0" }}>جارٍ تحميل قائمة النزلاء...</p>
+            <p className="text-muted" style={{ textAlign: "center", padding: "2rem 0" }}>{t("جارٍ تحميل قائمة النزلاء...")}</p>
           ) : filteredGuests.length === 0 ? (
             <p className="text-muted" style={{ textAlign: "center", padding: "2rem 0" }}>
               {guests.length === 0
-                ? "لا يوجد نزلاء حاليون داخل الفندق."
-                : "لا توجد نتائج مطابقة للبحث."}
+                ? t("لا يوجد نزلاء حاليون داخل الفندق.")
+                : t("لا توجد نتائج مطابقة للبحث.")}
             </p>
           ) : (
             <div className="ds-table-wrap">
               <table className="ds-table">
                 <thead>
                   <tr>
-                    <th>الغرفة</th>
-                    <th>اسم الضيف</th>
-                    <th>تاريخ الوصول</th>
-                    <th>عدد الليالي</th>
-                    <th>المبلغ</th>
-                    <th>الإجراء</th>
+                    <th>{t("الغرفة")}</th>
+                    <th>{t("اسم الضيف")}</th>
+                    <th>{t("تاريخ الوصول")}</th>
+                    <th>{t("عدد الليالي")}</th>
+                    <th>{t("المبلغ")}</th>
+                    <th>{t("الإجراء")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -404,7 +434,7 @@ export default function CheckInOutPage() {
                           className="ds-btn ds-btn-danger ds-btn-sm"
                           onClick={() => handleCheckOut(g.id)}
                         >
-                          تسجيل المغادرة
+                          {t("تسجيل المغادرة")}
                         </button>
                       </td>
                     </tr>

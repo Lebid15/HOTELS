@@ -7,6 +7,7 @@ import {
   CircleDollarSign, Activity, AlertTriangle, Package, Coins,
 } from "lucide-react";
 import { apiUrl, getAuthHeaders } from "@/lib/api";
+import { useLang } from "@/lib/i18n/LangContext";
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
 type Money = Record<string, number>;
@@ -103,10 +104,10 @@ function moneyText(map: Money): string {
 }
 
 /** Plain-text status breakdown for CSV cells. */
-function breakdownText(map: Record<string, number>): string {
+function breakdownText(map: Record<string, number>, t: (s: string) => string): string {
   const entries = Object.entries(map || {}).filter(([, c]) => c > 0);
   if (!entries.length) return "—";
-  return entries.map(([st, c]) => `${COMM_STATUS_LABEL[st] ?? st}: ${c}`).join(" | ");
+  return entries.map(([st, c]) => `${COMM_STATUS_LABEL[st] ? t(COMM_STATUS_LABEL[st]) : st}: ${c}`).join(" | ");
 }
 
 function shortDate(iso: string | null): string {
@@ -114,20 +115,6 @@ function shortDate(iso: string | null): string {
   return new Date(iso).toLocaleDateString("ar-SY", { year: "numeric", month: "short", day: "numeric" });
 }
 
-/** Renders a money map as one block line per currency (never summed). */
-function MoneyLines({ map, empty = "—" }: { map: Money; empty?: string }) {
-  const entries = Object.entries(map || {}).filter(([, v]) => v != null && v !== 0);
-  if (!entries.length) return <span className="text-muted">{empty}</span>;
-  return (
-    <>
-      {entries.map(([cur, val]) => (
-        <span key={cur} className="earn-money-line">
-          {nf(val)} <span className="earn-money-cur">{cur}</span>
-        </span>
-      ))}
-    </>
-  );
-}
 
 /* ── Report registry ───────────────────────────────────────────────────────── */
 type ReportKey =
@@ -162,6 +149,7 @@ interface TableModel {
 
 /* ── Page ──────────────────────────────────────────────────────────────────── */
 export default function PlatformReportsPage() {
+  const { t } = useLang();
   const [dash, setDash] = useState<DashboardData | null>(null);
   const [earn, setEarn] = useState<EarningsData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -184,9 +172,10 @@ export default function PlatformReportsPage() {
       fetch(apiUrl(`/platform/earnings/${qs ? `?${qs}` : ""}`), { headers: getAuthHeaders() }).then(r => r.ok ? r.json() : Promise.reject()),
     ])
       .then(([d, e]: [DashboardData, EarningsData]) => { setDash(d); setEarn(e); setLoading(false); })
-      .catch(() => { setError("تعذّر تحميل تقارير المنصة"); setLoading(false); });
-  }, [period, currency]);
+      .catch(() => { setError(t("تعذّر تحميل تقارير المنصة")); setLoading(false); });
+  }, [period, currency, t]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل بيانات عند الإقلاع/تغيّر الفلاتر
   useEffect(() => { load(); }, [load]);
 
   const currencyOptions = earn?.filters?.currencies ?? [];
@@ -198,11 +187,11 @@ export default function PlatformReportsPage() {
     switch (active) {
       case "hotels":
         return {
-          columns: ["الفندق", "المدينة", "الحالة", "الباقة", "الاشتراك", "حجوزات الموقع", "ربح المنصة"],
+          columns: [t("الفندق"), t("المدينة"), t("الحالة"), t("الباقة"), t("الاشتراك"), t("حجوزات الموقع"), t("ربح المنصة")],
           rows: earn.hotels.map(h => [
             h.hotel_name,
             h.city || "—",
-            HOTEL_STATUS_LABEL[h.status] ?? h.status,
+            HOTEL_STATUS_LABEL[h.status] ? t(HOTEL_STATUS_LABEL[h.status]) : h.status,
             h.package_name ?? "—",
             h.subscription_amount ? `${nf(h.subscription_amount)} ${h.subscription_currency ?? ""}`.trim() : "—",
             String(h.web_bookings_count),
@@ -212,83 +201,83 @@ export default function PlatformReportsPage() {
 
       case "subscriptions":
         return {
-          columns: ["المؤشر", "القيمة"],
+          columns: [t("المؤشر"), t("القيمة")],
           rows: [
-            ["اشتراكات فعالة", String(dash.kpis.subscriptions_active)],
-            ["اشتراكات تجريبية", String(dash.kpis.subscriptions_trial)],
-            ["اشتراكات منتهية", String(dash.kpis.subscriptions_expired)],
-            ["اشتراكات غير مدفوعة", String(dash.kpis.subscriptions_unpaid)],
-            ["تنتهي قريبًا (30 يوم)", String(dash.kpis.subscriptions_ending_soon)],
-            ["اشتراكات مباعة", String(earn.subscriptions.sold)],
-            ["أرباح الاشتراكات", moneyText(earn.subscriptions.earnings_by_currency)],
-            ["غير المحصّل من الاشتراكات", moneyText(earn.subscriptions.unpaid_by_currency)],
-            ["أفضل باقة مبيعًا", earn.subscriptions.best_selling_package ?? "—"],
-            ["أكثر فندق دفعًا", earn.subscriptions.top_paying_hotel ?? "—"],
+            [t("اشتراكات فعالة"), String(dash.kpis.subscriptions_active)],
+            [t("اشتراكات تجريبية"), String(dash.kpis.subscriptions_trial)],
+            [t("اشتراكات منتهية"), String(dash.kpis.subscriptions_expired)],
+            [t("اشتراكات غير مدفوعة"), String(dash.kpis.subscriptions_unpaid)],
+            [`${t("تنتهي قريبًا")} (30 ${t("يوم")})`, String(dash.kpis.subscriptions_ending_soon)],
+            [t("اشتراكات مباعة"), String(earn.subscriptions.sold)],
+            [t("أرباح الاشتراكات"), moneyText(earn.subscriptions.earnings_by_currency)],
+            [t("غير المحصّل من الاشتراكات"), moneyText(earn.subscriptions.unpaid_by_currency)],
+            [t("أفضل باقة مبيعًا"), earn.subscriptions.best_selling_package ?? "—"],
+            [t("أكثر فندق دفعًا"), earn.subscriptions.top_paying_hotel ?? "—"],
           ],
         };
 
       case "requests":
         return {
-          columns: ["الفندق", "الباقة", "مقدم الطلب", "الحالة", "التاريخ"],
+          columns: [t("الفندق"), t("الباقة"), t("مقدم الطلب"), t("الحالة"), t("التاريخ")],
           rows: dash.recent_requests.map(r => [
             r.hotel_name,
             r.package_name ?? "—",
             r.requested_by_name || "—",
-            REQ_STATUS_LABEL[r.status] ?? r.status,
+            REQ_STATUS_LABEL[r.status] ? t(REQ_STATUS_LABEL[r.status]) : r.status,
             shortDate(r.created_at),
           ]),
         };
 
       case "web_bookings":
         return {
-          columns: ["المؤشر", "القيمة"],
+          columns: [t("المؤشر"), t("القيمة")],
           rows: [
-            ["إجمالي الحجوزات", String(earn.web_bookings.count)],
-            ["زبائن فريدون", String(earn.web_bookings.customers)],
-            ["مكتملة", String(earn.web_bookings.completed)],
-            ["ملغاة", String(earn.web_bookings.cancelled)],
-            ["لم يحضر", String(earn.web_bookings.no_show)],
-            ["فنادق لها حجوزات", String(earn.web_bookings.hotels_with_bookings)],
-            ["عمولات مدفوعة", moneyText(earn.web_bookings.paid_by_currency)],
-            ["عمولات قيد الانتظار", moneyText(earn.web_bookings.pending_by_currency)],
-            ["إجمالي أرباح حجوزات الموقع", moneyText(earn.booking_earnings_by_currency)],
+            [t("إجمالي الحجوزات"), String(earn.web_bookings.count)],
+            [t("زبائن فريدون"), String(earn.web_bookings.customers)],
+            [t("مكتملة"), String(earn.web_bookings.completed)],
+            [t("ملغاة"), String(earn.web_bookings.cancelled)],
+            [t("لم يحضر"), String(earn.web_bookings.no_show)],
+            [t("فنادق لها حجوزات"), String(earn.web_bookings.hotels_with_bookings)],
+            [t("عمولات مدفوعة"), moneyText(earn.web_bookings.paid_by_currency)],
+            [t("عمولات قيد الانتظار"), moneyText(earn.web_bookings.pending_by_currency)],
+            [t("إجمالي أرباح حجوزات الموقع"), moneyText(earn.booking_earnings_by_currency)],
           ],
         };
 
       case "earnings":
         return {
-          columns: ["المصدر", "الأرباح (لكل عملة)"],
+          columns: [t("المصدر"), `${t("الأرباح")} (${t("لكل عملة")})`],
           rows: [
-            ["أرباح الاشتراكات", moneyText(earn.subscription_earnings_by_currency)],
-            ["أرباح حجوزات الموقع", moneyText(earn.booking_earnings_by_currency)],
-            ["إجمالي أرباح المنصة", moneyText(earn.total_by_currency)],
+            [t("أرباح الاشتراكات"), moneyText(earn.subscription_earnings_by_currency)],
+            [t("أرباح حجوزات الموقع"), moneyText(earn.booking_earnings_by_currency)],
+            [t("إجمالي أرباح المنصة"), moneyText(earn.total_by_currency)],
           ],
         };
 
       case "commissions": {
         const statusRows: string[][] = Object.entries(earn.web_bookings.commission_status_counts || {})
           .filter(([, c]) => c > 0)
-          .map(([st, c]) => [COMM_STATUS_LABEL[st] ?? st, "—", String(c)]);
+          .map(([st, c]) => [COMM_STATUS_LABEL[st] ? t(COMM_STATUS_LABEL[st]) : st, "—", String(c)]);
         const hotelRows: string[][] = earn.hotels
           .filter(h => h.web_bookings_count > 0)
           .map(h => [
             h.hotel_name,
             h.commission_type
               ? (h.commission_type === "percentage"
-                  ? `${COMMISSION_TYPE_LABEL[h.commission_type]} ${h.commission_value}%`
-                  : `${COMMISSION_TYPE_LABEL[h.commission_type]} ${nf(h.commission_value)} ${h.commission_currency}`)
+                  ? `${t(COMMISSION_TYPE_LABEL[h.commission_type])} ${h.commission_value}%`
+                  : `${t(COMMISSION_TYPE_LABEL[h.commission_type])} ${nf(h.commission_value)} ${h.commission_currency}`)
               : "—",
-            breakdownText(h.commission_status_breakdown),
+            breakdownText(h.commission_status_breakdown, t),
           ]);
         return {
-          columns: ["البند", "العمولة", "الحالة / العدد"],
+          columns: [t("البند"), t("العمولة"), `${t("الحالة")} / ${t("العدد")}`],
           rows: [...statusRows, ...hotelRows],
         };
       }
 
       case "active_hotels":
         return {
-          columns: ["الفندق", "المدينة", "حجوزات الموقع", "مكتملة", "ملغاة", "ربح المنصة"],
+          columns: [t("الفندق"), t("المدينة"), t("حجوزات الموقع"), t("مكتملة"), t("ملغاة"), t("ربح المنصة")],
           rows: [...earn.hotels]
             .sort((a, b) => b.web_bookings_count - a.web_bookings_count)
             .slice(0, 10)
@@ -307,17 +296,17 @@ export default function PlatformReportsPage() {
           h.status === "suspended" || h.cancelled_count > 0 || !h.subscription_status || h.subscription_status === "not_set",
         );
         return {
-          columns: ["الفندق", "المدينة", "الحالة", "الاشتراك", "ملغاة", "سبب المتابعة"],
+          columns: [t("الفندق"), t("المدينة"), t("الحالة"), t("الاشتراك"), t("ملغاة"), t("سبب المتابعة")],
           rows: flagged.map(h => {
             const reasons: string[] = [];
-            if (h.status === "suspended") reasons.push("فندق موقوف");
-            if (!h.subscription_status || h.subscription_status === "not_set") reasons.push("بلا اشتراك");
-            if (h.cancelled_count > 0) reasons.push("حجوزات ملغاة");
+            if (h.status === "suspended") reasons.push(t("فندق موقوف"));
+            if (!h.subscription_status || h.subscription_status === "not_set") reasons.push(t("بلا اشتراك"));
+            if (h.cancelled_count > 0) reasons.push(t("حجوزات ملغاة"));
             return [
               h.hotel_name,
               h.city || "—",
-              HOTEL_STATUS_LABEL[h.status] ?? h.status,
-              h.subscription_status ? (SUB_STATUS_LABEL[h.subscription_status] ?? h.subscription_status) : "—",
+              HOTEL_STATUS_LABEL[h.status] ? t(HOTEL_STATUS_LABEL[h.status]) : h.status,
+              h.subscription_status ? (SUB_STATUS_LABEL[h.subscription_status] ? t(SUB_STATUS_LABEL[h.subscription_status]) : h.subscription_status) : "—",
               String(h.cancelled_count),
               reasons.join("، ") || "—",
             ];
@@ -327,12 +316,12 @@ export default function PlatformReportsPage() {
 
       case "packages":
         return {
-          columns: ["الباقة", "الحالة", "السعر الشهري", "عدد الاشتراكات"],
+          columns: [t("الباقة"), t("الحالة"), t("السعر الشهري"), t("عدد الاشتراكات")],
           rows: [...dash.package_distribution]
             .sort((a, b) => b.subscription_count - a.subscription_count)
             .map(p => [
               p.name,
-              PKG_STATUS_LABEL[p.status] ?? p.status,
+              PKG_STATUS_LABEL[p.status] ? t(PKG_STATUS_LABEL[p.status]) : p.status,
               p.price_monthly != null ? nf(p.price_monthly) : "—",
               String(p.subscription_count),
             ]),
@@ -340,9 +329,9 @@ export default function PlatformReportsPage() {
 
       case "revenue":
         return {
-          columns: ["العملة", "مدفوع", "غير مدفوع"],
+          columns: [t("العملة"), t("مدفوع"), t("غير مدفوع")],
           rows: dash.revenue.map(r => [
-            `${CURRENCY_NAME[r.currency] ?? r.currency} (${r.currency})`,
+            `${CURRENCY_NAME[r.currency] ? t(CURRENCY_NAME[r.currency]) : r.currency} (${r.currency})`,
             nf(r.total_paid),
             nf(r.total_unpaid + (r.total_partial ?? 0)),
           ]),
@@ -351,7 +340,7 @@ export default function PlatformReportsPage() {
       default:
         return null;
     }
-  }, [active, dash, earn]);
+  }, [active, dash, earn, t]);
 
   const activeMeta = REPORTS.find(r => r.key === active)!;
 
@@ -398,14 +387,14 @@ export default function PlatformReportsPage() {
   if (loading && !dash) {
     return (
       <div className="ds-page" dir="rtl">
-        <div className="ds-card ds-card-p"><p className="text-muted">جارٍ تحميل تقارير المنصة...</p></div>
+        <div className="ds-card ds-card-p"><p className="text-muted">{t("جارٍ تحميل تقارير المنصة...")}</p></div>
       </div>
     );
   }
   if (error || !dash || !earn) {
     return (
       <div className="ds-page" dir="rtl">
-        <div className="ds-card ds-card-p"><div className="ds-alert ds-alert-danger">{error || "حدث خطأ غير متوقع"}</div></div>
+        <div className="ds-card ds-card-p"><div className="ds-alert ds-alert-danger">{error || t("حدث خطأ غير متوقع")}</div></div>
       </div>
     );
   }
@@ -415,18 +404,18 @@ export default function PlatformReportsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1>تقارير المنصة</h1>
-          <p className="text-muted">تقارير إدارية شاملة عن الفنادق والاشتراكات والأرباح</p>
+          <h1>{t("تقارير المنصة")}</h1>
+          <p className="text-muted">{t("تقارير إدارية شاملة عن الفنادق والاشتراكات والأرباح")}</p>
         </div>
         <div className="page-actions">
           <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={load} disabled={loading}>
-            <RefreshCw size={15} className={loading ? "spin" : ""} /> تحديث
+            <RefreshCw size={15} className={loading ? "spin" : ""} /> {t("تحديث")}
           </button>
           <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={() => window.print()}>
-            <Printer size={15} /> طباعة
+            <Printer size={15} /> {t("طباعة")}
           </button>
           <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={exportCsv}>
-            <Download size={15} /> تصدير CSV
+            <Download size={15} /> {t("تصدير CSV")}
           </button>
         </div>
       </div>
@@ -441,8 +430,8 @@ export default function PlatformReportsPage() {
             onClick={() => setActive(key)}
           >
             <span className="pf-report-icon"><Icon size={22} strokeWidth={2} /></span>
-            <span className="pf-report-title">{title}</span>
-            <span className="pf-report-desc">{desc}</span>
+            <span className="pf-report-title">{t(title)}</span>
+            <span className="pf-report-desc">{t(desc)}</span>
           </button>
         ))}
       </div>
@@ -451,10 +440,10 @@ export default function PlatformReportsPage() {
       <div className="pf-filter-bar no-print">
         <span className="pf-filter-bar-icon"><SlidersHorizontal size={16} /></span>
         <select className="select" value={period} onChange={e => setPeriod(e.target.value)}>
-          {PERIODS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+          {PERIODS.map(p => <option key={p.key} value={p.key}>{t(p.label)}</option>)}
         </select>
         <select className="select" value={currency} onChange={e => setCurrency(e.target.value)}>
-          <option value="">كل العملات</option>
+          <option value="">{t("كل العملات")}</option>
           {currencyOptions.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
@@ -462,22 +451,22 @@ export default function PlatformReportsPage() {
       {/* Selected report content */}
       <div className="ds-card ds-card-p">
         <h2 className="pf-block-title">
-          <activeMeta.Icon size={18} strokeWidth={2} /> {activeMeta.title}
+          <activeMeta.Icon size={18} strokeWidth={2} /> {t(activeMeta.title)}
         </h2>
 
         {!model || model.rows.length === 0 ? (
-          <p className="text-muted">لا توجد بيانات مطابقة لعرض هذا التقرير.</p>
+          <p className="text-muted">{t("لا توجد بيانات مطابقة لعرض هذا التقرير.")}</p>
         ) : isCardReport ? (
           <div className="pf-grid-3">
             {dash.revenue.map(r => (
               <div key={r.currency} className="ds-card ds-card-p">
-                <p className="pf-block-title">{CURRENCY_NAME[r.currency] ?? r.currency} ({r.currency})</p>
+                <p className="pf-block-title">{CURRENCY_NAME[r.currency] ? t(CURRENCY_NAME[r.currency]) : r.currency} ({r.currency})</p>
                 <div className="pf-kv">
-                  <span className="pf-kv-label">مدفوع</span>
+                  <span className="pf-kv-label">{t("مدفوع")}</span>
                   <span className="pf-kv-value text-success">{nf(r.total_paid)} {r.currency}</span>
                 </div>
                 <div className="pf-kv">
-                  <span className="pf-kv-label">غير مدفوع</span>
+                  <span className="pf-kv-label">{t("غير مدفوع")}</span>
                   <span className="pf-kv-value text-danger">{nf(r.total_unpaid + (r.total_partial ?? 0))} {r.currency}</span>
                 </div>
               </div>

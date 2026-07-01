@@ -1,12 +1,14 @@
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 from api.models import Hotel, Package, Subscription
+from ._seedguard import ensure_seed_allowed
 
 
 class Command(BaseCommand):
-    help = 'Seed demo packages and subscriptions'
+    help = 'Seed demo packages and subscriptions (development only)'
 
     def handle(self, *args, **options):
+        ensure_seed_allowed()
         # Packages
         packages_data = [
             {

@@ -1,14 +1,44 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Utensils, BookOpen, Plus, Pencil, Trash2, Printer, ClipboardList, Loader2, CheckCircle2, Home, Banknote, Search, CreditCard, Calendar, X, TrendingUp, XCircle, ChefHat, FileText, UserCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useLang } from "../LangContext";
-import { BASE_URL as API, getAuthHeaders as apiH } from "@/lib/api";
+import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
 import { escapeHtml as esc } from "@/lib/print";
-const ORDERS_KEY = (h: string) => `fandqi.foodOrders.${h}`;
-const LAST_KEY   = (h: string) => `fandqi.foodOrders.lastNum.${h}`;
+
+function mapOrder(x: Record<string, unknown>): FoodOrder {
+  return {
+    id: String(x.id ?? ""), orderNo: String(x.order_no ?? ""), hotelId: String(x.hotel ?? ""),
+    sourceType: String(x.source_type ?? "direct") as TSource,
+    serviceType: String(x.service_type ?? "restaurant") as TService,
+    roomId: x.room ? String(x.room) : undefined,
+    roomNumber: x.room_number ? String(x.room_number) : undefined,
+    reservationId: x.reservation ? String(x.reservation) : undefined,
+    reservationNo: x.reservation_no ? String(x.reservation_no) : undefined,
+    guestName: x.guest_name ? String(x.guest_name) : undefined,
+    tableNumber: x.table_number ? String(x.table_number) : undefined,
+    customerName: x.customer_name ? String(x.customer_name) : undefined,
+    items: Array.isArray(x.items) ? (x.items as OrderItem[]) : [],
+    amount: Number(x.amount ?? 0), currency: String(x.currency ?? "USD"),
+    paymentMethod: String(x.payment_method ?? "cash") as TPayment,
+    status: String(x.status ?? "new") as TStatus,
+    notes: x.notes ? String(x.notes) : undefined,
+    createdAt: String(x.created_at ?? ""), createdBy: String(x.created_by_name ?? ""),
+    updatedAt: String(x.updated_at ?? ""),
+    deliveredAt: x.delivered_at ? String(x.delivered_at) : undefined,
+    cancelledAt: x.cancelled_at ? String(x.cancelled_at) : undefined,
+    cancelReason: x.cancel_reason ? String(x.cancel_reason) : undefined,
+  };
+}
+function mapMenu(x: Record<string, unknown>): MenuItem {
+  return {
+    id: String(x.id ?? ""), name: String(x.name ?? ""), category: String(x.category ?? ""),
+    price: Number(x.price ?? 0), available: Boolean(x.available),
+    notes: x.notes ? String(x.notes) : undefined, createdAt: String(x.created_at ?? ""),
+  };
+}
 const SETTINGS_KEY = (h: string) => `fandqi.settings.${h}`;
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -52,7 +82,6 @@ const PAY_STYLE: Record<TPayment, { background:string; color:string }> = {
 const STATUS_ORDER: TStatus[] = ["new","preparing","ready","delivered","cancelled"];
 
 // ─── menu items ───────────────────────────────────────────────────────────────
-const MENU_KEY  = (h: string) => `fandqi.menuItems.${h}`;
 // PAY_LABEL, SRC_LABEL, SVC_LABEL, TABS, MENU_CATS moved inside component (use t())
 
 interface MenuItem {
@@ -212,36 +241,44 @@ export default function FoodServicesPage() {
   const [cancelModal,  setCancelModal]  = useState<{ id: string } | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [form,         setForm]         = useState(blankForm());
-  const lastNumRef = useRef(0);
   const [section,      setSection]      = useState<"orders" | "menu">("orders");
   const [menuItems,    setMenuItems]    = useState<MenuItem[]>([]);
   const [showMenuForm, setShowMenuForm] = useState(false);
   const [editMenuId,   setEditMenuId]   = useState<string | null>(null);
   const [menuForm,     setMenuForm]     = useState(blankMenuForm());
 
-  // load from localStorage
+  // load orders + menu من الـBackend
+  const loadFoodData = async () => {
+    if (!hotelId) return;
+    const h = apiH();
+    try {
+      const [od, md] = await Promise.all([
+        fetch(`${API}/food-orders/?hotel=${hotelId}`, { headers: h }).then(r => r.ok ? r.json() : []),
+        fetch(`${API}/menu-items/?hotel=${hotelId}`, { headers: h }).then(r => r.ok ? r.json() : []),
+      ]);
+      setOrders((Array.isArray(od) ? od : od.results ?? []).map(mapOrder));
+      setMenuItems((Array.isArray(md) ? md : md.results ?? []).map(mapMenu));
+    } catch { /* ignore */ }
+  };
+
   useEffect(() => {
     if (!hotelId) return;
-    const load = async () => {
-      const raw = localStorage.getItem(ORDERS_KEY(hotelId));
-      if (raw) { try { setOrders(JSON.parse(raw)); } catch {} }
-      lastNumRef.current = parseInt(localStorage.getItem(LAST_KEY(hotelId)) ?? "0", 10);
-      const mRaw = localStorage.getItem(MENU_KEY(hotelId));
-      if (mRaw) { try { setMenuItems(JSON.parse(mRaw)); } catch {} }
-      const sRaw = localStorage.getItem(SETTINGS_KEY(hotelId));
-      if (sRaw) {
-        try {
-          const s = JSON.parse(sRaw);
-          if (s.ops?.currency) setCurrency(s.ops.currency);
-          if (s.rest) {
-            setHasRest(s.rest.hasRestaurant ?? true);
-            setHasCaf(s.rest.hasCafeteria ?? true);
-            setHasRS(s.rest.hasRoomService ?? true);
-          }
-        } catch {}
-      }
-    };
-    load();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل/ضبط حالة مقصود عند الإقلاع
+    loadFoodData();
+    // إعدادات العملة/تفعيل الخدمات (لا تزال في fandqi.settings — بند مؤجّل)
+    const sRaw = localStorage.getItem(SETTINGS_KEY(hotelId));
+    if (sRaw) {
+      try {
+        const s = JSON.parse(sRaw);
+        if (s.ops?.currency) setCurrency(s.ops.currency);
+        if (s.rest) {
+          setHasRest(s.rest.hasRestaurant ?? true);
+          setHasCaf(s.rest.hasCafeteria ?? true);
+          setHasRS(s.rest.hasRoomService ?? true);
+        }
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelId]);
 
   // fetch rooms + reservations
@@ -257,33 +294,36 @@ export default function FoodServicesPage() {
   // toast auto-dismiss
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(""), 3000); return () => clearTimeout(timer); }, [toast]);
 
-  const saveOrders = useCallback((next: FoodOrder[]) => {
-    setOrders(next);
-    if (hotelId) localStorage.setItem(ORDERS_KEY(hotelId), JSON.stringify(next));
-  }, [hotelId]);
-
-  const saveMenuItems = useCallback((next: MenuItem[]) => {
-    setMenuItems(next);
-    if (hotelId) localStorage.setItem(MENU_KEY(hotelId), JSON.stringify(next));
-  }, [hotelId]);
-
-  function saveMenuItem() {
+  async function saveMenuItem() {
     if (!menuForm.name.trim()) { setToast(t("اسم الصنف مطلوب")); return; }
     const price = parseFloat(menuForm.price) || 0;
-    if (editMenuId) {
-      saveMenuItems(menuItems.map(m => m.id === editMenuId ? { ...m, name: menuForm.name.trim(), category: menuForm.category, price, available: menuForm.available, notes: menuForm.notes || undefined } : m));
-      setToast(t("تم تحديث الصنف"));
-    } else {
-      const item: MenuItem = { id: `mi-${Date.now()}`, name: menuForm.name.trim(), category: menuForm.category, price, available: menuForm.available, notes: menuForm.notes || undefined, createdAt: now() };
-      saveMenuItems([...menuItems, item]);
-      setToast(t("تم إضافة الصنف"));
-    }
-    setShowMenuForm(false); setEditMenuId(null); setMenuForm(blankMenuForm());
+    const body = { name: menuForm.name.trim(), category: menuForm.category, price, available: menuForm.available, notes: menuForm.notes || "" };
+    try {
+      const r = await fetch(editMenuId ? `${API}/menu-items/${editMenuId}/` : `${API}/menu-items/`, {
+        method: editMenuId ? "PATCH" : "POST", headers: apiHJ(), body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error();
+      setToast(editMenuId ? t("تم تحديث الصنف") : t("تم إضافة الصنف"));
+      setShowMenuForm(false); setEditMenuId(null); setMenuForm(blankMenuForm());
+      await loadFoodData();
+    } catch { setToast(t("تعذّر حفظ الصنف")); }
   }
 
-  function deleteMenuItem(id: string) {
-    saveMenuItems(menuItems.filter(m => m.id !== id));
-    setToast(t("تم حذف الصنف"));
+  async function deleteMenuItem(id: string) {
+    try {
+      const r = await fetch(`${API}/menu-items/${id}/`, { method: "DELETE", headers: apiH() });
+      if (!r.ok && r.status !== 204) throw new Error();
+      setToast(t("تم حذف الصنف"));
+      await loadFoodData();
+    } catch { setToast(t("تعذّر الحذف")); }
+  }
+
+  async function toggleMenuAvailable(item: MenuItem) {
+    try {
+      const r = await fetch(`${API}/menu-items/${item.id}/`, { method: "PATCH", headers: apiHJ(), body: JSON.stringify({ available: !item.available }) });
+      if (!r.ok) throw new Error();
+      await loadFoodData();
+    } catch { setToast(t("تعذّر التحديث")); }
   }
 
   function openMenuForm(item?: MenuItem) {
@@ -299,12 +339,6 @@ export default function FoodServicesPage() {
   function addFromMenu(item: MenuItem) {
     if (!item.available) { setToast(t("هذا الصنف غير متاح حالياً")); return; }
     setForm(prev => ({ ...prev, items: [...prev.items.filter(i => i.name.trim()), { name: item.name, qty: 1, price: item.price }] }));
-  }
-
-  function nextOrderNo() {
-    lastNumRef.current += 1;
-    if (hotelId) localStorage.setItem(LAST_KEY(hotelId), String(lastNumRef.current));
-    return `ORD-${String(lastNumRef.current).padStart(4, "0")}`;
   }
 
   // derive active reservation for a room
@@ -368,51 +402,55 @@ export default function FoodServicesPage() {
   }
 
   // save (add or edit)
-  function saveOrder() {
+  async function saveOrder() {
     if (form.items.every(i => !i.name.trim())) { setToast(t("أضف صنفًا واحدًا على الأقل.")); return; }
     const validItems = form.items.filter(i => i.name.trim());
     const total = itemsTotal(validItems);
-    const n = now();
-    if (editId) {
-      const next = orders.map(o => o.id === editId ? ({
-        ...o, ...form, items: validItems, amount: total, updatedAt: n,
-        roomId: form.roomId || undefined, roomNumber: form.roomNumber || undefined,
-        guestName: form.guestName || undefined, reservationId: form.reservationId || undefined, reservationNo: form.reservationNo || undefined,
-        tableNumber: form.tableNumber || undefined, customerName: form.customerName || undefined,
-        notes: form.notes || undefined,
-      } as FoodOrder) : o);
-      saveOrders(next);
-      setToast(t("تم تحديث الطلب بنجاح"));
-    } else {
-      const order: FoodOrder = {
-        id: `${Date.now()}`, orderNo: nextOrderNo(), hotelId,
-        sourceType: form.sourceType, serviceType: form.serviceType,
-        roomId: form.roomId || undefined, roomNumber: form.roomNumber || undefined,
-        guestName: form.guestName || undefined, reservationId: form.reservationId || undefined, reservationNo: form.reservationNo || undefined,
-        tableNumber: form.tableNumber || undefined, customerName: form.customerName || undefined,
-        items: validItems, amount: total, currency,
-        paymentMethod: form.paymentMethod, status: "new",
-        notes: form.notes || undefined,
-        createdAt: n, createdBy: username, updatedAt: n,
-      };
-      saveOrders([order, ...orders]);
-      setToast(t("تم حفظ الطلب بنجاح"));
+    const body: Record<string, unknown> = {
+      source_type: form.sourceType, service_type: form.serviceType,
+      room: form.roomId ? Number(form.roomId) : null, room_number: form.roomNumber || "",
+      reservation: form.reservationId ? Number(form.reservationId) : null, reservation_no: form.reservationNo || "",
+      guest_name: form.guestName || "", table_number: form.tableNumber || "", customer_name: form.customerName || "",
+      items: validItems, amount: total, currency, payment_method: form.paymentMethod, notes: form.notes || "",
+    };
+    // د‑4: تفصيل المقبوض حسب الطريقة (على حساب الغرفة → ذمّة تدخل الفوليو وتمنع الخروج)
+    if (!editId) {
+      const pm = String(form.paymentMethod);
+      body.amount_cash       = pm === "cash"        ? total : 0;
+      body.amount_electronic = pm === "electronic"  ? total : 0;
+      body.amount_card       = pm === "card"        ? total : 0;
+      body.amount_room       = pm === "room_account"? total : 0;
     }
-    setShowAdd(false);
+    if (!editId) body.status = "new";
+    try {
+      const r = await fetch(editId ? `${API}/food-orders/${editId}/` : `${API}/food-orders/`, {
+        method: editId ? "PATCH" : "POST", headers: apiHJ(), body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error();
+      setToast(editId ? t("تم تحديث الطلب بنجاح") : t("تم حفظ الطلب بنجاح"));
+      setShowAdd(false);
+      await loadFoodData();
+    } catch { setToast(t("تعذّر حفظ الطلب")); }
   }
 
   // status transitions
-  function setStatus(id: string, status: TStatus, extra: Partial<FoodOrder> = {}) {
-    const n = now();
-    const next = orders.map(o => o.id === id ? { ...o, status, updatedAt: n, ...extra } : o);
-    saveOrders(next);
-    const msgs: Partial<Record<TStatus, string>> = {
-      preparing: t("تم نقل الطلب إلى قيد التحضير"),
-      ready:     t("تم تحديد الطلب كجاهز للتسليم"),
-      delivered: t("تم تسليم الطلب بنجاح"),
-      cancelled: t("تم إلغاء الطلب"),
-    };
-    if (msgs[status]) setToast(msgs[status]!);
+  async function setStatus(id: string, status: TStatus, extra: Partial<FoodOrder> = {}) {
+    const body: Record<string, unknown> = { status };
+    if (extra.cancelledAt) body.cancelled_at = extra.cancelledAt;
+    if (extra.cancelReason !== undefined) body.cancel_reason = extra.cancelReason ?? "";
+    if (extra.deliveredAt) body.delivered_at = extra.deliveredAt;
+    try {
+      const r = await fetch(`${API}/food-orders/${id}/`, { method: "PATCH", headers: apiHJ(), body: JSON.stringify(body) });
+      if (!r.ok) throw new Error();
+      const msgs: Partial<Record<TStatus, string>> = {
+        preparing: t("تم نقل الطلب إلى قيد التحضير"),
+        ready:     t("تم تحديد الطلب كجاهز للتسليم"),
+        delivered: t("تم تسليم الطلب بنجاح"),
+        cancelled: t("تم إلغاء الطلب"),
+      };
+      if (msgs[status]) setToast(msgs[status]!);
+      await loadFoodData();
+    } catch { setToast(t("تعذّر تحديث حالة الطلب")); }
   }
 
   function confirmCancel() {
@@ -719,7 +757,7 @@ export default function FoodServicesPage() {
                   {item.notes && <p style={{ margin:0, fontSize:"0.75rem", color:"#9ca3af" }}>{item.notes}</p>}
                   <div style={{ display:"flex", gap:"0.35rem", flexWrap:"wrap", borderTop:"1px solid #f3f4f6", paddingTop:"0.5rem", marginTop:"auto" }}>
                     <button onClick={() => openMenuForm(item)} className="ds-btn ds-btn-neutral ds-btn-sm" style={{ display:"flex", alignItems:"center", gap:"0.25rem" }}><Pencil size={12} /> {t("تعديل")}</button>
-                    <button onClick={() => saveMenuItems(menuItems.map(m => m.id===item.id ? {...m, available: !m.available} : m))} className="ds-btn ds-btn-neutral ds-btn-sm">
+                    <button onClick={() => toggleMenuAvailable(item)} className="ds-btn ds-btn-neutral ds-btn-sm">
                       {item.available ? t("إخفاء") : t("إتاحة")}
                     </button>
                     <button onClick={() => deleteMenuItem(item.id)} className="ds-btn ds-btn-danger ds-btn-sm" style={{ display:"flex", alignItems:"center", gap:"0.25rem" }}><Trash2 size={12} /> {t("حذف")}</button>

@@ -16,6 +16,7 @@ import {
   CircleDollarSign,
 } from "lucide-react";
 import { apiUrl, getAuthHeaders } from "@/lib/api";
+import { useLang } from "@/lib/i18n/LangContext";
 
 /* ── Types ─────────────────────────────────────────────────────────────────── */
 type Severity = "danger" | "warning" | "info";
@@ -87,6 +88,7 @@ function persistReadIds(ids: string[]): void {
 
 /* ── Page ──────────────────────────────────────────────────────────────────── */
 export default function PlatformNotificationsPage() {
+  const { t } = useLang();
   const [notifications, setNotifications] = useState<PlatformNotification[]>([]);
   const [readIds, setReadIds]             = useState<string[]>([]);
   const [loading, setLoading]             = useState(true);
@@ -103,14 +105,15 @@ export default function PlatformNotificationsPage() {
       const data: NotificationsResponse = await res.json();
       setNotifications(Array.isArray(data.notifications) ? data.notifications : []);
     } catch {
-      setError("تعذّر تحميل تنبيهات المنصة. حاول مرة أخرى.");
+      setError(t("تعذّر تحميل تنبيهات المنصة. حاول مرة أخرى."));
       setNotifications([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- ضبط أوّليّ عند الإقلاع + تحميل التنبيهات
     setReadIds(loadReadIds());
     fetchNotifications();
   }, [fetchNotifications]);
@@ -146,40 +149,40 @@ export default function PlatformNotificationsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1>إشعارات المنصة</h1>
-          <p>تنبيهات إدارية خاصة بالمنصة فقط</p>
+          <h1>{t("إشعارات المنصة")}</h1>
+          <p>{t("تنبيهات إدارية خاصة بالمنصة فقط")}</p>
         </div>
         <div className="page-actions">
           <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={fetchNotifications} disabled={loading}>
-            <RefreshCw size={14} strokeWidth={2.5} /> تحديث
+            <RefreshCw size={14} strokeWidth={2.5} /> {t("تحديث")}
           </button>
           <button className="ds-btn ds-btn-primary ds-btn-sm" onClick={markAllRead}>
-            <CheckCheck size={14} strokeWidth={2.5} /> تعليم الكل كمقروء
+            <CheckCheck size={14} strokeWidth={2.5} /> {t("تعليم الكل كمقروء")}
           </button>
         </div>
       </div>
 
       {/* Filters */}
       <div className="ds-filters">
-        <div className="ds-tabs" role="tablist" aria-label="تصفية حسب الأهمية">
+        <div className="ds-tabs" role="tablist" aria-label={t("تصفية حسب الأهمية")}>
           {SEVERITY_TABS.map(tab => (
             <button
               key={tab.key}
               className={`ds-tab-btn${sevFilter === tab.key ? " active" : ""}`}
               onClick={() => setSevFilter(tab.key)}
             >
-              {tab.label}
+              {t(tab.label)}
             </button>
           ))}
         </div>
-        <div className="ds-tabs" role="tablist" aria-label="تصفية حسب حالة القراءة">
+        <div className="ds-tabs" role="tablist" aria-label={t("تصفية حسب حالة القراءة")}>
           {READ_TABS.map(tab => (
             <button
               key={tab.key}
               className={`ds-tab-btn${readFilter === tab.key ? " active" : ""}`}
               onClick={() => setReadFilter(tab.key)}
             >
-              {tab.label}
+              {t(tab.label)}
             </button>
           ))}
         </div>
@@ -187,14 +190,14 @@ export default function PlatformNotificationsPage() {
 
       {/* States */}
       {loading ? (
-        <p className="text-muted">جارٍ التحميل...</p>
+        <p className="text-muted">{t("جارٍ التحميل...")}</p>
       ) : error ? (
         <div className="ds-alert ds-alert-danger">{error}</div>
       ) : filtered.length === 0 ? (
         <div className="ds-empty-state">
           <BellOff size={48} strokeWidth={1.5} className="ds-empty-icon" />
-          <h3>لا توجد تنبيهات حاليًا</h3>
-          <p>كل شيء مستقر في المنصة.</p>
+          <h3>{t("لا توجد تنبيهات حاليًا")}</h3>
+          <p>{t("كل شيء مستقر في المنصة.")}</p>
         </div>
       ) : (
         <div className="pf-notif-list">
@@ -220,14 +223,14 @@ export default function PlatformNotificationsPage() {
 
                 <div className="pf-notif-actions">
                   <Link href={item.link} className="ds-btn ds-btn-neutral ds-btn-sm">
-                    <ArrowLeft size={14} strokeWidth={2.5} /> فتح
+                    <ArrowLeft size={14} strokeWidth={2.5} /> {t("فتح")}
                   </Link>
                   {!isRead && (
                     <button
                       className="ds-btn ds-btn-success ds-btn-xs"
                       onClick={() => markRead(item.id)}
                     >
-                      <Check size={13} strokeWidth={2.5} /> تعليم كمقروء
+                      <Check size={13} strokeWidth={2.5} /> {t("تعليم كمقروء")}
                     </button>
                   )}
                 </div>

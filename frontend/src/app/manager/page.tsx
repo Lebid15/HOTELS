@@ -114,10 +114,11 @@ export default function ManagerDashboard() {
   const maintOpen       = useMemo(() => tickets.filter(t => ["open","in_progress"].includes(t.status)).length, [tickets]);
   const activeStaff     = useMemo(() => staff.filter(s => s.is_active !== false).length, [staff]);
 
-  // حجوزات الموقع (العام عبر Fandqi)
+  // حجوزات الموقع (العام عبر funduqii)
   const webBookings       = useMemo(() => reservations.filter(r => r.public_booking && r.status !== "cancelled"), [reservations]);
   const webBookingsCount  = webBookings.length;
   const webBookingsNew24h = useMemo(() => {
+    // eslint-disable-next-line react-hooks/purity -- Date.now() لحساب مؤشّر زمني عند العرض
     const cutoff = Date.now() - 24 * 3600 * 1000;
     return webBookings.filter(r => r.created_at && new Date(r.created_at).getTime() >= cutoff).length;
   }, [webBookings]);
@@ -149,7 +150,7 @@ export default function ManagerDashboard() {
   // ─── KPI cards ───────────────────────────────────────────────────────────
   const KPI = [
     { label:t("الحجوزات النشطة"),      sub:t("مؤكدة أو داخل الإقامة"),         val: activeRes,                 note: lang === "ar" ? `${reservations.length} إجمالي` : `${reservations.length} total`,                     Icon: CalendarCheck, color:"#4f46e5", bg:"#eef2ff", href:"/manager/reservations" },
-    { label:t("حجوزات من الموقع"),       sub:t("عبر منصة Fandqi"),       val: webBookingsCount,          note: lang === "ar" ? (webBookingsNew24h > 0 ? `${webBookingsNew24h} جديد خلال 24 ساعة` : "لا حجوزات جديدة اليوم") : (webBookingsNew24h > 0 ? `${webBookingsNew24h} new in last 24h` : "No new bookings today"), Icon: Globe, color:"#0891b2", bg:"#ecfeff", href:"/manager/web-bookings" },
+    { label:t("حجوزات من الموقع"),       sub:t("عبر منصة funduqii"),       val: webBookingsCount,          note: lang === "ar" ? (webBookingsNew24h > 0 ? `${webBookingsNew24h} جديد خلال 24 ساعة` : "لا حجوزات جديدة اليوم") : (webBookingsNew24h > 0 ? `${webBookingsNew24h} new in last 24h` : "No new bookings today"), Icon: Globe, color:"#0891b2", bg:"#ecfeff", href:"/manager/web-bookings" },
     { label:t("وصول اليوم"),            sub:t("حجوزات جاهزة لتسجيل الدخول"),   val: arrivalsToday,             note: t("اضغط لعرض قائمة الوصول"),                            Icon: LogIn,         color:"#d97706", bg:"#fffbeb", href:"/manager/check-in-out" },
     { label:t("مغادرة اليوم"),          sub:t("نزلاء يجب متابعة خروجهم"),       val: departuresToday,           note: t("تحقق من السداد قبل الخروج"),                         Icon: LogOut,        color:"#dc2626", bg:"#fef2f2", href:"/manager/check-in-out" },
     { label:t("إشغال الغرف"),           sub:t("الغرف المشغولة من الإجمالي"),    val: `${occupancyRate}%`,       note: lang === "ar" ? `${occupiedRooms} / ${totalRooms} غرفة` : `${occupiedRooms} / ${totalRooms} rooms`,              Icon: BedDouble,     color:"#0369a1", bg:"#f0f9ff", href:"/manager/rooms" },

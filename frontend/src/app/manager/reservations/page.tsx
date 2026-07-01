@@ -29,8 +29,16 @@ interface Res {
   guest_doc_type:string; guest_doc_image:string;
   family_doc_type:string; family_doc_image:string;
   total:string|number; paid:string|number; currency:string;
+  // مشتقّات سلسلة المال من الـBackend (الغرفة + الخدمات − المدفوع)
+  grand_total?:string|number; balance_due?:string|number; charges_total?:string|number;
   status:ResStatus; source:ResSource; notes:string;
   updated_at:string; created_at:string; created_by_name:string|null;
+}
+
+/** الدين المعروض = balance_due من الـBackend (يشمل الفوليو/الطعام) أو total−paid احتياطًا. */
+function resBalance(r:{total:string|number;paid:string|number;balance_due?:string|number}):number {
+  if (r.balance_due !== undefined && r.balance_due !== null) return Number(r.balance_due);
+  return Number(r.total) - Number(r.paid);
 }
 
 const STATUS_STYLE:Record<string,React.CSSProperties> = {
@@ -68,7 +76,8 @@ function defBooking(prefix="BK", lastN=0, currency="USD") {
     check_in:today, nights:1, check_out:today,
     total:0, paid:0, currency,
     payment_method:"cash" as TPayMethod,
-    status:"pending" as ResStatus, source:"direct" as ResSource, notes:"",
+    // د‑2: الحجز المباشر مؤكَّد تلقائيًا (لا «قيد الانتظار»)
+    status:"confirmed" as ResStatus, source:"direct" as ResSource, notes:"",
   };
 }
 
@@ -141,7 +150,7 @@ function printResObj(
 ) {
   const guestName = `${esc(r.guest_first_name)} ${esc(r.guest_last_name)}`.trim();
   const roomLabel = r.room_number ? `غرفة ${r.room_number} - الطابق ${r.room_floor}` : "—";
-  const remaining = Number(r.total) - Number(r.paid);
+  const remaining = resBalance(r);
   const metaLine  = [hi.address,hi.city,hi.phone,hi.email].filter(Boolean).map(v=>esc(v)).join(" • ");
   const allDocs   = [r.guest_doc_type?`✓ ${r.guest_doc_type}`:"", r.family_doc_image&&r.family_doc_type?`✓ ${r.family_doc_type}`:""].filter(Boolean);
   const companions = r.companions??[];
@@ -203,7 +212,7 @@ function printAccountStatement(
   hi:{name:string;address:string;city:string;phone:string;email:string;logo:string}
 ) {
   const guestName = `${esc(r.guest_first_name)} ${esc(r.guest_last_name)}`.trim();
-  const remaining = Number(r.total) - Number(r.paid);
+  const remaining = resBalance(r);
   const metaLine  = [hi.address,hi.city,hi.phone,hi.email].filter(Boolean).map(v=>esc(v)).join(" • ");
   const html = `<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>كشف الحساب - ${r.booking_number}</title>
 <style>${PCSS}
@@ -266,6 +275,7 @@ export default function ReservationsPage() {
   const [fStatus,   setFStatus]   = useState("all");
   const [fRoom,     setFRoom]     = useState("all");
   const [fStaff,    setFStaff]    = useState("all");
+  const [fSource,   setFSource]   = useState("all");   // د‑2: فلتر مصدر الحجز
   const [fDay,      setFDay]      = useState<"all"|"arrivals"|"departures">("all");
   const [fBalance,  setFBalance]  = useState(false);
 
@@ -397,69 +407,72 @@ export default function ReservationsPage() {
   }
 
   /* ── Open modal (edit) ──────────────────────────────── */
-  function openEdit(r:Res) {
+  async function openEdit(r:Res) {
+    // B‑6: القائمة لا تُرجع صور الوثائق — نجلب السجل الكامل قبل التعديل حتى لا تُمسح عند الحفظ.
+    let full: Res = r;
+    try {
+      const resp = await fetch(`${API}/reservations/${r.id}/`, {headers: apiH()});
+      if (resp.ok) full = { ...r, ...(await resp.json()) };
+    } catch { /* fallback على بيانات القائمة */ }
     setGuest({
-      id_number:r.guest_id_number??"", first_name:r.guest_first_name??"",
-      last_name:r.guest_last_name??"", father_name:r.guest_father_name??"",
-      mother_name:r.guest_mother_name??"", dob:r.guest_dob??"",
-      phone:r.guest_phone??"", email:r.guest_email??"", no_email:!r.guest_email,
-      nationality:(r as Res & {nationality?:string}).nationality??"",
+      id_number:full.guest_id_number??"", first_name:full.guest_first_name??"",
+      last_name:full.guest_last_name??"", father_name:full.guest_father_name??"",
+      mother_name:full.guest_mother_name??"", dob:full.guest_dob??"",
+      phone:full.guest_phone??"", email:full.guest_email??"", no_email:!full.guest_email,
+      nationality:(full as Res & {nationality?:string}).nationality??"",
     });
-    const compList:Companion[] = Array.isArray(r.companions)?r.companions:[];
+    const compList:Companion[] = Array.isArray(full.companions)?full.companions:[];
     setComp({
-      has_companions:r.has_companions??false, type:r.companion_type??"مرافقون",
-      adults_count:r.companion_adults_count??0, children_count:r.companion_children_count??0,
-      children_relation:r.companion_children_relation??"ابن", list:compList,
+      has_companions:full.has_companions??false, type:full.companion_type??"مرافقون",
+      adults_count:full.companion_adults_count??0, children_count:full.companion_children_count??0,
+      children_relation:full.companion_children_relation??"ابن", list:compList,
     });
-    const compDocs:CompDoc[] = Array.isArray(r.companion_docs)?r.companion_docs:[];
+    const compDocs:CompDoc[] = Array.isArray(full.companion_docs)?full.companion_docs:[];
     setDocs({
-      guest_doc_type:r.guest_doc_type??"هوية شخصية", guest_doc_image:r.guest_doc_image??"",
-      guest_doc_name:r.guest_doc_image?"وثيقة محفوظة":"",
-      family_doc_type:r.family_doc_type??"دفتر عائلة", family_doc_image:r.family_doc_image??"",
-      family_doc_name:r.family_doc_image?"وثيقة محفوظة":"",
+      guest_doc_type:full.guest_doc_type??"هوية شخصية", guest_doc_image:full.guest_doc_image??"",
+      guest_doc_name:full.guest_doc_image?"وثيقة محفوظة":"",
+      family_doc_type:full.family_doc_type??"دفتر عائلة", family_doc_image:full.family_doc_image??"",
+      family_doc_name:full.family_doc_image?"وثيقة محفوظة":"",
       companion_docs:compDocs,
     });
     setBooking({
-      booking_number:r.booking_number??"", room_id:r.room?String(r.room):"",
-      room_price:Number(r.room_price??0), persons_count:r.persons_count??1,
-      check_in:r.check_in_date??"", nights:r.nights_count??1, check_out:r.check_out_date??"",
-      total:Number(r.total??0), paid:Number(r.paid??0), currency:r.currency??"SAR",
-      payment_method:((r as Res & {payment_method?:TPayMethod}).payment_method??"cash") as TPayMethod,
-      status:r.status??"pending", source:r.source??"direct", notes:r.notes??"",
+      booking_number:full.booking_number??"", room_id:full.room?String(full.room):"",
+      room_price:Number(full.room_price??0), persons_count:full.persons_count??1,
+      check_in:full.check_in_date??"", nights:full.nights_count??1, check_out:full.check_out_date??"",
+      total:Number(full.total??0), paid:Number(full.paid??0), currency:full.currency??"SAR",
+      payment_method:((full as Res & {payment_method?:TPayMethod}).payment_method??"cash") as TPayMethod,
+      status:full.status??"pending", source:full.source??"direct", notes:full.notes??"",
     });
-    setEditRes(r); setStep(1); setSuccess(null); setFormErr(""); setGuestAutoFilled(false); setOpen(true);
+    setEditRes(full); setStep(1); setSuccess(null); setFormErr(""); setGuestAutoFilled(false); setOpen(true);
   }
 
   function closeModal() { setOpen(false); setSuccess(null); }
 
-  /* ── Guest DB auto-fill ─────────────────────────────── */
-  function lookupFromGuestDB(by: "id" | "phone", value: string) {
-    if (!value.trim() || !hotelId) return;
+  /* ── Guest recall from backend (د‑2: مصدر مركزي بدل localStorage) ───────── */
+  async function lookupFromGuestDB(by: "id" | "phone", value: string) {
+    const q = value.trim();
+    if (q.length < 3) return;
     try {
-      const raw = localStorage.getItem(`fandqi.guestdb.${hotelId}`);
-      if (!raw) return;
-      const profiles: Array<{
-        idNumber: string; phone: string; firstName: string; lastName: string;
-        email?: string; nationality?: string; dob?: string;
-      }> = JSON.parse(raw);
-      const match = profiles.find(p =>
-        by === "id" ? p.idNumber === value.trim() : p.phone === value.trim()
-      );
+      const res = await fetch(`${API}/reservations/guest_lookup/?q=${encodeURIComponent(q)}`, { headers: apiH() });
+      if (!res.ok) return;
+      const rows: Array<Record<string, string>> = await res.json();
+      const match = rows[0];   // أحدث تطابق
       if (!match) return;
       setGuest(prev => ({
         ...prev,
-        id_number:   match.idNumber   || prev.id_number,
-        first_name:  match.firstName  || prev.first_name,
-        last_name:   match.lastName   || prev.last_name,
-        phone:       match.phone      || prev.phone,
-        email:       match.email      || prev.email,
-        nationality: match.nationality|| prev.nationality,
-        dob:         match.dob        || prev.dob,
-        no_email:    !match.email,
+        id_number:   match.guest_id_number  || prev.id_number,
+        first_name:  match.guest_first_name || prev.first_name,
+        last_name:   match.guest_last_name  || prev.last_name,
+        father_name: match.guest_father_name|| prev.father_name,
+        phone:       match.guest_phone      || prev.phone,
+        email:       match.guest_email      || prev.email,
+        dob:         match.guest_dob        || prev.dob,
+        no_email:    !match.guest_email,
       }));
       setGuestAutoFilled(true);
       setTimeout(() => setGuestAutoFilled(false), 4000);
-    } catch {}
+    } catch { /* ignore */ }
+    void by;
   }
 
   /* ── File handlers ─────────────────────────────────── */
@@ -477,9 +490,45 @@ export default function ReservationsPage() {
     setDocs(p=>{const cd=[...p.companion_docs];cd[i]={...cd[i],doc_image:b,doc_name:f.name};return{...p,companion_docs:cd};});
   }
 
+  /* ── د‑2: تحقّق كل مرحلة + إلزام الوثائق حسب الإعدادات ─────────────────── */
+  function docSettings(): { requireGuest?:boolean; requireCompanion?:boolean; requireRelation?:boolean } {
+    try { const s = JSON.parse(localStorage.getItem(`fandqi.settings.${hotelId}`) ?? "{}"); return s.docs ?? {}; }
+    catch { return {}; }
+  }
+  function stepError(n:number): string {
+    if(n===1){
+      if(!guest.first_name.trim()||!guest.last_name.trim()) return t("اسم النزيل (الأول والأخير) مطلوب.");
+      if(!guest.id_number.trim()) return t("رقم الهوية/الجواز مطلوب.");
+      if(!guest.no_email && guest.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email)) return t("البريد الإلكتروني غير صحيح.");
+    }
+    if(n===2){
+      if(!booking.room_id) return t("يجب اختيار الغرفة.");
+      if(!booking.check_in||!booking.check_out) return t("يجب تحديد تاريخ الوصول والمغادرة.");
+      if(booking.check_out<=booking.check_in) return t("تاريخ المغادرة يجب أن يكون بعد تاريخ الوصول.");
+    }
+    if(n===3 && comp.has_companions){
+      if(comp.list.some(c=>!c.first_name.trim())) return t("بيانات المرافقين ناقصة (الاسم مطلوب).");
+    }
+    if(n===4){
+      const ds = docSettings();
+      if(ds.requireGuest && !docs.guest_doc_image) return t("وثيقة النزيل مطلوبة قبل إتمام الحجز.");
+      const hasWife = comp.has_companions && comp.list.some(c=>/زوج/.test(c.relation||""));
+      if(hasWife && ds.requireRelation && !docs.family_doc_image) return t("دفتر العائلة/إثبات الزواج مطلوب عند وجود زوجة.");
+      if(ds.requireCompanion && comp.has_companions && comp.list.some((_,i)=>!docs.companion_docs[i]?.doc_image)) return t("وثائق المرافقين مطلوبة.");
+    }
+    return "";
+  }
+  function goNext(){
+    const err = stepError(step);
+    if(err){ setFormErr(err); return; }
+    setFormErr(""); setStep(p=>p+1);
+  }
+
   /* ── Submit (add + edit) ───────────────────────────── */
   async function handleSave() {
-    setSaving(true); setFormErr("");
+    setFormErr("");
+    for(const n of [1,2,3,4]){ const err=stepError(n); if(err){ setStep(n); setFormErr(err); return; } }
+    setSaving(true);
     if(booking.room_id&&booking.check_in&&booking.check_out) {
       if(roomHasConflict(booking.room_id,booking.check_in,booking.check_out,editRes?.id)) {
         setFormErr(t("الغرفة محجوزة في هذه الفترة. يرجى اختيار غرفة أخرى أو تغيير التواريخ."));
@@ -609,7 +658,7 @@ export default function ReservationsPage() {
   const todayStr        = new Date().toISOString().slice(0,10);
   const arrivalsToday   = reservations.filter(r=>r.check_in_date===todayStr&&!["cancelled","no_show","checked_out"].includes(r.status)).length;
   const departuresToday = reservations.filter(r=>r.check_out_date===todayStr&&["checked_in","checked_out"].includes(r.status)).length;
-  const totalRemaining  = reservations.filter(r=>!["cancelled","no_show"].includes(r.status)).reduce((s,r)=>s+Math.max(0,Number(r.total)-Number(r.paid)),0);
+  const totalRemaining  = reservations.filter(r=>!["cancelled","no_show"].includes(r.status)).reduce((s,r)=>s+Math.max(0,resBalance(r)),0);
 
   /* ── Filter ────────────────────────────────────────── */
   const uniqueRooms = [...new Set(reservations.filter(r=>r.room_number).map(r=>r.room_number))];
@@ -618,9 +667,17 @@ export default function ReservationsPage() {
     if(fStatus!=="all"&&r.status!==fStatus)   return false;
     if(fRoom!=="all"&&r.room_number!==fRoom)  return false;
     if(fStaff!=="all"&&r.created_by_name!==fStaff) return false;
+    if(fSource!=="all"){
+      const src = String(r.source||"");
+      const isWeb = src==="website"||src==="public_website"||(r as {public_booking?:boolean}).public_booking===true;
+      const isPlatform = src==="platform"||src==="ota";
+      if(fSource==="website"&&!isWeb) return false;
+      if(fSource==="direct"&&(isWeb||isPlatform)) return false;
+      if(fSource==="platform"&&!isPlatform) return false;
+    }
     if(fDay==="arrivals"&&r.check_in_date!==todayStr) return false;
     if(fDay==="departures"&&r.check_out_date!==todayStr) return false;
-    if(fBalance&&Math.max(0,Number(r.total)-Number(r.paid))===0) return false;
+    if(fBalance&&Math.max(0,resBalance(r))===0) return false;
     if(search){
       const q=search.toLowerCase();
       return (`${r.guest_first_name} ${r.guest_last_name}`).toLowerCase().includes(q)
@@ -768,7 +825,7 @@ export default function ReservationsPage() {
 
       {/* ── Filter bar ── */}
       <div className="ds-card-p" style={{marginBottom:"1.25rem"}}>
-        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr",gap:"0.6rem"}}>
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",gap:"0.6rem"}}>
           <div className="ds-filter-group">
             <p className="ds-filter-label"><Search size={13} strokeWidth={2.2} color="#4f46e5" /> {t("بحث باسم الضيف أو رقم الحجز أو الهاتف")}</p>
             <input className="input" value={search} onChange={e=>setSearch(e.target.value)} placeholder={t("اكتب للبحث...")} />
@@ -794,6 +851,15 @@ export default function ReservationsPage() {
               {uniqueStaff.map(s=><option key={s} value={s}>{s}</option>)}
             </select>
           </div>
+          <div className="ds-filter-group">
+            <p className="ds-filter-label"><Globe size={13} strokeWidth={2.2} color="#4f46e5" /> {t("مصدر الحجز")}</p>
+            <select className="select" value={fSource} onChange={e=>setFSource(e.target.value)}>
+              <option value="all">{t("الكل")}</option>
+              <option value="direct">{t("مباشر")}</option>
+              <option value="website">{t("موقع")}</option>
+              <option value="platform">{t("منصة")}</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -808,7 +874,7 @@ export default function ReservationsPage() {
       ):(
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"1rem"}}>
           {filtered.map(r=>{
-            const remaining = Number(r.total)-Number(r.paid);
+            const remaining = resBalance(r);
             const roomLabel = r.room_number?(lang==="ar"?`غرفة ${r.room_number} - الطابق ${r.room_floor}`:`Room ${r.room_number} - Floor ${r.room_floor}`):"—";
             const empLabel  = r.created_by_name??uname;
             return (
@@ -1009,9 +1075,11 @@ export default function ReservationsPage() {
                     {[
                       {l:t("سعر الغرفة/الليلة"),v:`${viewRes.currency} ${Number(viewRes.room_price??0).toLocaleString("en-US")}`},
                       {l:t("عدد الليالي"),v:String(viewRes.nights_count)},
-                      {l:t("الإجمالي"),v:`${viewRes.currency} ${Number(viewRes.total).toLocaleString("en-US")}`},
+                      {l:t("إجمالي الغرفة"),v:`${viewRes.currency} ${Number(viewRes.total).toLocaleString("en-US")}`},
+                      {l:t("الخدمات (فوليو/طعام)"),v:`${viewRes.currency} ${Number(viewRes.charges_total??0).toLocaleString("en-US")}`},
+                      {l:t("الإجمالي الكلي"),v:`${viewRes.currency} ${Number(viewRes.grand_total??viewRes.total).toLocaleString("en-US")}`},
                       {l:t("المدفوع"),v:`${viewRes.currency} ${Number(viewRes.paid).toLocaleString("en-US")}`},
-                      {l:t("المتبقي"),v:`${viewRes.currency} ${(Number(viewRes.total)-Number(viewRes.paid)).toLocaleString("en-US")}`,highlight:(Number(viewRes.total)-Number(viewRes.paid))>0},
+                      {l:t("المتبقي"),v:`${viewRes.currency} ${resBalance(viewRes).toLocaleString("en-US")}`,highlight:resBalance(viewRes)>0},
                       {l:t("العملة"),v:viewRes.currency},
                     ].map(item=>(
                       <div key={item.l} style={{background:"#f8fafc",borderRadius:8,padding:"0.65rem 0.85rem"}}>
@@ -1511,7 +1579,8 @@ export default function ReservationsPage() {
                         </div>
                         <div className="field"><label className="field-label"><FL Icon={BookOpen} label={t("حالة الحجز")} /></label>
                           <select className="select" value={booking.status} onChange={e=>setBooking(p=>({...p,status:e.target.value as ResStatus}))}>
-                            <option value="pending">{t("قيد الانتظار")}</option>
+                            {/* د‑2: «قيد الانتظار» لا تظهر للحجز المباشر (يُؤكَّد تلقائيًا) */}
+                            {booking.source!=="direct" && <option value="pending">{t("قيد الانتظار")}</option>}
                             <option value="confirmed">{t("مؤكد")}</option>
                             <option value="checked_in">{t("مقيم الآن")}</option>
                             <option value="checked_out">{t("مغادر")}</option>
@@ -1555,7 +1624,7 @@ export default function ReservationsPage() {
                       </button>
                     )}
                     {step<4?(
-                      <button type="button" className="ds-btn ds-btn-primary" onClick={()=>setStep(p=>p+1)}>{lang==="ar"?"التالي →":"Next →"}</button>
+                      <button type="button" className="ds-btn ds-btn-primary" onClick={goNext}>{lang==="ar"?"التالي →":"Next →"}</button>
                     ):(
                       <button type="button" className="ds-btn ds-btn-primary" onClick={handleSave} disabled={saving}
                         style={{display:"flex",alignItems:"center",gap:5}}>

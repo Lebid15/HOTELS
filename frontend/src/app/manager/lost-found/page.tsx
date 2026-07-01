@@ -29,9 +29,6 @@ interface LostItem {
 }
 
 /* ─── Constants ──────────────────────────────────────────────── */
-const STORAGE_KEY = (h: string) => `fandqi.lostFound.${h}`;
-
-
 const STATUS_STYLE: Record<TStatus, React.CSSProperties> = {
   found:     { background: "#dbeafe", color: "#1d4ed8", border: "1px solid #bfdbfe" },
   returned:  { background: "#dcfce7", color: "#15803d", border: "1px solid #bbf7d0" },
@@ -50,7 +47,7 @@ const BLANK: Omit<LostItem, "id"> = {
   notes: "", foundDate: new Date().toISOString().split("T")[0], returnedDate: "",
 };
 
-import { BASE_URL as API, getAuthHeaders as apiH } from "@/lib/api";
+import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
 
 interface ResLookup {
   room_number: string | null;
@@ -59,8 +56,26 @@ interface ResLookup {
   status: string;
 }
 
-function uid() {
-  return `lf-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+function mapItem(x: Record<string, unknown>): LostItem {
+  return {
+    id: String(x.id ?? ""),
+    itemName: String(x.item_name ?? ""),
+    category: String(x.category ?? "other") as TCategory,
+    location: String(x.location ?? ""),
+    status: String(x.status ?? "found") as TStatus,
+    guestName: String(x.guest_name ?? ""),
+    roomNumber: String(x.room_number ?? ""),
+    notes: String(x.notes ?? ""),
+    foundDate: String(x.found_date ?? "").slice(0, 10),
+    returnedDate: String(x.returned_date ?? "").slice(0, 10),
+  };
+}
+function toBody(f: Omit<LostItem, "id">) {
+  return {
+    item_name: f.itemName, category: f.category, location: f.location, status: f.status,
+    guest_name: f.guestName, room_number: f.roomNumber, notes: f.notes,
+    found_date: f.foundDate || null, returned_date: f.returnedDate || null,
+  };
 }
 function todayIso() { return new Date().toISOString().split("T")[0]; }
 function daysDiff(d: string) {
@@ -105,21 +120,26 @@ export default function LostFoundPage() {
   const [viewItem,  setViewItem]  = useState<LostItem | null>(null);
   const [deleteId,  setDeleteId]  = useState<string | null>(null);
 
-  /* ── Load / Save ── */
+  /* ── Load (من الـBackend) ── */
+  const loadItems = async () => {
+    if (!hotelId) return;
+    try {
+      const r = await fetch(`${API}/lost-found/?hotel=${hotelId}`, { headers: apiH() });
+      const d = await r.json();
+      setItems((Array.isArray(d) ? d : (d.results ?? [])).map(mapItem));
+    } catch { setItems([]); }
+  };
+
   useEffect(() => {
     if (!hotelId) return;
-    const loadLocal = async () => {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY(hotelId));
-        if (raw) setItems(JSON.parse(raw));
-      } catch { /* ignore */ }
-    };
-    loadLocal();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل/ضبط حالة مقصود عند الإقلاع
+    loadItems();
     /* fetch reservations for guest-name lookup */
     fetch(`${API}/reservations/?hotel=${hotelId}`, { headers: apiH() })
       .then(r => r.ok ? r.json() : [])
       .then(d => setReservations(Array.isArray(d) ? d : (d.results ?? [])))
       .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelId]);
 
   /* ── Room → Guest lookup ── */
@@ -134,11 +154,6 @@ export default function LostFoundPage() {
         ? `${match.guest_first_name} ${match.guest_last_name}`.trim()
         : f.guestName,
     }));
-  }
-
-  function save(next: LostItem[]) {
-    setItems(next);
-    if (hotelId) localStorage.setItem(STORAGE_KEY(hotelId), JSON.stringify(next));
   }
 
   /* ── KPIs ── */
@@ -175,25 +190,38 @@ export default function LostFoundPage() {
     setEditId(item.id);
     setModal("add");
   }
-  function submitForm() {
+  async function submitForm() {
     if (!form.itemName.trim()) return;
-    if (editId) {
-      save(items.map(i => i.id === editId ? { ...form, id: editId } : i));
-    } else {
-      save([...items, { ...form, id: uid() }]);
-    }
-    setModal(null);
+    try {
+      const r = await fetch(editId ? `${API}/lost-found/${editId}/` : `${API}/lost-found/`, {
+        method: editId ? "PATCH" : "POST",
+        headers: apiHJ(),
+        body: JSON.stringify(toBody(form)),
+      });
+      if (!r.ok) throw new Error();
+      setModal(null);
+      await loadItems();
+    } catch { /* أبقِ النموذج مفتوحًا عند الفشل */ }
   }
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteId) return;
-    save(items.filter(i => i.id !== deleteId));
+    try {
+      const r = await fetch(`${API}/lost-found/${deleteId}/`, { method: "DELETE", headers: apiH() });
+      if (!r.ok && r.status !== 204) throw new Error();
+    } catch { /* ignore */ }
     setDeleteId(null);
     setModal(null);
+    await loadItems();
   }
-  function markReturned(id: string) {
-    save(items.map(i => i.id === id
-      ? { ...i, status: "returned", returnedDate: todayIso() }
-      : i));
+  async function markReturned(id: string) {
+    try {
+      const r = await fetch(`${API}/lost-found/${id}/`, {
+        method: "PATCH", headers: apiHJ(),
+        body: JSON.stringify({ status: "returned", returned_date: todayIso() }),
+      });
+      if (!r.ok) throw new Error();
+      await loadItems();
+    } catch { /* ignore */ }
   }
 
   /* ─── KPI cards ─── */

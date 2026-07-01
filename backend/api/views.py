@@ -6,14 +6,18 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.views import TokenObtainPairView as _BaseTokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 from django.db.models import Count, Q, Sum
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.cache import cache
+import secrets
 
 
 def _add_months(d, months: int) -> _date:
@@ -25,17 +29,54 @@ def _add_months(d, months: int) -> _date:
 
 from .models import (
     Hotel, Package, Subscription, SubscriptionRequest,
-    Room, Staff, Reservation, MaintenanceTicket, UserProfile,
+    Room, Staff, Reservation, MaintenanceTicket, UserProfile, Payment, Expense, LostFoundItem, ShiftHandover, MenuItem, FoodOrder, FolioCharge, GuestProfile, AuditLog, LoginChallenge, DayClose, HotelAgreementAcceptance, PlatformSettings,
 )
 from .serializers import (
     HotelSerializer, PackageSerializer, SubscriptionSerializer,
     SubscriptionRequestSerializer, RoomSerializer, StaffSerializer,
-    ReservationSerializer, MaintenanceTicketSerializer,
+    ReservationSerializer, ReservationListSerializer, MaintenanceTicketSerializer,
+    PaymentSerializer, ExpenseSerializer, LostFoundItemSerializer, ShiftHandoverSerializer,
+    MenuItemSerializer, FoodOrderSerializer, FolioChargeSerializer, GuestProfileSerializer, AuditLogSerializer, DayCloseSerializer,
 )
-from .permissions import _get_user_role, _get_user_hotel_id, IsPlatformOwner
+from .permissions import (
+    _get_user_role, _get_user_hotel_id, IsPlatformOwner,
+    RoomPermission, ReservationPermission, MaintenancePermission,
+    StaffPermission, SubscriptionRequestPermission, PaymentPermission, ExpensePermission,
+    LostFoundPermission, ShiftHandoverPermission, MenuItemPermission, FoodOrderPermission, FolioPermission,
+    GuestProfilePermission,
+)
+from .audit import record_audit
 from .validators import UsernameValidator
 
 User = get_user_model()
+
+
+# ── B‑1: throttling للنقاط العامة الحسّاسة ────────────────────────────────
+class PublicLookupThrottle(AnonRateThrottle):
+    scope = 'public_lookup'
+
+
+class PublicWriteThrottle(AnonRateThrottle):
+    scope = 'public_write'
+
+
+class PublicBookingThrottle(AnonRateThrottle):
+    scope = 'public_booking'
+
+
+class LogoutView(APIView):
+    """إبطال refresh token عند الخروج (B‑3) — يضعه في القائمة السوداء."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        refresh = request.data.get('refresh')
+        if not refresh:
+            return Response({'error': 'حقل refresh مطلوب'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            RefreshToken(refresh).blacklist()
+        except TokenError:
+            pass  # توكن منتهٍ/غير صالح أصلًا — يُعامَل كخروج ناجح
+        return Response({'detail': 'تم تسجيل الخروج'}, status=status.HTTP_200_OK)
 
 
 # ── Throttles ────────────────────────────────────────────────────────────────
@@ -48,9 +89,118 @@ class RegisterRateThrottle(AnonRateThrottle):
     scope = 'register'
 
 
+_LOGIN_MAX_FAILS = 5
+_LOGIN_LOCK_SECONDS = 900   # 15 دقيقة
+
+
+def _log_security(action, username='', hotel_id=None, actor=None):
+    """د‑6: تسجيل حدث أمني في Audit Log (نجاح/فشل دخول، خروج، 2FA…)."""
+    try:
+        record_audit(actor, hotel_id=hotel_id, action=action,
+                     entity_type='auth', entity_id=username or '',
+                     summary=f'{action} · {username}'.strip(' ·'))
+    except Exception:
+        pass
+
+
 class TokenObtainPairView(_BaseTokenObtainPairView):
-    """JWT login endpoint with rate limiting (5 requests/minute per IP)."""
+    """JWT login مع: حدّ معدّل + قفل بعد محاولات فاشلة + تسجيل أمني + تحقّق بخطوتين اختياري (د‑6)."""
     throttle_classes = [LoginRateThrottle]
+
+    def post(self, request, *args, **kwargs):
+        username = (request.data.get('username') or '').strip()
+        ukey = username.lower()
+        lock_key = f'login_lock:{ukey}'
+        fail_key = f'login_fails:{ukey}'
+        if ukey and cache.get(lock_key):
+            _log_security('auth.login_locked', username)
+            return Response({'detail': 'تم قفل الحساب مؤقتًا بسبب محاولات دخول فاشلة متكرّرة. حاول بعد قليل.'},
+                            status=status.HTTP_423_LOCKED)
+        serializer = self.get_serializer(data=request.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except Exception:
+            fails = (cache.get(fail_key) or 0) + 1
+            cache.set(fail_key, fails, _LOGIN_LOCK_SECONDS)
+            if fails >= _LOGIN_MAX_FAILS:
+                cache.set(lock_key, True, _LOGIN_LOCK_SECONDS)
+            _log_security('auth.login_failed', username)
+            return Response({'detail': 'بيانات الدخول غير صحيحة.'}, status=status.HTTP_401_UNAUTHORIZED)
+        cache.delete(fail_key)
+        user = serializer.user
+        hotel_id = _get_user_hotel_id(user)
+        # التحقق بخطوتين (اختياري لكل مستخدم)
+        if getattr(getattr(user, 'profile', None), 'two_factor_enabled', False):
+            LoginChallenge.objects.filter(user=user, consumed=False).update(consumed=True)
+            ticket = secrets.token_urlsafe(24)
+            code = f'{secrets.randbelow(1000000):06d}'
+            LoginChallenge.objects.create(user=user, hotel_id=hotel_id, ticket=ticket, code=code)
+            _log_security('auth.2fa_challenge', username, hotel_id)
+            return Response({'2fa_required': True, 'ticket': ticket}, status=status.HTTP_200_OK)
+        _log_security('auth.login_success', username, hotel_id, actor=user)
+        return Response(serializer.validated_data)
+
+
+class Login2FAVerifyView(APIView):
+    """د‑6: التحقق من كود الخطوة الثانية وإصدار التوكنات."""
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [LoginRateThrottle]
+
+    def post(self, request):
+        ticket = (request.data.get('ticket') or '').strip()
+        code = (request.data.get('code') or '').strip()
+        ch = LoginChallenge.objects.filter(ticket=ticket, consumed=False).select_related('user').first()
+        if not ch:
+            return Response({'detail': 'طلب غير صالح أو منتهٍ.'}, status=400)
+        # صلاحية الكود 5 دقائق
+        if (timezone.now() - ch.created_at).total_seconds() > 300:
+            ch.consumed = True; ch.save(update_fields=['consumed'])
+            return Response({'detail': 'انتهت صلاحية الكود.'}, status=400)
+        if code != ch.code:
+            _log_security('auth.2fa_failed', ch.user.username, ch.hotel_id)
+            return Response({'detail': 'الكود غير صحيح.'}, status=400)
+        ch.consumed = True; ch.save(update_fields=['consumed'])
+        refresh = RefreshToken.for_user(ch.user)
+        _log_security('auth.2fa_success', ch.user.username, ch.hotel_id, actor=ch.user)
+        return Response({'access': str(refresh.access_token), 'refresh': str(refresh)})
+
+
+class Pending2FAView(APIView):
+    """د‑6: القناة داخل النظام — المدير يرى أكواد التحقق النشطة لموظّفي فندقه."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        role = _get_user_role(request.user)
+        from datetime import timedelta
+        cutoff = timezone.now() - timedelta(minutes=5)
+        qs = LoginChallenge.objects.filter(consumed=False, created_at__gte=cutoff).select_related('user')
+        if role == 'platform_owner':
+            pass
+        elif role == 'manager':
+            hid = _get_user_hotel_id(request.user)
+            qs = qs.filter(hotel_id=hid)
+        else:
+            return Response([])
+        return Response([
+            {'username': c.user.username, 'code': c.code, 'created_at': c.created_at}
+            for c in qs.order_by('-created_at')[:20]
+        ])
+
+
+class TwoFactorToggleView(APIView):
+    """د‑6: تفعيل/تعطيل التحقق بخطوتين للحساب الحالي."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        enabled = bool(request.data.get('enabled'))
+        profile = getattr(request.user, 'profile', None)
+        if profile is None:
+            return Response({'error': 'لا يوجد ملف تعريف'}, status=400)
+        profile.two_factor_enabled = enabled
+        profile.save(update_fields=['two_factor_enabled'])
+        _log_security('auth.2fa_' + ('enabled' if enabled else 'disabled'),
+                      request.user.username, _get_user_hotel_id(request.user), actor=request.user)
+        return Response({'two_factor_enabled': enabled})
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -73,6 +223,18 @@ def _sync_commission(reservation) -> None:
 
 # ── Auth Views ───────────────────────────────────────────────────────────────
 
+def _user_granular_permissions(user, role):
+    """د‑5: صلاحيات الموظف الدقيقة. المدير/المالك = ['*'] (كل شيء).
+    موظف الاستقبال = قائمة صلاحياته من سجلّ Staff المرتبط."""
+    if role in ('manager', 'platform_owner'):
+        return ['*']
+    try:
+        staff = Staff.objects.filter(user=user).values_list('permissions', flat=True).first()
+        return staff if isinstance(staff, list) else []
+    except Exception:
+        return []
+
+
 class CurrentUserView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -90,6 +252,10 @@ class CurrentUserView(APIView):
             'role': role,
             'hotel_id': hotel_id,
             'hotel_name': hotel_name,
+            # د‑5: صلاحيات الموظف الدقيقة (المدير له كل الصلاحيات ضمنيًا)
+            'permissions': _user_granular_permissions(user, role),
+            # د‑6: حالة التحقق بخطوتين
+            'two_factor_enabled': getattr(getattr(user, 'profile', None), 'two_factor_enabled', False),
         })
 
     def patch(self, request):
@@ -400,23 +566,41 @@ class HotelViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         _require_platform(self.request.user)
-        serializer.save()
+        obj = serializer.save()
+        record_audit(self.request.user, hotel_id=obj.pk, action='hotel.create',
+                     entity_type='hotel', entity_id=obj.pk, summary=f'إنشاء فندق: {obj.name}')
 
     def perform_update(self, serializer):
         # Platform owner can update everything. Manager may update only
         # identity/public-facing fields on their own hotel.
         role = _get_user_role(self.request.user)
         if role == 'platform_owner':
-            serializer.save()
+            prev_status = serializer.instance.status
+            obj = serializer.save()
+            if obj.status != prev_status:
+                record_audit(self.request.user, hotel_id=obj.pk, action=f'hotel.status.{obj.status}',
+                             entity_type='hotel', entity_id=obj.pk,
+                             summary=f'تغيير حالة الفندق «{obj.name}» → {obj.get_status_display()}')
             return
         if role == 'manager':
             user_hotel_id = _get_user_hotel_id(self.request.user)
             if not user_hotel_id or str(user_hotel_id) != str(serializer.instance.id):
                 raise PermissionDenied('غير مسموح بتعديل بيانات هذا الفندق.')
             allowed = {'name', 'country', 'city', 'address', 'phone', 'email',
+                       'currency', 'logo', 'owner_name', 'website', 'food_settings',
                        'floors_count', 'cover_image', 'map_url',
-                       'latitude', 'longitude'}
+                       'latitude', 'longitude',
+                       # د‑8: حضور الفندق على موقع الحجز (مشروط بقبول الاتفاقية)
+                       'public_listing_enabled', 'public_booking_enabled',
+                       'public_description_short', 'public_description_full',
+                       'gallery_images', 'amenities', 'stars', 'hotel_type',
+                       'cancellation_policy', 'check_in_policy', 'check_out_policy',
+                       'payment_policy', 'show_contact_info'}
             payload = {k: v for k, v in serializer.validated_data.items() if k in allowed}
+            # د‑8: لا يُفعَّل حضور الموقع/الحجوزات إلا بعد قبول اتفاقية المنصّة
+            enabling = payload.get('public_booking_enabled') or payload.get('public_listing_enabled')
+            if enabling and not _hotel_accepted_agreement(serializer.instance.id):
+                raise ValidationError({'agreement': 'يجب قبول اتفاقية حجوزات الموقع قبل تفعيل الظهور/الحجز.'})
             serializer.save(**payload) if payload else serializer.save()
             return
         raise PermissionDenied('غير مسموح بهذه العملية.')
@@ -440,6 +624,9 @@ class HotelViewSet(viewsets.ModelViewSet):
             return Response({'error': ' '.join(e.messages)}, status=status.HTTP_400_BAD_REQUEST)
         hotel.manager_user.set_password(new_password)
         hotel.manager_user.save()
+        record_audit(request.user, hotel_id=hotel.pk, action='hotel.manager_password_reset',
+                     entity_type='hotel', entity_id=hotel.pk,
+                     summary=f'إعادة تعيين كلمة مرور مدير «{hotel.name}»')
         return Response({'message': 'تم إعادة تعيين كلمة المرور بنجاح'})
 
     @action(detail=True, methods=['post'], url_path='assign_manager')
@@ -677,7 +864,7 @@ class SubscriptionViewSet(viewsets.ModelViewSet):
 
 class SubscriptionRequestViewSet(viewsets.ModelViewSet):
     serializer_class = SubscriptionRequestSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [SubscriptionRequestPermission]
 
     def get_queryset(self):
         role = _get_user_role(self.request.user)
@@ -698,6 +885,9 @@ class SubscriptionRequestViewSet(viewsets.ModelViewSet):
         months = int(request.data.get('months', 1))
         if months < 1 or months > 60:
             return Response({'error': 'عدد الأشهر يجب أن يكون بين 1 و 60'}, status=status.HTTP_400_BAD_REQUEST)
+        # H‑7: منع اعتماد طلب بلا باقة (كان يُعلَّم "موافق" دون إنشاء اشتراك بصمت).
+        if not req.package:
+            return Response({'error': 'لا يمكن اعتماد الطلب بلا باقة محدّدة'}, status=status.HTTP_400_BAD_REQUEST)
         req.status = SubscriptionRequest.STATUS_APPROVED
         req.save()
         if req.package:
@@ -708,6 +898,9 @@ class SubscriptionRequestViewSet(viewsets.ModelViewSet):
             sub.start_date = today
             sub.end_date   = _add_months(today, months)
             sub.save()
+        record_audit(request.user, hotel_id=req.hotel_id, action='subscription.approve',
+                     entity_type='subscription_request', entity_id=req.pk,
+                     summary=f'اعتماد اشتراك «{req.hotel.name}» · باقة {req.package.name} · {months} شهر')
         return Response(SubscriptionRequestSerializer(req).data)
 
     @action(detail=True, methods=['post'])
@@ -719,6 +912,9 @@ class SubscriptionRequestViewSet(viewsets.ModelViewSet):
         req.status = SubscriptionRequest.STATUS_REJECTED
         req.rejection_reason = request.data.get('reason', '').strip()
         req.save()
+        record_audit(request.user, hotel_id=req.hotel_id, action='subscription.reject',
+                     entity_type='subscription_request', entity_id=req.pk,
+                     summary=f'رفض طلب اشتراك «{req.hotel.name}»' + (f' · {req.rejection_reason}' if req.rejection_reason else ''))
         return Response(SubscriptionRequestSerializer(req).data)
 
 
@@ -726,7 +922,7 @@ class SubscriptionRequestViewSet(viewsets.ModelViewSet):
 
 class RoomViewSet(viewsets.ModelViewSet):
     serializer_class = RoomSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [RoomPermission]
 
     def get_queryset(self):
         role = _get_user_role(self.request.user)
@@ -759,33 +955,83 @@ class RoomViewSet(viewsets.ModelViewSet):
 
 class ReservationViewSet(viewsets.ModelViewSet):
     serializer_class = ReservationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [ReservationPermission]
+
+    def get_serializer_class(self):
+        # B‑6: القائمة بلا صور وثائق؛ التفصيل/الإنشاء/التعديل بالكامل.
+        if self.action == 'list':
+            return ReservationListSerializer
+        return ReservationSerializer
 
     def get_queryset(self):
         role = _get_user_role(self.request.user)
         hotel_id = self.request.query_params.get('hotel')
-        qs = Reservation.objects.select_related('room')
+        # prefetch علاقات سلسلة المال (فوليو/طعام) لحساب المشتقّات بلا N+1.
+        qs = Reservation.objects.select_related('room').prefetch_related('folio_charges', 'food_orders')
         if role == 'platform_owner':
             if hotel_id:
                 qs = qs.filter(hotel_id=hotel_id)
-            return qs
-        user_hotel_id = _get_user_hotel_id(self.request.user)
-        if user_hotel_id is None:
-            return qs.none()
-        return qs.filter(hotel_id=user_hotel_id)
+        else:
+            user_hotel_id = _get_user_hotel_id(self.request.user)
+            if user_hotel_id is None:
+                return qs.none()
+            qs = qs.filter(hotel_id=user_hotel_id)
+        status_f = self.request.query_params.get('status')
+        if status_f:
+            qs = qs.filter(status=status_f)
+        return qs
+
+    def _auto_confirm_kwargs(self, serializer):
+        """د‑2: الحجز المباشر (غير العام) يُؤكَّد تلقائيًا — لا يبقى «قيد الانتظار».
+        يحترم الحالات الأبعد (checked_in/out) إن أُرسلت صراحةً."""
+        data = serializer.validated_data
+        is_public = data.get('public_booking', False)
+        status_val = data.get('status', Reservation.STATUS_PENDING)
+        if not is_public and status_val in ('', Reservation.STATUS_PENDING):
+            return {'status': Reservation.STATUS_CONFIRMED}
+        return {}
 
     def perform_create(self, serializer):
         role = _get_user_role(self.request.user)
         hotel_id = self.request.data.get('hotel') or self.request.query_params.get('hotel')
+        extra = self._auto_confirm_kwargs(serializer)
         if role == 'platform_owner':
-            serializer.save(hotel_id=hotel_id, created_by=self.request.user)
+            serializer.save(hotel_id=hotel_id, created_by=self.request.user, **extra)
             return
         user_hotel_id = _get_user_hotel_id(self.request.user)
         if user_hotel_id is None:
             raise PermissionDenied('غير مرتبط بأي فندق.')
         if hotel_id and str(hotel_id) != str(user_hotel_id):
             raise PermissionDenied('ليس لديك صلاحية الإنشاء في هذا الفندق.')
-        serializer.save(hotel_id=user_hotel_id, created_by=self.request.user)
+        serializer.save(hotel_id=user_hotel_id, created_by=self.request.user, **extra)
+
+    @action(detail=False, methods=['get'], url_path='guest_lookup')
+    def guest_lookup(self, request):
+        """د‑2: استدعاء نزيل سابق من سجلّ الحجوزات (مصدر مركزي بدل localStorage).
+        يبحث بالرقم الوطني/الجواز أو الهاتف داخل فندق المستخدم، ويعيد أحدث بيانات مطابقة."""
+        q = (request.query_params.get('q') or '').strip()
+        if len(q) < 3:
+            return Response([])
+        qs = self.get_queryset()
+        from django.db.models import Q
+        matches = qs.filter(
+            Q(guest_id_number__iexact=q) | Q(guest_phone__icontains=q)
+        ).order_by('-created_at')
+        seen, out = set(), []
+        for r in matches:
+            key = (r.guest_id_number or '').lower() or f'phone:{r.guest_phone}'
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append({
+                'guest_id_number': r.guest_id_number, 'guest_first_name': r.guest_first_name,
+                'guest_last_name': r.guest_last_name, 'guest_phone': r.guest_phone,
+                'guest_email': r.guest_email, 'guest_father_name': r.guest_father_name,
+                'guest_dob': r.guest_dob, 'last_stay': r.check_in_date, 'stays_count': None,
+            })
+            if len(out) >= 8:
+                break
+        return Response(out)
 
     @action(detail=True, methods=['post'], url_path='web_checkin')
     def web_checkin(self, request, pk=None):
@@ -840,12 +1086,91 @@ class ReservationViewSet(viewsets.ModelViewSet):
         _sync_commission(res)
         return Response(ReservationSerializer(res).data)
 
+    @action(detail=True, methods=['post'], url_path='check_in')
+    def check_in(self, request, pk=None):
+        """تسجيل دخول ذرّي (مدير/استقبال) — يحدّث الحجز والغرفة معًا (B‑10)."""
+        from django.db import transaction
+        res = self.get_object()
+        if res.status in [Reservation.STATUS_CANCELLED, Reservation.STATUS_CHECKED_OUT]:
+            return Response({'error': 'لا يمكن تسجيل الدخول لهذا الحجز'}, status=400)
+        with transaction.atomic():
+            res.status = Reservation.STATUS_CHECKED_IN
+            res.checked_in_at = timezone.now()
+            res.save()
+            if res.room:
+                res.room.status = Room.STATUS_OCCUPIED
+                res.room.save()
+        _sync_commission(res)
+        record_audit(request.user, hotel_id=res.hotel_id, action='reservation.check_in',
+                     entity_type='reservation', entity_id=res.pk,
+                     summary=f'تسجيل دخول: {res.guest_first_name} {res.guest_last_name} · حجز {res.booking_number}')
+        return Response(ReservationSerializer(res).data)
+
+    @action(detail=True, methods=['post'], url_path='check_out')
+    def check_out(self, request, pk=None):
+        """تسجيل خروج ذرّي — يحدّث الحجز ويحوّل الغرفة إلى تنظيف (B‑10)."""
+        from django.db import transaction
+        res = self.get_object()
+        if res.status != Reservation.STATUS_CHECKED_IN:
+            return Response({'error': 'لا يمكن تسجيل الخروج قبل تسجيل الدخول'}, status=400)
+        # د‑3: منع الخروج عند وجود دين (فوليو غير مسوّى / طعام على الغرفة / رصيد غرفة) — مُلزَم خادمًا.
+        balance = _reservation_balance_due(res)
+        if balance > 0:
+            return Response({
+                'error': 'لا يمكن تسجيل الخروج قبل تسوية الرصيد المستحق.',
+                'code': 'balance_due',
+                'balance_due': str(balance), 'currency': res.currency,
+            }, status=status.HTTP_402_PAYMENT_REQUIRED)
+        with transaction.atomic():
+            res.status = Reservation.STATUS_CHECKED_OUT
+            res.save()
+            if res.room and res.room.status != Room.STATUS_MAINTENANCE:
+                res.room.status = Room.STATUS_CLEANING
+                res.room.save()
+        _sync_commission(res)
+        record_audit(request.user, hotel_id=res.hotel_id, action='reservation.check_out',
+                     entity_type='reservation', entity_id=res.pk,
+                     summary=f'تسجيل خروج: {res.guest_first_name} {res.guest_last_name} · حجز {res.booking_number}')
+        return Response(ReservationSerializer(res).data)
+
+    @action(detail=True, methods=['post'], url_path='settle_and_checkout')
+    def settle_and_checkout(self, request, pk=None):
+        """د‑3: «دفع وإغلاق الحساب» ذرّيًا ثم تسجيل الخروج — مصدر واحد لإغلاق الذمّة.
+        يُسجّل دفعة الغرفة، يسوّي الفوليو، يعلّم طلبات الطعام على الغرفة كمدفوعة، ثم يُخرج."""
+        from django.db import transaction
+        res = self.get_object()
+        if res.status != Reservation.STATUS_CHECKED_IN:
+            return Response({'error': 'لا يمكن تسجيل الخروج قبل تسجيل الدخول'}, status=400)
+        method = request.data.get('method', Payment.METHOD_CASH)
+        with transaction.atomic():
+            room_bal = (res.total or 0) - (res.paid or 0)
+            if room_bal > 0:
+                Payment.objects.create(hotel_id=res.hotel_id, reservation=res, amount=room_bal,
+                                       currency=res.currency, method=method, source='booking',
+                                       created_by=request.user)
+            res.folio_charges.filter(settled=False).update(settled=True)
+            # د‑4: تسوية جزء حساب الغرفة لطلبات الطعام (بدل تعديل وسيلة الدفع)
+            res.food_orders.exclude(status=FoodOrder.STATUS_CANCELLED).filter(
+                room_settled=False).update(room_settled=True)
+            _recompute_reservation_paid(res)
+            res.refresh_from_db()
+            res.status = Reservation.STATUS_CHECKED_OUT
+            res.save()
+            if res.room and res.room.status != Room.STATUS_MAINTENANCE:
+                res.room.status = Room.STATUS_CLEANING
+                res.room.save()
+        _sync_commission(res)
+        record_audit(request.user, hotel_id=res.hotel_id, action='reservation.settle_checkout',
+                     entity_type='reservation', entity_id=res.pk,
+                     summary=f'دفع وإغلاق حساب + خروج: {res.guest_first_name} {res.guest_last_name} · حجز {res.booking_number}')
+        return Response(ReservationSerializer(res).data)
+
 
 # ── Staff ViewSet ─────────────────────────────────────────────────────────────
 
 class StaffViewSet(viewsets.ModelViewSet):
     serializer_class = StaffSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [StaffPermission]
 
     def get_queryset(self):
         role = _get_user_role(self.request.user)
@@ -860,25 +1185,79 @@ class StaffViewSet(viewsets.ModelViewSet):
             return qs.none()
         return qs.filter(hotel_id=user_hotel_id)
 
+    def _provision_login(self, staff, username, password):
+        """د‑5: إنشاء حساب دخول حقيقي للموظف (User + UserProfile بدور reception)."""
+        username = (username or '').strip()
+        password = password or ''
+        if not username or not password:
+            return
+        if User.objects.filter(username__iexact=username).exists():
+            raise ValidationError({'username': 'اسم المستخدم مستخدم مسبقًا.'})
+        try:
+            validate_password(password, User(username=username))
+        except DjangoValidationError as e:
+            raise ValidationError({'password': list(e.messages)})
+        u = User.objects.create_user(username=username, password=password, email=staff.email or '')
+        u.is_active = (staff.status == Staff.STATUS_ACTIVE)
+        u.save()
+        UserProfile.objects.update_or_create(
+            user=u, defaults={'role': UserProfile.ROLE_RECEPTION, 'hotel_id': staff.hotel_id})
+        staff.user = u
+        staff.save(update_fields=['user'])
+
     def perform_create(self, serializer):
         role = _get_user_role(self.request.user)
         hotel_id = self.request.data.get('hotel') or self.request.query_params.get('hotel')
         if role == 'platform_owner':
-            serializer.save(hotel_id=hotel_id)
-            return
-        user_hotel_id = _get_user_hotel_id(self.request.user)
-        if user_hotel_id is None:
-            raise PermissionDenied('غير مرتبط بأي فندق.')
-        if hotel_id and str(hotel_id) != str(user_hotel_id):
-            raise PermissionDenied('ليس لديك صلاحية الإنشاء في هذا الفندق.')
-        serializer.save(hotel_id=user_hotel_id)
+            staff = serializer.save(hotel_id=hotel_id)
+        else:
+            user_hotel_id = _get_user_hotel_id(self.request.user)
+            if user_hotel_id is None:
+                raise PermissionDenied('غير مرتبط بأي فندق.')
+            if hotel_id and str(hotel_id) != str(user_hotel_id):
+                raise PermissionDenied('ليس لديك صلاحية الإنشاء في هذا الفندق.')
+            staff = serializer.save(hotel_id=user_hotel_id)
+        self._provision_login(staff, self.request.data.get('username'), self.request.data.get('password'))
+        record_audit(self.request.user, hotel_id=staff.hotel_id, action='staff.create',
+                     entity_type='staff', entity_id=staff.pk,
+                     summary=f'إضافة موظف: {staff.full_name} ({staff.get_role_display()})')
+
+    def perform_update(self, serializer):
+        staff = serializer.save()
+        # مزامنة حالة الحساب: موقوف/مؤرشف → تعطيل الدخول
+        if staff.user_id:
+            active = (staff.status == Staff.STATUS_ACTIVE)
+            if staff.user.is_active != active:
+                staff.user.is_active = active
+                staff.user.save(update_fields=['is_active'])
+
+    @action(detail=True, methods=['post'], url_path='set_password')
+    def set_password(self, request, pk=None):
+        """د‑5: تعيين/إعادة تعيين كلمة مرور حساب الموظف (أو إنشاؤه إن لم يوجد)."""
+        staff = self.get_object()
+        password = request.data.get('password', '')
+        if not password:
+            return Response({'error': 'كلمة المرور مطلوبة'}, status=400)
+        if not staff.user_id:
+            username = request.data.get('username', '')
+            self._provision_login(staff, username, password)
+            return Response({'message': 'تم إنشاء حساب الموظف'})
+        try:
+            validate_password(password, staff.user)
+        except DjangoValidationError as e:
+            return Response({'error': ' '.join(e.messages)}, status=400)
+        staff.user.set_password(password)
+        staff.user.save()
+        record_audit(request.user, hotel_id=staff.hotel_id, action='staff.password_reset',
+                     entity_type='staff', entity_id=staff.pk, summary=f'إعادة تعيين كلمة مرور: {staff.full_name}')
+        return Response({'message': 'تم تحديث كلمة المرور'})
 
 
 # ── Maintenance Ticket ViewSet ────────────────────────────────────────────────
 
 class MaintenanceTicketViewSet(viewsets.ModelViewSet):
     serializer_class = MaintenanceTicketSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [MaintenancePermission]
 
     def get_queryset(self):
         role = _get_user_role(self.request.user)
@@ -905,6 +1284,274 @@ class MaintenanceTicketViewSet(viewsets.ModelViewSet):
         if hotel_id and str(hotel_id) != str(user_hotel_id):
             raise PermissionDenied('ليس لديك صلاحية الإنشاء في هذا الفندق.')
         serializer.save(hotel_id=user_hotel_id)
+
+
+# ── Payment / Expense ViewSets (سلسلة المال) ─────────────────────────────────
+
+def _recompute_reservation_paid(reservation):
+    """سلسلة المال: المبلغ المدفوع للحجز = مجموع دفعاته (قيمة مشتقّة تُحدَّث ذرّيًا)."""
+    if reservation is None:
+        return
+    total = reservation.payments.aggregate(s=Sum('amount'))['s'] or 0
+    Reservation.objects.filter(pk=reservation.pk).update(paid=total)
+
+
+def _reservation_balance_due(res):
+    """د‑3/د‑4: الدين المتبقّي = رصيد الغرفة + الفوليو غير المسوّى + جزء الطعام على حساب الغرفة.
+    نفس منطق المشتقّ في الـSerializer — يُستخدم لإلزام منع الخروج بالدين خادمًا."""
+    from decimal import Decimal
+    from .serializers import ReservationSerializer
+    folio_out = sum((c.amount for c in res.folio_charges.all() if not c.settled), Decimal('0'))
+    food_out = sum((ReservationSerializer._food_room_charge(o) for o in res.food_orders.all()), Decimal('0'))
+    room_bal = (res.total or Decimal('0')) - (res.paid or Decimal('0'))
+    return room_bal + folio_out + food_out
+
+
+def _compute_day_snapshot(hotel_id, day):
+    """د‑7: يحسب فحوصات وأرقام إغلاق اليوم (لقطة). يُستخدم للمعاينة وللإغلاق الفعلي."""
+    from decimal import Decimal
+    res_qs = Reservation.objects.filter(hotel_id=hotel_id).prefetch_related('folio_charges', 'food_orders')
+    arrivals_due = res_qs.filter(check_in_date=day, status=Reservation.STATUS_CONFIRMED).count()
+    departures_due = res_qs.filter(check_out_date=day, status=Reservation.STATUS_CHECKED_IN).count()
+    in_house = res_qs.filter(status=Reservation.STATUS_CHECKED_IN)
+    in_house_count = in_house.count()
+    unpaid = [r for r in in_house if _reservation_balance_due(r) > 0]
+    unpaid_total = sum((_reservation_balance_due(r) for r in unpaid), Decimal('0'))
+    rooms_cleaning = Room.objects.filter(hotel_id=hotel_id, status=Room.STATUS_CLEANING).count()
+    rooms_maint = Room.objects.filter(hotel_id=hotel_id, status=Room.STATUS_MAINTENANCE).count()
+    # مدفوعات اليوم حسب الطريقة
+    pays = Payment.objects.filter(hotel_id=hotel_id, created_at__date=day)
+    by_method = {}
+    for p in pays:
+        by_method[p.method] = float(by_method.get(p.method, 0)) + float(p.amount or 0)
+    payments_total = float(pays.aggregate(s=Sum('amount'))['s'] or 0)
+    food_sales = float(FoodOrder.objects.filter(hotel_id=hotel_id, created_at__date=day)
+                       .exclude(status=FoodOrder.STATUS_CANCELLED).aggregate(s=Sum('amount'))['s'] or 0)
+    # أخطاء تمنع الإغلاق النظيف
+    blocking = []
+    if arrivals_due:
+        blocking.append({'code': 'arrivals_pending', 'count': arrivals_due})
+    if departures_due:
+        blocking.append({'code': 'departures_pending', 'count': departures_due})
+    if unpaid:
+        blocking.append({'code': 'unpaid_folios', 'count': len(unpaid), 'amount': float(unpaid_total)})
+    return {
+        'business_date': str(day),
+        'arrivals_due': arrivals_due,
+        'departures_due': departures_due,
+        'in_house': in_house_count,
+        'unpaid_folios': len(unpaid),
+        'unpaid_total': float(unpaid_total),
+        'rooms_cleaning': rooms_cleaning,
+        'rooms_maintenance': rooms_maint,
+        'payments_total': payments_total,
+        'payments_by_method': by_method,
+        'food_sales': food_sales,
+        'blocking': blocking,
+        'can_close_clean': len(blocking) == 0,
+    }
+
+
+class DayCloseViewSet(viewsets.ModelViewSet):
+    """د‑7: إغلاق اليوم الحقيقي — معاينة الفحوصات ثم الإغلاق المُخزَّن (بصلاحية المدير)."""
+    serializer_class = DayCloseSerializer
+    permission_classes = [ExpensePermission]   # مدير كامل، الاستقبال قراءة فقط
+
+    def get_queryset(self):
+        role = _get_user_role(self.request.user)
+        qs = DayClose.objects.all()
+        if role == 'platform_owner':
+            hid = self.request.query_params.get('hotel')
+            return qs.filter(hotel_id=hid) if hid else qs
+        uid = _get_user_hotel_id(self.request.user)
+        return qs.filter(hotel_id=uid) if uid else qs.none()
+
+    def _hotel_id(self):
+        role = _get_user_role(self.request.user)
+        if role == 'platform_owner':
+            return self.request.data.get('hotel') or self.request.query_params.get('hotel')
+        return _get_user_hotel_id(self.request.user)
+
+    @action(detail=False, methods=['get'], url_path='preview')
+    def preview(self, request):
+        hid = self._hotel_id()
+        if not hid:
+            return Response({'error': 'الفندق غير محدّد'}, status=400)
+        day = request.query_params.get('date') or str(timezone.localdate())
+        return Response(_compute_day_snapshot(hid, day))
+
+    def create(self, request, *args, **kwargs):
+        hid = self._hotel_id()
+        if not hid:
+            return Response({'error': 'الفندق غير محدّد'}, status=400)
+        day = request.data.get('date') or str(timezone.localdate())
+        snapshot = _compute_day_snapshot(hid, day)
+        obj, _created = DayClose.objects.update_or_create(
+            hotel_id=hid, business_date=day,
+            defaults={'closed_by': request.user, 'closed_by_name': request.user.get_username(),
+                      'snapshot': snapshot, 'notes': request.data.get('notes', '')})
+        record_audit(request.user, hotel_id=hid, action='day.close',
+                     entity_type='day_close', entity_id=obj.pk, summary=f'إغلاق يوم {day}')
+        return Response(DayCloseSerializer(obj).data, status=status.HTTP_201_CREATED)
+
+
+class _HotelScopedViewSet(viewsets.ModelViewSet):
+    """أساس مشترك: تصفية حسب فندق المستخدم + ضبط الفندق من المستخدم عند الإنشاء."""
+    def get_queryset(self):
+        role = _get_user_role(self.request.user)
+        hotel_id = self.request.query_params.get('hotel')
+        qs = self.queryset
+        if role == 'platform_owner':
+            return qs.filter(hotel_id=hotel_id) if hotel_id else qs
+        uid = _get_user_hotel_id(self.request.user)
+        return qs.filter(hotel_id=uid) if uid is not None else qs.none()
+
+    def _resolve_hotel_id(self):
+        role = _get_user_role(self.request.user)
+        if role == 'platform_owner':
+            return self.request.data.get('hotel') or self.request.query_params.get('hotel')
+        uid = _get_user_hotel_id(self.request.user)
+        if uid is None:
+            raise PermissionDenied('غير مرتبط بأي فندق.')
+        body_hotel = self.request.data.get('hotel')
+        if body_hotel and str(body_hotel) != str(uid):
+            raise PermissionDenied('ليس لديك صلاحية الإنشاء في هذا الفندق.')
+        return uid
+
+
+class PaymentViewSet(_HotelScopedViewSet):
+    serializer_class = PaymentSerializer
+    permission_classes = [PaymentPermission]
+    queryset = Payment.objects.select_related('reservation', 'created_by')
+
+    def perform_create(self, serializer):
+        hotel_id = self._resolve_hotel_id()
+        res = serializer.validated_data.get('reservation')
+        if res is not None and str(res.hotel_id) != str(hotel_id):
+            raise PermissionDenied('الحجز لا يخصّ هذا الفندق.')
+        obj = serializer.save(hotel_id=hotel_id, created_by=self.request.user)
+        _recompute_reservation_paid(obj.reservation)
+        record_audit(self.request.user, hotel_id=hotel_id, action='payment.create',
+                     entity_type='payment', entity_id=obj.pk,
+                     summary=f'دفعة {obj.amount} {obj.currency} · {obj.method}')
+
+    def perform_destroy(self, instance):
+        res = instance.reservation
+        instance.delete()
+        _recompute_reservation_paid(res)
+
+
+class ExpenseViewSet(_HotelScopedViewSet):
+    serializer_class = ExpenseSerializer
+    permission_classes = [ExpensePermission]
+    queryset = Expense.objects.select_related('created_by')
+
+    def perform_create(self, serializer):
+        serializer.save(hotel_id=self._resolve_hotel_id(), created_by=self.request.user)
+
+
+class LostFoundViewSet(_HotelScopedViewSet):
+    serializer_class = LostFoundItemSerializer
+    permission_classes = [LostFoundPermission]
+    queryset = LostFoundItem.objects.select_related('created_by')
+
+    def perform_create(self, serializer):
+        serializer.save(hotel_id=self._resolve_hotel_id(), created_by=self.request.user)
+
+
+class ShiftHandoverViewSet(_HotelScopedViewSet):
+    serializer_class = ShiftHandoverSerializer
+    permission_classes = [ShiftHandoverPermission]
+    queryset = ShiftHandover.objects.select_related('created_by')
+
+    def perform_create(self, serializer):
+        serializer.save(hotel_id=self._resolve_hotel_id(), created_by=self.request.user)
+
+
+class MenuItemViewSet(_HotelScopedViewSet):
+    serializer_class = MenuItemSerializer
+    permission_classes = [MenuItemPermission]
+    queryset = MenuItem.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(hotel_id=self._resolve_hotel_id())
+
+
+class FoodOrderViewSet(_HotelScopedViewSet):
+    serializer_class = FoodOrderSerializer
+    permission_classes = [FoodOrderPermission]
+    queryset = FoodOrder.objects.select_related('created_by')
+
+    def perform_create(self, serializer):
+        hotel_id = self._resolve_hotel_id()
+        # د‑4: بلا موظف مطعم مستقل → الطلب يُعتبر مُسلَّمًا مباشرة (لا مراحل تجهيز/تسليم).
+        extra = {}
+        fs = Hotel.objects.filter(id=hotel_id).values_list('food_settings', flat=True).first() or {}
+        if not fs.get('dedicated_staff', False):
+            extra['status'] = FoodOrder.STATUS_DELIVERED
+            extra['delivered_at'] = timezone.now()
+        serializer.save(hotel_id=hotel_id, created_by=self.request.user, **extra)
+
+
+class FolioChargeViewSet(_HotelScopedViewSet):
+    serializer_class = FolioChargeSerializer
+    permission_classes = [FolioPermission]
+    queryset = FolioCharge.objects.select_related('created_by')
+
+    def perform_create(self, serializer):
+        serializer.save(hotel_id=self._resolve_hotel_id(), created_by=self.request.user)
+
+
+class GuestProfileViewSet(_HotelScopedViewSet):
+    """أعلام/ملاحظات النزلاء — POST يعمل upsert حسب (الفندق، مفتاح النزيل)."""
+    serializer_class = GuestProfileSerializer
+    permission_classes = [GuestProfilePermission]
+    queryset = GuestProfile.objects.all()
+
+    def create(self, request, *args, **kwargs):
+        hotel_id = self._resolve_hotel_id()
+        gk = (request.data.get('guest_key') or '').strip()
+        if not gk:
+            return Response({'error': 'guest_key مطلوب'}, status=status.HTTP_400_BAD_REQUEST)
+        obj, _ = GuestProfile.objects.update_or_create(
+            hotel_id=hotel_id, guest_key=gk,
+            defaults={'flag': request.data.get('flag', 'normal'), 'notes': request.data.get('notes', '')},
+        )
+        return Response(GuestProfileSerializer(obj).data, status=status.HTTP_201_CREATED)
+
+
+class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """سجلّ التدقيق — للقراءة فقط (append‑only). مُعزّل بالدور:
+    - مالك المنصّة: كل السجلّات (مع فلتر ?hotel= اختياري).
+    - مدير الفندق: سجلّات فندقه فقط.
+    - الاستقبال/بلا دور: لا وصول.
+    يدعم فلاتر ?action= و ?entity_type=.
+    """
+    serializer_class = AuditLogSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        u = self.request.user
+        role = _get_user_role(u)
+        qs = AuditLog.objects.select_related('hotel')
+        if role == 'platform_owner':
+            hid = self.request.query_params.get('hotel')
+            if hid:
+                qs = qs.filter(hotel_id=hid)
+        elif role == 'manager':
+            uid = _get_user_hotel_id(u)
+            if uid is None:
+                return AuditLog.objects.none()
+            qs = qs.filter(hotel_id=uid)
+        else:
+            return AuditLog.objects.none()
+        action = self.request.query_params.get('action')
+        if action:
+            qs = qs.filter(action=action)
+        etype = self.request.query_params.get('entity_type')
+        if etype:
+            qs = qs.filter(entity_type=etype)
+        return qs[:500]  # حدّ أعلى للحماية من الحمل
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -959,8 +1606,7 @@ class PublicHotelListView(APIView):
         if request.query_params.get('featured') == '1':
             qs = qs.filter(is_featured=True)
         hotels = list(qs.order_by('-is_featured', '-created_at'))
-        for h in hotels:
-            _ensure_slug(h)
+        # H‑1: الـslug يُضبط لحظة حفظ الفندق — لا حاجة لتوليده هنا (بلا كتابة داخل القراءة).
         return Response(PublicHotelCardSerializer(hotels, many=True).data)
 
 
@@ -1040,6 +1686,7 @@ class PublicRoomAvailabilityView(APIView):
 
 class PublicBookingCreateView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [PublicBookingThrottle]
 
     def post(self, request):
         d = request.data
@@ -1124,7 +1771,7 @@ class PublicBookingCreateView(APIView):
 
 class PublicBookingManageView(APIView):
     permission_classes = [permissions.AllowAny]
-    throttle_classes = []
+    throttle_classes = [PublicLookupThrottle]
 
     def get(self, request):
         booking_no = request.query_params.get('no', '').strip()
@@ -1142,6 +1789,7 @@ class PublicBookingManageView(APIView):
 
 class PublicBookingCancelView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [PublicWriteThrottle]
 
     def post(self, request, booking_no):
         phone  = (request.data.get('phone') or '').strip()
@@ -1178,14 +1826,92 @@ class PublicPlatformInfoView(APIView):
     throttle_classes = []
 
     def get(self, request):
-        return Response({'name': 'Fandqi', 'description': 'منصة فندقي للحجز الفندقي', 'default_country': 'سوريا'})
+        from .models import PlatformSettings
+        s = PlatformSettings.get_solo()
+        return Response({
+            'name': s.site_name or 'funduqii',
+            'description': s.subtitle or 'نظام إدارة الفنادق',
+            'default_country': s.default_country or 'سوريا',
+            'logo_url': s.logo_url,
+        })
+
+
+class PlatformSettingsView(APIView):
+    """هوية المنصّة الديناميكية — قراءة/تحديث من لوحة صاحب المنصّة (بدل localStorage)."""
+    permission_classes = [IsPlatformOwner]
+
+    def get(self, request):
+        from .models import PlatformSettings
+        from .serializers import PlatformSettingsSerializer
+        return Response(PlatformSettingsSerializer(PlatformSettings.get_solo()).data)
+
+    def put(self, request):
+        from .models import PlatformSettings
+        from .serializers import PlatformSettingsSerializer
+        s = PlatformSettings.get_solo()
+        ser = PlatformSettingsSerializer(s, data=request.data, partial=True)
+        ser.is_valid(raise_exception=True)
+        ser.save()
+        return Response(ser.data)
+
+
+def _agreement_state(hotel_id):
+    """د‑8: حالة اتفاقية حجوزات الموقع للفندق (النصّ/النسخة الحالية + هل قُبِلت)."""
+    s = PlatformSettings.get_solo()
+    accepted = None
+    if hotel_id:
+        accepted = HotelAgreementAcceptance.objects.filter(
+            hotel_id=hotel_id, version=s.agreement_version).first()
+    return {
+        'text': s.web_booking_agreement,
+        'version': s.agreement_version,
+        'accepted': accepted is not None,
+        'accepted_at': accepted.accepted_at if accepted else None,
+        'accepted_by_name': accepted.accepted_by_name if accepted else '',
+    }
+
+
+def _hotel_accepted_agreement(hotel_id):
+    s = PlatformSettings.get_solo()
+    if not (s.web_booking_agreement or '').strip():
+        return True   # لا اتفاقية مضبوطة → لا حجب
+    return HotelAgreementAcceptance.objects.filter(hotel_id=hotel_id, version=s.agreement_version).exists()
+
+
+class WebBookingAgreementView(APIView):
+    """د‑8: اتفاقية تفعيل حجوزات الموقع — عرض للمدير + قبولها لفندقه."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        role = _get_user_role(request.user)
+        hid = _get_user_hotel_id(request.user) if role == 'manager' else request.query_params.get('hotel')
+        return Response(_agreement_state(hid))
+
+    def post(self, request):
+        if _get_user_role(request.user) != 'manager':
+            raise PermissionDenied('قبول الاتفاقية من صلاحية مدير الفندق.')
+        hid = _get_user_hotel_id(request.user)
+        if not hid:
+            raise PermissionDenied('غير مرتبط بأي فندق.')
+        s = PlatformSettings.get_solo()
+        obj, _ = HotelAgreementAcceptance.objects.update_or_create(
+            hotel_id=hid, version=s.agreement_version,
+            defaults={'accepted_by': request.user, 'accepted_by_name': request.user.get_username(),
+                      'agreement_text': s.web_booking_agreement})
+        record_audit(request.user, hotel_id=hid, action='agreement.accept',
+                     entity_type='agreement', entity_id=obj.pk,
+                     summary=f'قبول اتفاقية حجوزات الموقع v{s.agreement_version}')
+        return Response(_agreement_state(hid), status=status.HTTP_201_CREATED)
 
 
 class PublicHotelRatingsView(APIView):
     """GET: قائمة تقييمات فندق + متوسط + توزيع النجوم.
     POST: إضافة تقييم جديد (يتطلّب رقم حجز + هاتف يطابقان حجزاً صحيحاً)."""
     permission_classes = [permissions.AllowAny]
-    throttle_classes = []
+
+    def get_throttles(self):
+        # التقييم (POST) محدود لمنع الإغراق؛ قراءة القائمة (GET) حرّة.
+        return [PublicWriteThrottle()] if self.request.method == 'POST' else []
 
     def _get_hotel(self, slug):
         qs = _public_hotels_qs()
@@ -1413,8 +2139,8 @@ class PlatformEarningsView(APIView):
     permission_classes = [IsPlatformOwner]
 
     def get(self, request):
-        from .commissions import backfill_commissions, EARNED_STATUSES
-        backfill_commissions()  # ضمان وجود سجلات عمولة لكل الحجوزات العامة
+        from .commissions import EARNED_STATUSES
+        # H‑1: العمولات تُنشأ عند حدث الحجز؛ لا backfill عند القراءة (استخدم أمر backfill_commissions).
 
         start, end = _period_range(request)
         hotel_id    = request.query_params.get('hotel')
@@ -1550,8 +2276,7 @@ class PlatformHotelEarningsView(APIView):
     permission_classes = [IsPlatformOwner]
 
     def get(self, request, hotel_id):
-        from .commissions import backfill_commissions, EARNED_STATUSES
-        backfill_commissions()
+        from .commissions import EARNED_STATUSES
         try:
             hotel = Hotel.objects.select_related('subscription', 'subscription__package',
                                                  'commission_setting').get(pk=hotel_id)
@@ -1723,6 +2448,10 @@ class BookingCommissionActionView(APIView):
         if 'notes' in request.data:
             bc.notes = str(request.data['notes'])
         bc.save()
+        if action in ('mark_paid', 'mark_partial', 'waive', 'mark_due'):
+            record_audit(request.user, hotel_id=bc.reservation.hotel_id if bc.reservation_id else None,
+                         action=f'commission.{action}', entity_type='commission', entity_id=bc.pk,
+                         summary=f'عمولة #{bc.pk} → {bc.get_commission_status_display()} ({bc.commission_amount} {bc.commission_currency})')
         return Response(_commission_dict(bc))
 
 
@@ -1734,9 +2463,6 @@ class PlatformWebBookingsView(APIView):
     permission_classes = [IsPlatformOwner]
 
     def get(self, request):
-        from .commissions import backfill_commissions
-        backfill_commissions()
-
         qs = Reservation.objects.filter(public_booking=True).select_related('hotel')
         hotel_id = request.query_params.get('hotel')
         if hotel_id:
@@ -1815,8 +2541,6 @@ class PlatformNotificationsView(APIView):
     permission_classes = [IsPlatformOwner]
 
     def get(self, request):
-        from .commissions import backfill_commissions
-        backfill_commissions()
         today = timezone.now().date()
         items = []
 

@@ -22,6 +22,7 @@ export default function HotelMap({ lat, lng, editable = false, height = 360, onC
   // Inject Leaflet CSS once
   useEffect(() => {
     if (typeof document === "undefined") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل/ضبط حالة مقصود عند الإقلاع
     if (document.querySelector(`link[data-leaflet]`)) { setReady(true); return; }
     const link = document.createElement("link");
     link.rel = "stylesheet";

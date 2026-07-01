@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Eye, EyeOff, X, Pencil, FileBarChart, CalendarCheck, PauseCircle, PlayCircle, Archive } from "lucide-react";
 import { apiUrl, getAuthJsonHeaders as apiH } from "@/lib/api";
+import { useLang } from "@/lib/i18n/LangContext";
 
 interface Hotel {
   id: number; name: string; country: string; city: string;
@@ -43,6 +44,7 @@ type EditForm = Partial<Hotel>;
 
 /* ── HotelsPage ──────────────────────────────────────────────────────────── */
 function HotelsPage() {
+  const { t } = useLang();
   const sp = useSearchParams();
   const [hotels,   setHotels]   = useState<Hotel[]>([]);
   const [loading,  setLoading]  = useState(true);
@@ -68,9 +70,10 @@ function HotelsPage() {
     fetch(apiUrl("/hotels/"), { headers: apiH() })
       .then(r => { if (!r.ok) throw new Error(); return r.json(); })
       .then(data => setHotels(Array.isArray(data) ? data : []))
-      .catch(() => showToast("فشل تحميل الفنادق", "error"))
+      .catch(() => showToast(t("فشل تحميل الفنادق"), "error"))
       .finally(() => setLoading(false));
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect -- تحميل لمرّة واحدة — الدالة غير مُذكّرة عمدًا / تحميل/ضبط حالة مقصود عند الإقلاع
   useEffect(() => { load(); }, []);
 
   const visible = hotels.filter(h => {
@@ -102,13 +105,13 @@ function HotelsPage() {
 
   /* ── save add ────────────────────────────────────────────────────────── */
   const saveAdd = async () => {
-    if (!addForm.name.trim())             return setErr("اسم الفندق مطلوب");
-    if (!addForm.manager_username.trim()) return setErr("اسم مستخدم المدير مطلوب");
-    if (!addForm.manager_password)        return setErr("كلمة مرور المدير مطلوبة");
+    if (!addForm.name.trim())             return setErr(t("اسم الفندق مطلوب"));
+    if (!addForm.manager_username.trim()) return setErr(t("اسم مستخدم المدير مطلوب"));
+    if (!addForm.manager_password)        return setErr(t("كلمة مرور المدير مطلوبة"));
     if (addForm.manager_password.length < 8)
-                                          return setErr("كلمة المرور 8 أحرف على الأقل");
+                                          return setErr(t("كلمة المرور 8 أحرف على الأقل"));
     if (addForm.manager_password !== addForm.manager_confirm)
-                                          return setErr("كلمتا المرور غير متطابقتين");
+                                          return setErr(t("كلمتا المرور غير متطابقتين"));
     setSaving(true); setErr("");
     try {
       const res = await fetch(apiUrl("/hotels/create_with_manager/"), {
@@ -128,17 +131,17 @@ function HotelsPage() {
         }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setErr(data.error ?? "حدث خطأ أثناء الحفظ"); return; }
+      if (!res.ok) { setErr(data.error ?? t("حدث خطأ أثناء الحفظ")); return; }
       closeModal();
       load();
-      showToast("تم إنشاء الفندق وحساب المدير بنجاح", "success");
-    } catch { setErr("خطأ في الاتصال بالخادم"); }
+      showToast(t("تم إنشاء الفندق وحساب المدير بنجاح"), "success");
+    } catch { setErr(t("خطأ في الاتصال بالخادم")); }
     finally { setSaving(false); }
   };
 
   /* ── save edit ───────────────────────────────────────────────────────── */
   const saveEdit = async () => {
-    if (!editForm.name?.trim()) { setErr("اسم الفندق مطلوب"); return; }
+    if (!editForm.name?.trim()) { setErr(t("اسم الفندق مطلوب")); return; }
     setSaving(true); setErr("");
     try {
       const res = await fetch(apiUrl(`/hotels/${editForm.id}/`), {
@@ -149,8 +152,8 @@ function HotelsPage() {
       if (!res.ok) throw new Error();
       closeModal();
       load();
-      showToast("تم تحديث بيانات الفندق", "success");
-    } catch { setErr("حدث خطأ أثناء الحفظ"); }
+      showToast(t("تم تحديث بيانات الفندق"), "success");
+    } catch { setErr(t("حدث خطأ أثناء الحفظ")); }
     finally { setSaving(false); }
   };
 
@@ -188,11 +191,11 @@ function HotelsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1>الفنادق</h1>
-          <p>إدارة الفنادق المسجلة على المنصة — إجمالي {hotels.length} فندق</p>
+          <h1>{t("الفنادق")}</h1>
+          <p>{t("إدارة الفنادق المسجلة على المنصة — إجمالي")} {hotels.length} {t("فندق")}</p>
         </div>
         <div className="page-actions">
-          <button onClick={openAdd} className="ds-btn ds-btn-primary">+ إضافة فندق</button>
+          <button onClick={openAdd} className="ds-btn ds-btn-primary">+ {t("إضافة فندق")}</button>
         </div>
       </div>
 
@@ -202,30 +205,30 @@ function HotelsPage() {
           className="input"
           value={search}
           onChange={e => setSearch(e.target.value)}
-          placeholder="بحث باسم الفندق أو المدير أو المدينة"
+          placeholder={t("بحث باسم الفندق أو المدير أو المدينة")}
           style={{ flex: 1, minWidth: 200 }}
         />
         <select className="select" value={statusF} onChange={e => setStatusF(e.target.value)} style={{ width: 150 }}>
-          <option value="">كل حالات الفندق</option>
-          <option value="active">فعال</option>
-          <option value="suspended">موقوف</option>
-          <option value="archived">مؤرشف</option>
+          <option value="">{t("كل حالات الفندق")}</option>
+          <option value="active">{t("فعال")}</option>
+          <option value="suspended">{t("موقوف")}</option>
+          <option value="archived">{t("مؤرشف")}</option>
         </select>
         <select className="select" value={subStatusF} onChange={e => setSubStatusF(e.target.value)} style={{ width: 170 }}>
-          <option value="">كل حالات الاشتراك</option>
-          <option value="none">بلا اشتراك</option>
-          <option value="trial">تجريبي</option>
-          <option value="active">اشتراك فعال</option>
-          <option value="expired">منتهي</option>
-          <option value="suspended">موقوف</option>
+          <option value="">{t("كل حالات الاشتراك")}</option>
+          <option value="none">{t("بلا اشتراك")}</option>
+          <option value="trial">{t("تجريبي")}</option>
+          <option value="active">{t("اشتراك فعال")}</option>
+          <option value="expired">{t("منتهي")}</option>
+          <option value="suspended">{t("موقوف")}</option>
         </select>
       </div>
 
       {/* Cards */}
       {loading ? (
-        <div className="ds-card-p"><p className="pf-empty-inline">جارٍ التحميل...</p></div>
+        <div className="ds-card-p"><p className="pf-empty-inline">{t("جارٍ التحميل...")}</p></div>
       ) : visible.length === 0 ? (
-        <div className="ds-card-p"><p className="pf-empty-inline">لا توجد فنادق.</p></div>
+        <div className="ds-card-p"><p className="pf-empty-inline">{t("لا توجد فنادق.")}</p></div>
       ) : (
         <div className="pf-entity-grid">
           {visible.map(h => (
@@ -236,20 +239,20 @@ function HotelsPage() {
                   <div className="pf-entity-sub">{[h.country, h.city].filter(Boolean).join(" / ") || "—"}</div>
                 </div>
                 <span className={`ds-badge ${STATUS_BADGE[h.status] ?? "ds-badge-neutral"}`}>
-                  {STATUS_LABEL[h.status] ?? h.status}
+                  {STATUS_LABEL[h.status] ? t(STATUS_LABEL[h.status]) : h.status}
                 </span>
               </div>
               <div>
                 <div className="pf-kv">
-                  <span className="pf-kv-label">المدير</span>
+                  <span className="pf-kv-label">{t("المدير")}</span>
                   <span className="pf-kv-value">{h.manager_name
                     ? h.manager_name
                     : (h.manager_email
                         ? h.manager_email
-                        : <span className="ds-badge ds-badge-neutral">لا يوجد مدير</span>)}</span>
+                        : <span className="ds-badge ds-badge-neutral">{t("لا يوجد مدير")}</span>)}</span>
                 </div>
                 <div className="pf-kv">
-                  <span className="pf-kv-label">الاشتراك</span>
+                  <span className="pf-kv-label">{t("الاشتراك")}</span>
                   <span className="pf-kv-value">
                     {h.subscription_status
                       ? <span className={`ds-badge ${
@@ -259,20 +262,20 @@ function HotelsPage() {
                           h.subscription_status === "suspended" ? "ds-badge-warning" :
                           "ds-badge-neutral"
                         }`}>
-                          {{ active: "فعال", trial: "تجريبي", expired: "منتهي", suspended: "موقوف", not_set: "غير مضبوط" }[h.subscription_status] ?? h.subscription_status}
+                          {(() => { const _l = { active: "فعال", trial: "تجريبي", expired: "منتهي", suspended: "موقوف", not_set: "غير مضبوط" }[h.subscription_status]; return _l ? t(_l) : h.subscription_status; })()}
                         </span>
                       : <span className="text-muted">—</span>}
                   </span>
                 </div>
               </div>
               <div className="pf-entity-actions">
-                <button onClick={() => openView(h)} className="ds-btn ds-btn-neutral ds-btn-sm"><Eye size={14} /> عرض</button>
-                <button onClick={() => openEdit(h)} className="ds-btn ds-btn-primary ds-btn-sm"><Pencil size={14} /> تعديل</button>
-                <Link href={`/platform/earnings/${h.id}`} className="ds-btn ds-btn-neutral ds-btn-sm"><FileBarChart size={14} /> التقرير</Link>
-                <Link href="/platform/web-bookings" className="ds-btn ds-btn-neutral ds-btn-sm"><CalendarCheck size={14} /> الحجوزات</Link>
-                {h.status === "active"    && <button onClick={() => setStatus(h, "suspended")} className="ds-btn ds-btn-warning ds-btn-sm"><PauseCircle size={14} /> إيقاف</button>}
-                {h.status === "suspended" && <button onClick={() => setStatus(h, "active")}    className="ds-btn ds-btn-success ds-btn-sm"><PlayCircle size={14} /> تفعيل</button>}
-                {h.status !== "archived"  && <button onClick={() => setStatus(h, "archived")}  className="ds-btn ds-btn-neutral ds-btn-sm"><Archive size={14} /> أرشفة</button>}
+                <button onClick={() => openView(h)} className="ds-btn ds-btn-neutral ds-btn-sm"><Eye size={14} /> {t("عرض")}</button>
+                <button onClick={() => openEdit(h)} className="ds-btn ds-btn-primary ds-btn-sm"><Pencil size={14} /> {t("تعديل")}</button>
+                <Link href={`/platform/earnings/${h.id}`} className="ds-btn ds-btn-neutral ds-btn-sm"><FileBarChart size={14} /> {t("التقرير")}</Link>
+                <Link href="/platform/web-bookings" className="ds-btn ds-btn-neutral ds-btn-sm"><CalendarCheck size={14} /> {t("الحجوزات")}</Link>
+                {h.status === "active"    && <button onClick={() => setStatus(h, "suspended")} className="ds-btn ds-btn-warning ds-btn-sm"><PauseCircle size={14} /> {t("إيقاف")}</button>}
+                {h.status === "suspended" && <button onClick={() => setStatus(h, "active")}    className="ds-btn ds-btn-success ds-btn-sm"><PlayCircle size={14} /> {t("تفعيل")}</button>}
+                {h.status !== "archived"  && <button onClick={() => setStatus(h, "archived")}  className="ds-btn ds-btn-neutral ds-btn-sm"><Archive size={14} /> {t("أرشفة")}</button>}
               </div>
             </div>
           ))}
@@ -284,19 +287,19 @@ function HotelsPage() {
         <div className="ds-modal-backdrop" onClick={closeModal}>
           <div className="ds-modal-card wide" onClick={e => e.stopPropagation()}>
             <div className="ds-modal-head">
-              <h2>إضافة فندق جديد</h2>
+              <h2>{t("إضافة فندق جديد")}</h2>
               <button className="icon-btn" onClick={closeModal}><X size={14} strokeWidth={2.5} /></button>
             </div>
             <div className="ds-modal-body">
 
               {/* ── قسم بيانات الفندق ── */}
               <p style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--color-primary)", marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                بيانات الفندق
+                {t("بيانات الفندق")}
               </p>
               <div className="modal-grid">
                 {HOTEL_FIELDS.map(({ k, l, req, type }) => (
                   <div key={k} className="field">
-                    <label className="field-label">{l}{req ? " *" : ""}</label>
+                    <label className="field-label">{t(l)}{req ? " *" : ""}</label>
                     <input
                       className="input"
                       type={type ?? "text"}
@@ -306,15 +309,15 @@ function HotelsPage() {
                   </div>
                 ))}
                 <div className="field">
-                  <label className="field-label">الحالة</label>
+                  <label className="field-label">{t("الحالة")}</label>
                   <select
                     className="select"
                     value={addForm.status}
                     onChange={e => setAddForm(prev => ({ ...prev, status: e.target.value }))}
                   >
-                    <option value="active">فعال</option>
-                    <option value="suspended">موقوف</option>
-                    <option value="archived">مؤرشف</option>
+                    <option value="active">{t("فعال")}</option>
+                    <option value="suspended">{t("موقوف")}</option>
+                    <option value="archived">{t("مؤرشف")}</option>
                   </select>
                 </div>
               </div>
@@ -322,21 +325,21 @@ function HotelsPage() {
               {/* ── قسم حساب مدير الفندق ── */}
               <div style={{ borderTop: "1px solid var(--color-border)", margin: "1.25rem 0 1rem" }} />
               <p style={{ fontWeight: 700, fontSize: "0.85rem", color: "var(--color-success)", marginBottom: "0.75rem", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                حساب مدير الفندق
+                {t("حساب مدير الفندق")}
               </p>
               <div className="modal-grid">
                 <div className="field">
-                  <label className="field-label">اسم المستخدم *</label>
+                  <label className="field-label">{t("اسم المستخدم")} *</label>
                   <input
                     className="input"
                     type="text"
-                    placeholder="اسم مستخدم فريد للدخول"
+                    placeholder={t("اسم مستخدم فريد للدخول")}
                     value={addForm.manager_username}
                     onChange={e => setAddForm(prev => ({ ...prev, manager_username: e.target.value }))}
                   />
                 </div>
                 <div className="field">
-                  <label className="field-label">البريد الإلكتروني</label>
+                  <label className="field-label">{t("البريد الإلكتروني")}</label>
                   <input
                     className="input"
                     type="email"
@@ -346,12 +349,12 @@ function HotelsPage() {
                   />
                 </div>
                 <div className="field">
-                  <label className="field-label">كلمة المرور *</label>
+                  <label className="field-label">{t("كلمة المرور")} *</label>
                   <div style={{ position: "relative" }}>
                     <input
                       className="input"
                       type={showPass ? "text" : "password"}
-                      placeholder="8 أحرف على الأقل"
+                      placeholder={t("8 أحرف على الأقل")}
                       value={addForm.manager_password}
                       onChange={e => setAddForm(prev => ({ ...prev, manager_password: e.target.value }))}
                       style={{ paddingLeft: "2.5rem" }}
@@ -366,12 +369,12 @@ function HotelsPage() {
                   </div>
                 </div>
                 <div className="field">
-                  <label className="field-label">تأكيد كلمة المرور *</label>
+                  <label className="field-label">{t("تأكيد كلمة المرور")} *</label>
                   <div style={{ position: "relative" }}>
                     <input
                       className="input"
                       type={showConf ? "text" : "password"}
-                      placeholder="أعد كتابة كلمة المرور"
+                      placeholder={t("أعد كتابة كلمة المرور")}
                       value={addForm.manager_confirm}
                       onChange={e => setAddForm(prev => ({ ...prev, manager_confirm: e.target.value }))}
                       style={{ paddingLeft: "2.5rem" }}
@@ -394,9 +397,9 @@ function HotelsPage() {
               )}
             </div>
             <div className="ds-modal-foot">
-              <button onClick={closeModal} className="ds-btn ds-btn-neutral" disabled={saving}>إلغاء</button>
+              <button onClick={closeModal} className="ds-btn ds-btn-neutral" disabled={saving}>{t("إلغاء")}</button>
               <button onClick={saveAdd}    className="ds-btn ds-btn-primary" disabled={saving}>
-                {saving ? "جارٍ الإنشاء..." : "إنشاء الفندق والحساب"}
+                {saving ? t("جارٍ الإنشاء...") : t("إنشاء الفندق والحساب")}
               </button>
             </div>
           </div>
@@ -408,14 +411,14 @@ function HotelsPage() {
         <div className="ds-modal-backdrop" onClick={closeModal}>
           <div className="ds-modal-card wide" onClick={e => e.stopPropagation()}>
             <div className="ds-modal-head">
-              <h2>{modal === "edit" ? "تعديل بيانات الفندق" : "تفاصيل الفندق"}</h2>
+              <h2>{modal === "edit" ? t("تعديل بيانات الفندق") : t("تفاصيل الفندق")}</h2>
               <button className="icon-btn" onClick={closeModal}><X size={14} strokeWidth={2.5} /></button>
             </div>
             <div className="ds-modal-body">
               <div className="modal-grid">
                 {HOTEL_FIELDS.map(({ k, l, req, type }) => (
                   <div key={k} className="field">
-                    <label className="field-label">{l}{req ? " *" : ""}</label>
+                    <label className="field-label">{t(l)}{req ? " *" : ""}</label>
                     <input
                       className="input"
                       type={type ?? "text"}
@@ -426,7 +429,7 @@ function HotelsPage() {
                   </div>
                 ))}
                 <div className="field">
-                  <label className="field-label">اسم المدير</label>
+                  <label className="field-label">{t("اسم المدير")}</label>
                   <input
                     className="input"
                     value={editForm.manager_name ?? ""}
@@ -435,7 +438,7 @@ function HotelsPage() {
                   />
                 </div>
                 <div className="field">
-                  <label className="field-label">بريد المدير</label>
+                  <label className="field-label">{t("بريد المدير")}</label>
                   <input
                     className="input"
                     type="email"
@@ -446,15 +449,15 @@ function HotelsPage() {
                 </div>
                 {modal !== "view" && (
                   <div className="field">
-                    <label className="field-label">الحالة</label>
+                    <label className="field-label">{t("الحالة")}</label>
                     <select
                       className="select"
                       value={editForm.status ?? "active"}
                       onChange={e => setEditForm(prev => ({ ...prev, status: e.target.value }))}
                     >
-                      <option value="active">فعال</option>
-                      <option value="suspended">موقوف</option>
-                      <option value="archived">مؤرشف</option>
+                      <option value="active">{t("فعال")}</option>
+                      <option value="suspended">{t("موقوف")}</option>
+                      <option value="archived">{t("مؤرشف")}</option>
                     </select>
                   </div>
                 )}
@@ -467,9 +470,9 @@ function HotelsPage() {
             </div>
             {modal !== "view" && (
               <div className="ds-modal-foot">
-                <button onClick={closeModal} className="ds-btn ds-btn-neutral" disabled={saving}>إلغاء</button>
+                <button onClick={closeModal} className="ds-btn ds-btn-neutral" disabled={saving}>{t("إلغاء")}</button>
                 <button onClick={saveEdit}   className="ds-btn ds-btn-primary" disabled={saving}>
-                  {saving ? "جارٍ الحفظ..." : "حفظ التعديلات"}
+                  {saving ? t("جارٍ الحفظ...") : t("حفظ التعديلات")}
                 </button>
               </div>
             )}

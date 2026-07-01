@@ -80,6 +80,7 @@ export default function WebBookingsPage() {
       .catch(() => setLoading(false));
   }, [hotelId]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل/ضبط حالة مقصود عند الإقلاع
   useEffect(() => { load(); }, [load]);
 
   async function doAction(id: number, action: "web_checkin" | "web_noshow" | "hotel_cancel", reason = "") {

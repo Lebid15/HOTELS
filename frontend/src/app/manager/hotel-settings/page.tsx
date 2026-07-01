@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Building2, Settings, BedDouble, Printer, FileText, Bell, Archive, Palette, Check, X, Download, AlertTriangle, Trash2 } from "lucide-react";
+import { Building2, Settings, BedDouble, Printer, FileText, Bell, Check, X } from "lucide-react";
 import { useLang } from "../LangContext";
 
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
@@ -18,18 +18,17 @@ function saveLS(hid: string, patch: object) {
 }
 
 // ─── types ───────────────────────────────────────────────────────────────────
-type TTab = "identity" | "operations" | "rooms" | "printing" | "documents" | "notifications" | "backup" | "appearance";
+type TTab = "identity" | "operations" | "rooms" | "printing" | "documents" | "notifications";
 
 interface IIdentity { name: string; ownerName: string; city: string; address: string; phone: string; email: string; website: string; logo: string | null; coverImage: string | null; mapUrl: string; latitude: string; longitude: string; }
-interface IOps { currency: string; resPrefix: string; lastRes: string; resDigits: string; autoClean: boolean; blockCheckout: boolean; }
+interface IOps { currency: string; autoClean: boolean; blockCheckout: boolean; }
 interface IRooms { floors: string; roomTypes: string[]; defaultCapacity: string; }
 interface IPrinting { showLogo: boolean; showContact: boolean; resTitle: string; accountTitle: string; terms: string; footer: string; numLang: string; }
 interface IDocs { docTypes: string[]; requireGuest: boolean; requireCompanion: boolean; requireRelation: boolean; scannerUrl: string; scannerEnabled: boolean; scannerError: string; }
 interface INotifs { arrivals: boolean; departures: boolean; balanceDue: boolean; cleaning: boolean; maintenance: boolean; roomAccount: boolean; balanceThreshold: string; showBell: boolean; }
-interface IAppearance { language: string; density: string; animations: boolean; }
 
 const DEFAULT_IDENTITY: IIdentity = { name: "", ownerName: "", city: "", address: "", phone: "", email: "", website: "", logo: null, coverImage: null, mapUrl: "", latitude: "", longitude: "" };
-const DEFAULT_OPS: IOps = { currency: "USD", resPrefix: "RES", lastRes: "0", resDigits: "4", autoClean: true, blockCheckout: true };
+const DEFAULT_OPS: IOps = { currency: "USD", autoClean: true, blockCheckout: true };
 const DEFAULT_ROOMS: IRooms = { floors: "1", roomTypes: ["مفردة", "مزدوجة", "ثلاثية", "سويت", "عائلية", "جناح", "غرفة مميزة"], defaultCapacity: "2" };
 const DEFAULT_PRINTING: IPrinting = {
   showLogo: true, showContact: true,
@@ -44,7 +43,6 @@ const DEFAULT_DOCS: IDocs = {
   scannerError: "تعذر الاتصال بخدمة الماسح الضوئي. تأكد من تشغيل خدمة الماسح المحلي ثم حاول مرة أخرى.",
 };
 const DEFAULT_NOTIFS: INotifs = { arrivals: true, departures: true, balanceDue: true, cleaning: true, maintenance: true, roomAccount: true, balanceThreshold: "0", showBell: true };
-const DEFAULT_APPEARANCE: IAppearance = { language: "ar", density: "comfortable", animations: true };
 
 
 // ─── shared sub-components ───────────────────────────────────────────────────
@@ -135,8 +133,7 @@ export default function SettingsPage() {
     { key: "printing",      label: t("الطباعة والفواتير"),    Icon: Printer },
     { key: "documents",     label: t("الوثائق والماسح"),      Icon: FileText },
     { key: "notifications", label: t("التنبيهات"),             Icon: Bell },
-    { key: "backup",        label: t("النسخ الاحتياطي"),      Icon: Archive },
-    { key: "appearance",    label: t("الواجهة"),               Icon: Palette },
+    // د‑1: أُزيل تبويبا «النسخ الاحتياطي» (يخصّ إدارة المنصّة/السيرفر) و«الواجهة» (تفضيلات شخصية للمستخدم).
   ];
 
   const hotelId = typeof window !== "undefined" ? (localStorage.getItem("hotel_id") ?? "") : "";
@@ -144,9 +141,7 @@ export default function SettingsPage() {
   const [toast, setToast]   = useState("");
   const [error, setError]   = useState("");
   const fileRef              = useRef<HTMLInputElement>(null);
-  const importRef            = useRef<HTMLInputElement>(null);
   const [maxFloor, setMaxFloor] = useState(0);
-  const [confirmReset, setConfirmReset] = useState(false);
   const [newDocType, setNewDocType]     = useState("");
   const [newRoomType, setNewRoomType]   = useState("");
 
@@ -159,7 +154,6 @@ export default function SettingsPage() {
   const [printing,  setPrinting]  = useState<IPrinting>(DEFAULT_PRINTING);
   const [docs,      setDocs]      = useState<IDocs>(DEFAULT_DOCS);
   const [notifs,    setNotifs]    = useState<INotifs>(DEFAULT_NOTIFS);
-  const [appearance,setAppearance]= useState<IAppearance>(DEFAULT_APPEARANCE);
 
   // Load from backend + localStorage
   useEffect(() => {
@@ -174,7 +168,6 @@ export default function SettingsPage() {
       if (ls.printing)   setPrinting(prev => ({ ...prev, ...ls.printing }));
       if (ls.docs)       setDocs(prev => ({ ...prev, ...ls.docs }));
       if (ls.notifs)     setNotifs(prev => ({ ...prev, ...ls.notifs }));
-      if (ls.appearance) setAppearance(prev => ({ ...prev, ...ls.appearance }));
     };
     loadLocal();
 
@@ -189,11 +182,15 @@ export default function SettingsPage() {
           address: d.address ?? "",
           phone: d.phone ?? "",
           email: d.email ?? "",
+          ownerName: d.owner_name || prev.ownerName,
+          logo: d.logo ? d.logo : prev.logo,
+          website: d.website || prev.website,
           coverImage: d.cover_image ?? prev.coverImage,
           mapUrl: d.map_url ?? "",
           latitude: d.latitude != null ? String(d.latitude) : "",
           longitude: d.longitude != null ? String(d.longitude) : "",
         }));
+        if (d.currency) setOps(prev => ({ ...prev, currency: d.currency }));
         if (d.floors_count) setRooms(prev => ({ ...prev, floors: String(d.floors_count) }));
       }).catch(() => {});
     // fetch rooms to compute max floor
@@ -221,6 +218,9 @@ export default function SettingsPage() {
         address: identity.address,
         phone: identity.phone,
         email: identity.email,
+        owner_name: identity.ownerName ?? "",
+        logo: identity.logo ?? "",
+        website: identity.website ?? "",
         cover_image: identity.coverImage ?? "",
         map_url: identity.mapUrl,
         latitude: lat ? Number(lat) : null,
@@ -234,9 +234,11 @@ export default function SettingsPage() {
   }
 
   async function doSaveOps() {
-    const digits = parseInt(ops.resDigits, 10);
-    if (!ops.resPrefix.trim()) { setError(t("بادئة رقم الحجز لا يجب أن تكون فارغة.")); return; }
-    if (isNaN(digits) || digits < 3 || digits > 8) { setError(t("عدد خانات رقم الحجز يجب أن يكون بين 3 و 8.")); return; }
+    // د‑1: أُزيلت إعدادات توليد رقم الحجز (بادئة/آخر رقم/خانات) — الرقم يتولّد ذرّيًا من الخادم.
+    // currency is money-chain critical → persist to backend (source of truth)
+    try {
+      await fetch(`${API}/hotels/${hotelId}/`, { method: "PATCH", headers: apiHJ(), body: JSON.stringify({ currency: ops.currency }) });
+    } catch { /* ok */ }
     saveLS(hotelId, { ops });
     showToast(t("تم حفظ إعدادات التشغيل والحجوزات بنجاح."));
   }
@@ -271,59 +273,7 @@ export default function SettingsPage() {
     showToast(t("تم حفظ إعدادات التنبيهات بنجاح."));
   }
 
-  async function doSaveAppearance() {
-    saveLS(hotelId, { appearance });
-    showToast(t("تم حفظ إعدادات الواجهة بنجاح."));
-  }
-
-  // ── Backup ─────────────────────────────────────────────────────────────────
-  async function doExport() {
-    setSaving(true);
-    const h = apiH();
-    const [hotel, roomsData, reservations, staff, maintenance, ls] = await Promise.all([
-      fetch(`${API}/hotels/${hotelId}/`, { headers: h }).then(r => r.ok ? r.json() : {}).catch(() => ({})),
-      fetch(`${API}/rooms/?hotel=${hotelId}`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-      fetch(`${API}/reservations/?hotel=${hotelId}`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-      fetch(`${API}/staff/?hotel=${hotelId}`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-      fetch(`${API}/maintenance/?hotel=${hotelId}`, { headers: h }).then(r => r.ok ? r.json() : []).catch(() => []),
-      Promise.resolve(loadLS(hotelId)),
-    ]);
-    const data = { exportedAt: new Date().toISOString(), hotelId, hotel, rooms: roomsData, reservations, staff, maintenance, settings: ls };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `fandqi-backup-${hotelId}-${new Date().toISOString().slice(0,10)}.json`;
-    a.click(); URL.revokeObjectURL(url);
-    setSaving(false);
-    showToast(t("تم تصدير النسخة الاحتياطية بنجاح."));
-  }
-
-  function doImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.name.endsWith(".json")) { setError(t("يجب اختيار ملف JSON صحيح.")); return; }
-    const reader = new FileReader();
-    reader.onload = ev => {
-      try {
-        const data = JSON.parse(ev.target?.result as string);
-        if (!data.hotelId || !data.settings) throw new Error(t("ملف غير صحيح"));
-        if (String(data.hotelId) !== String(hotelId)) {
-          if (!window.confirm(lang === "ar" ? "هذه النسخة لفندق مختلف. هل تريد المتابعة؟" : "This backup belongs to a different hotel. Do you want to continue?")) return;
-        }
-        localStorage.setItem(LS_KEY(hotelId), JSON.stringify(data.settings));
-        window.location.reload();
-      } catch {
-        setError(t("الملف غير صحيح أو تالف. يُرجى اختيار ملف نسخة احتياطية صحيح."));
-      }
-    };
-    reader.readAsText(file);
-    if (importRef.current) importRef.current.value = "";
-  }
-
-  function doReset() {
-    localStorage.removeItem(LS_KEY(hotelId));
-    window.location.reload();
-  }
+  // د‑1: أُزيلت دوال النسخ الاحتياطي (export/import/reset) وحفظ الواجهة — تبويباتها حُذفت.
 
   // ── Logo ────────────────────────────────────────────────────────────────────
   function handleLogo(e: React.ChangeEvent<HTMLInputElement>) {
@@ -560,31 +510,23 @@ export default function SettingsPage() {
            TAB 2: التشغيل والحجوزات
          ════════════════════════════════════════════════════════════════════ */}
       {tab === "operations" && (
-        <CardSection title={t("التشغيل والحجوزات")} desc={t("إعدادات تؤثر على أرقام الحجوزات، العملة، وسياسات التشغيل الأساسية.")}>
+        <CardSection title={t("التشغيل والحجوزات")} desc={t("العملة الافتراضية وسياسات التشغيل الأساسية.")}>
           <div style={G3}>
             <FLD label={t("العملة الافتراضية")}>
               <select className="select" value={ops.currency} onChange={e => setOps(p => ({ ...p, currency: e.target.value }))}>
                 {["USD", "EUR", "TRY", "SAR", "AED", "SYP"].map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </FLD>
-            <FLD label={t("بادئة رقم الحجز")} hint={`${t("مثال")}: ${ops.resPrefix || "RES"}-0001`}>
-              <input className="input" value={ops.resPrefix} onChange={e => setOps(p => ({ ...p, resPrefix: e.target.value.toUpperCase() }))} placeholder="RES" />
-            </FLD>
-            <FLD label={t("آخر رقم حجز")} hint={t("يُستخدم لتوليد الرقم التالي تلقائيًا")}>
-              <input className="input" type="number" min="0" value={ops.lastRes} onChange={e => setOps(p => ({ ...p, lastRes: e.target.value }))} />
-            </FLD>
           </div>
-          <div style={{ ...G3, marginTop: "0.25rem" }}>
-            <FLD label={t("عدد خانات رقم الحجز")} hint={t("بين 3 و 8 خانات")}>
-              <input className="input" type="number" min="3" max="8" value={ops.resDigits} onChange={e => setOps(p => ({ ...p, resDigits: e.target.value }))} />
-            </FLD>
-            <div />
-            <div style={{ display: "flex", alignItems: "center", paddingTop: "1.2rem" }}>
-              <span style={{ fontSize: "0.85rem", color: "#6b7280" }}>
-                {t("رقم الحجز التالي")}: <strong style={{ color: "#4f46e5" }}>{ops.resPrefix}-{String(parseInt(ops.lastRes, 10) + 1).padStart(parseInt(ops.resDigits, 10) || 4, "0")}</strong>
-              </span>
+          <div className="ds-alert ds-alert-info" style={{ marginTop: "0.75rem", fontSize: "0.85rem" }}>
+            {t("رقم الحجز يتولّد تلقائيًا من النظام لكل فندق (بلا تضارب) — لا حاجة لضبط بادئة أو خانات.")}
+          </div>
+          {hotelId && (
+            <div style={{ marginTop: "0.5rem", fontSize: "0.85rem", color: "#6b7280" }}>
+              {t("كود الفندق الداخلي")}: <strong style={{ color: "#4f46e5", letterSpacing: "0.05em" }}>{`FND-${String(hotelId).padStart(4, "0")}`}</strong>
+              <span style={{ marginInlineStart: 8, fontSize: "0.78rem" }}>({t("للعرض فقط — لا يُعدَّل")})</span>
             </div>
-          </div>
+          )}
           <div style={{ marginTop: "0.5rem" }}>
             <SW label={t("تحويل الغرفة للتنظيف بعد تسجيل الخروج")} checked={ops.autoClean} onChange={v => setOps(p => ({ ...p, autoClean: v }))} hint={t("بعد الخروج تصبح الغرفة في حالة تنظيف تلقائيًا")} />
             <SW label={t("منع تسجيل الخروج عند وجود متبقي مالي")} checked={ops.blockCheckout} onChange={v => setOps(p => ({ ...p, blockCheckout: v }))} hint={t("يمنع إتمام الخروج حتى يُسوَّى الرصيد المستحق")} />
@@ -743,82 +685,8 @@ export default function SettingsPage() {
         </CardSection>
       )}
 
-      {/* ══════════════════════════════════════════════════════════════════════
-           TAB 7: النسخ الاحتياطي
-         ════════════════════════════════════════════════════════════════════ */}
-      {tab === "backup" && (
-        <div>
-          {/* Export */}
-          <CardSection title={t("تصدير نسخة احتياطية")} desc={t("قم بتنزيل نسخة من بيانات الفندق الحالية للاحتفاظ بها خارج المتصفح.")}>
-            <button className="ds-btn ds-btn-primary" onClick={doExport} disabled={saving}>
-              {saving ? t("جارٍ التصدير...") : <><Download size={13}/> {t("تصدير البيانات")}</>}
-            </button>
-            <p style={{ fontSize: "0.78rem", color: "#9ca3af", marginTop: "0.5rem" }}>
-              {t("يشمل التصدير: الفندق، الغرف، الحجوزات، الموظفين، الصيانة، والإعدادات.")}
-            </p>
-          </CardSection>
-
-          {/* Import */}
-          <CardSection title={t("استيراد نسخة احتياطية")} desc={t("استعد نسخة محفوظة مسبقًا. تأكد من صحة الملف قبل الاستيراد.")}>
-            <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: "0.5rem", padding: "0.65rem 1rem", marginBottom: "1rem", fontSize: "0.82rem", color: "#92400e" }}>
-              <AlertTriangle size={13} style={{display:"inline",marginLeft:4}}/> {t("استيراد نسخة احتياطية قد يستبدل الإعدادات الحالية. تأكد من أنك تستخدم ملفًا صحيحًا.")}
-            </div>
-            <input ref={importRef} type="file" accept=".json,application/json" style={{ display: "none" }} onChange={doImport} />
-            <button className="ds-btn ds-btn-neutral" onClick={() => importRef.current?.click()}>
-              📂 {t("اختيار ملف JSON")}
-            </button>
-          </CardSection>
-
-          {/* Reset */}
-          <CardSection title={t("إعادة ضبط البيانات المحلية")} desc={t("استخدم هذا الخيار فقط في بيئة التجربة لمسح الإعدادات المحفوظة وإعادة تهيئة النظام.")}>
-            {!confirmReset ? (
-              <button
-                style={{ padding: "0.5rem 1.2rem", borderRadius: "0.5rem", border: "1px solid #dc2626", background: "#fef2f2", color: "#dc2626", fontWeight: 600, fontSize: "0.875rem", cursor: "pointer" }}
-                onClick={() => setConfirmReset(true)}
-              >
-                <Trash2 size={13}/> {t("إعادة الضبط")}
-              </button>
-            ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", flexWrap: "wrap" }}>
-                <p style={{ fontSize: "0.875rem", color: "#dc2626", fontWeight: 600, margin: 0 }}>{t("هل أنت متأكد؟ سيتم مسح جميع الإعدادات المحفوظة.")}</p>
-                <button style={{ padding: "0.4rem 1rem", borderRadius: "0.5rem", background: "#dc2626", color: "#fff", border: "none", fontWeight: 700, cursor: "pointer" }} onClick={doReset}>{t("نعم، إعادة الضبط")}</button>
-                <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={() => setConfirmReset(false)}>{t("إلغاء")}</button>
-              </div>
-            )}
-          </CardSection>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════════════════
-           TAB 8: الواجهة
-         ════════════════════════════════════════════════════════════════════ */}
-      {tab === "appearance" && (
-        <CardSection title={t("الواجهة")} desc={t("تفضيلات عرض النظام. المشروع يستخدم ثيمًا أساسيًا ثابتًا واحدًا.")}>
-          <div style={G2}>
-            <FLD label={t("اللغة الافتراضية")}>
-              <select className="select" value={appearance.language} onChange={e => setAppearance(p => ({ ...p, language: e.target.value }))}>
-                <option value="ar">العربية</option>
-                <option value="en">English</option>
-              </select>
-            </FLD>
-            <FLD label={t("كثافة العرض")}>
-              <select className="select" value={appearance.density} onChange={e => setAppearance(p => ({ ...p, density: e.target.value }))}>
-                <option value="comfortable">{t("مريحة")}</option>
-                <option value="compact">{t("مدمجة")}</option>
-              </select>
-            </FLD>
-          </div>
-          <div style={{ marginTop: "0.5rem" }}>
-            <SW label={t("تفعيل الحركات الناعمة")} checked={appearance.animations} onChange={v => setAppearance(p => ({ ...p, animations: v }))} hint={t("تحريك العناصر عند الانتقال والتفاعل")} />
-          </div>
-          <div style={{ marginTop: "0.5rem", padding: "0.75rem", background: "#f0f9ff", borderRadius: "0.5rem", border: "1px solid #bae6fd", fontSize: "0.82rem", color: "#0369a1" }}>
-            {t("اتجاه الواجهة")}: <strong>RTL ({t("يمين إلى يسار")})</strong> — {t("يُطبَّق تلقائيًا للغة العربية.")}
-          </div>
-          <div style={{ marginTop: "1rem" }}>
-            <SaveBtn label={t("حفظ إعدادات الواجهة")} saving={saving} saved={false} onClick={doSaveAppearance} />
-          </div>
-        </CardSection>
-      )}
+      {/* د‑1: أُزيل تبويبا «النسخ الاحتياطي» و«الواجهة» — النسخ الاحتياطي يخصّ إدارة المنصّة/السيرفر،
+           وتفضيلات الواجهة (اللغة/الكثافة) تخصّ حساب المستخدم الشخصي واللغة من أيقونة الهيدر. */}
     </div>
   );
 }

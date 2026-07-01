@@ -37,6 +37,16 @@ class Hotel(models.Model):
     manager_name = models.CharField(max_length=200, blank=True)
     manager_email = models.EmailField(blank=True)
 
+    # ── Hotel identity & operations (dynamic, source of truth) ─────────────
+    currency = models.CharField(max_length=10, default='USD')   # عملة الفندق الافتراضية (سلسلة المال)
+    logo = models.TextField(blank=True)                          # شعار الفندق (data-url/رابط)
+    owner_name = models.CharField(max_length=200, blank=True)    # اسم المالك/المسؤول
+    website = models.URLField(blank=True, max_length=500)
+    # د‑4: إعدادات المطعم/الكافتريا (مصدر Backend بدل localStorage). المفاتيح:
+    #   restaurant_enabled, cafeteria_enabled, dedicated_staff,
+    #   allow_cash, allow_electronic, allow_card, allow_room_account, print_receipt
+    food_settings = models.JSONField(default=dict, blank=True)
+
     # ── Public listing fields ──────────────────────────────────────────────
     stars = models.PositiveSmallIntegerField(null=True, blank=True)
     hotel_type = models.CharField(max_length=30, blank=True, choices=HOTEL_TYPE_CHOICES)
@@ -61,6 +71,14 @@ class Hotel(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # H‑1: تعيين الـslug لحظة الحفظ (بدل توليده عند كل قراءة عامة).
+        if not self.slug:
+            slug = f'hotel-{self.pk}'
+            Hotel.objects.filter(pk=self.pk).update(slug=slug)
+            self.slug = slug
 
     def __str__(self):
         return self.name
@@ -213,6 +231,7 @@ class Room(models.Model):
     class Meta:
         unique_together = ['hotel', 'number']
         ordering = ['floor', 'number']
+        indexes = [models.Index(fields=['hotel', 'status'])]
 
     def __str__(self):
         return f"{self.hotel.name} - {self.number}"
@@ -326,17 +345,34 @@ class Reservation(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['hotel', 'status']),
+            models.Index(fields=['hotel', 'check_in_date', 'check_out_date']),
+            models.Index(fields=['public_booking']),
+        ]
 
     def save(self, *args, **kwargs):
-        if not self.booking_number and self.hotel_id:
-            count = Reservation.objects.filter(hotel_id=self.hotel_id).count()
-            self.booking_number = f'BK-{count + 1:04d}'
         if self.public_booking and not self.public_booking_no:
-            from django.utils import timezone as _tz
-            year = _tz.now().year
-            seq = Reservation.objects.filter(public_booking=True).count() + 1
-            self.public_booking_no = f'WEB-{year}-{seq:05d}'
+            self.public_booking_no = self._generate_public_booking_no()
         super().save(*args, **kwargs)
+        # H‑2: رقم حجز داخلي ذرّي مبني على المفتاح الأساسي (بلا سباق count()).
+        if not self.booking_number:
+            Reservation.objects.filter(pk=self.pk).update(booking_number=f'BK-{self.pk:05d}')
+            self.booking_number = f'BK-{self.pk:05d}'
+
+    @staticmethod
+    def _generate_public_booking_no() -> str:
+        """B‑1: رقم حجز عام **غير قابل للتخمين** (عشوائي)، بلا أحرف ملتبسة، مع ضمان التفرّد."""
+        import secrets
+        from django.utils import timezone as _tz
+        year = _tz.now().year
+        alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'  # بلا 0/O/1/I/L
+        for _ in range(12):
+            candidate = f"WEB-{year}-{''.join(secrets.choice(alphabet) for _ in range(6))}"
+            if not Reservation.objects.filter(public_booking_no=candidate).exists():
+                return candidate
+        # احتياط نادر جدًا: أطل الجزء العشوائي
+        return f"WEB-{year}-{''.join(secrets.choice(alphabet) for _ in range(10))}"
 
     def __str__(self):
         return f'{self.booking_number} - {self.guest_first_name} {self.guest_last_name}'
@@ -473,10 +509,11 @@ class MaintenanceTicket(models.Model):
         ordering = ['-created_at']
 
     def save(self, *args, **kwargs):
-        if not self.ticket_no and self.hotel_id:
-            count = MaintenanceTicket.objects.filter(hotel_id=self.hotel_id).count()
-            self.ticket_no = f'MT-{count + 1:04d}'
         super().save(*args, **kwargs)
+        # H‑2: رقم تذكرة ذرّي مبني على المفتاح الأساسي (بلا سباق count()).
+        if not self.ticket_no:
+            MaintenanceTicket.objects.filter(pk=self.pk).update(ticket_no=f'MT-{self.pk:05d}')
+            self.ticket_no = f'MT-{self.pk:05d}'
 
     def __str__(self):
         return f'{self.ticket_no} - {self.hotel.name}'
@@ -498,6 +535,7 @@ class UserProfile(models.Model):
         Hotel, null=True, blank=True,
         on_delete=models.SET_NULL, related_name='staff_profiles',
     )
+    two_factor_enabled = models.BooleanField(default=False)   # د‑6: التحقق بخطوتين
 
     def __str__(self):
         return f'{self.user.username} — {self.role}'
@@ -646,3 +684,351 @@ class HotelRating(models.Model):
 
     def __str__(self):
         return f'{self.hotel.name} — {self.rating}/5 — {self.guest_name or "—"}'
+
+
+# ─── Payment (سلسلة المال — مصدر الحقيقة للمدفوعات) ───────────────────────
+class Payment(models.Model):
+    METHOD_CASH = 'cash'
+    METHOD_CARD = 'card'
+    METHOD_TRANSFER = 'transfer'
+    METHOD_OTHER = 'other'
+    METHOD_CHOICES = [
+        (METHOD_CASH, 'نقدًا'), (METHOD_CARD, 'بطاقة'),
+        (METHOD_TRANSFER, 'تحويل'), (METHOD_OTHER, 'أخرى'),
+    ]
+    # د‑3: مصدر الدفعة (لتتبّع «من أين دخل المبلغ» في المدفوعات والتقارير)
+    SOURCE_CHOICES = [
+        ('booking', 'حجز/إقامة'), ('folio', 'فوليو غرفة'), ('restaurant', 'مطعم'),
+        ('cafeteria', 'كافتريا'), ('extra_service', 'خدمة إضافية'),
+        ('debt_settlement', 'تسوية ذمة'), ('room_account', 'حساب غرفة'), ('other', 'أخرى'),
+    ]
+    hotel       = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='payments')
+    reservation = models.ForeignKey(Reservation, null=True, blank=True, on_delete=models.SET_NULL, related_name='payments')
+    amount      = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    currency    = models.CharField(max_length=10, default='SAR')
+    method      = models.CharField(max_length=20, choices=METHOD_CHOICES, default=METHOD_CASH)
+    source      = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='booking')
+    note        = models.CharField(max_length=300, blank=True)
+    receipt_no  = models.CharField(max_length=30, blank=True)
+    created_by  = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['hotel', 'created_at']), models.Index(fields=['reservation'])]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not self.receipt_no:
+            Payment.objects.filter(pk=self.pk).update(receipt_no=f'RC-{self.pk:06d}')
+            self.receipt_no = f'RC-{self.pk:06d}'
+
+    def __str__(self):
+        return f'{self.receipt_no or self.pk} — {self.amount} {self.currency}'
+
+
+# ─── Expense (مصاريف الفندق — تغذّي التقارير) ─────────────────────────────
+class Expense(models.Model):
+    hotel       = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='expenses')
+    category    = models.CharField(max_length=80, blank=True)
+    description = models.CharField(max_length=300, blank=True)
+    amount      = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    currency    = models.CharField(max_length=10, default='SAR')
+    spent_on    = models.DateField(null=True, blank=True)
+    paid_to     = models.CharField(max_length=200, blank=True)
+    notes       = models.CharField(max_length=500, blank=True)
+    created_by  = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['hotel', 'spent_on'])]
+
+    def __str__(self):
+        return f'{self.category or "expense"} — {self.amount} {self.currency}'
+
+
+# ─── PlatformSettings (هوية المنصّة الديناميكية — سجل واحد) ────────────────
+class PlatformSettings(models.Model):
+    """اسم/لوغو/هوية المنصّة — يديرها صاحب المنصّة من لوحته (بدل localStorage)."""
+    site_name       = models.CharField(max_length=120, default='funduqii')
+    subtitle        = models.CharField(max_length=200, blank=True, default='نظام إدارة الفنادق')
+    logo_url        = models.URLField(max_length=1000, blank=True)
+    favicon_url     = models.URLField(max_length=1000, blank=True)
+    email           = models.EmailField(blank=True)
+    phone           = models.CharField(max_length=40, blank=True)
+    website         = models.URLField(max_length=500, blank=True)
+    address         = models.CharField(max_length=300, blank=True)
+    default_country = models.CharField(max_length=80, blank=True, default='سوريا')
+    # د‑8: اتفاقية تفعيل حجوزات الموقع (نصّها ونسختها يديرها صاحب المنصّة)
+    web_booking_agreement = models.TextField(blank=True)
+    agreement_version     = models.PositiveIntegerField(default=1)
+    updated_at      = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'إعدادات المنصّة'
+
+    @classmethod
+    def get_solo(cls):
+        obj = cls.objects.first()
+        if obj is None:
+            obj = cls.objects.create()
+        return obj
+
+    def __str__(self):
+        return 'إعدادات المنصّة'
+
+
+# ─── LostFoundItem (المفقودات — سجلّ تشغيلي) ──────────────────────────────
+class LostFoundItem(models.Model):
+    STATUS_FOUND = 'found'
+    STATUS_RETURNED = 'returned'
+    STATUS_UNCLAIMED = 'unclaimed'
+    STATUS_CHOICES = [
+        (STATUS_FOUND, 'موجود'), (STATUS_RETURNED, 'أُعيد'), (STATUS_UNCLAIMED, 'غير مُطالَب'),
+    ]
+    hotel         = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='lost_found_items')
+    item_name     = models.CharField(max_length=200)
+    category      = models.CharField(max_length=40, blank=True)
+    location      = models.CharField(max_length=200, blank=True)
+    status        = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_FOUND)
+    guest_name    = models.CharField(max_length=200, blank=True)
+    room_number   = models.CharField(max_length=20, blank=True)
+    notes         = models.CharField(max_length=500, blank=True)
+    found_date    = models.DateField(null=True, blank=True)
+    returned_date = models.DateField(null=True, blank=True)
+    created_by    = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    created_at    = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['hotel', 'status'])]
+
+    def __str__(self):
+        return f'{self.item_name} — {self.status}'
+
+
+# ─── ShiftHandover (تسليم الورديات — سجلّ تشغيلي) ─────────────────────────
+class ShiftHandover(models.Model):
+    SHIFT_MORNING = 'morning'
+    SHIFT_EVENING = 'evening'
+    SHIFT_NIGHT = 'night'
+    SHIFT_CHOICES = [(SHIFT_MORNING, 'صباح'), (SHIFT_EVENING, 'مساء'), (SHIFT_NIGHT, 'ليل')]
+    hotel             = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='shift_handovers')
+    shift             = models.CharField(max_length=20, choices=SHIFT_CHOICES, default=SHIFT_MORNING)
+    staff_name        = models.CharField(max_length=200, blank=True)
+    handover_date     = models.DateField(null=True, blank=True)
+    occupied_rooms    = models.PositiveIntegerField(default=0)
+    arrivals          = models.PositiveIntegerField(default=0)
+    departures        = models.PositiveIntegerField(default=0)
+    pending_issues    = models.TextField(blank=True)
+    guest_complaints  = models.TextField(blank=True)
+    maintenance_notes = models.TextField(blank=True)
+    cash_amount       = models.CharField(max_length=50, blank=True)
+    general_notes     = models.TextField(blank=True)
+    created_by        = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    created_at        = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['hotel', 'handover_date'])]
+
+    def __str__(self):
+        return f'{self.shift} — {self.handover_date} — {self.staff_name}'
+
+
+# ─── MenuItem / FoodOrder (خدمات الطعام) ──────────────────────────────────
+class MenuItem(models.Model):
+    hotel      = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='menu_items')
+    name       = models.CharField(max_length=200)
+    category   = models.CharField(max_length=80, blank=True)
+    price      = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    available  = models.BooleanField(default=True)
+    notes      = models.CharField(max_length=300, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['category', 'name']
+        indexes = [models.Index(fields=['hotel'])]
+
+    def __str__(self):
+        return f'{self.name} — {self.price}'
+
+
+class FoodOrder(models.Model):
+    STATUS_NEW = 'new'
+    STATUS_PREPARING = 'preparing'
+    STATUS_READY = 'ready'
+    STATUS_DELIVERED = 'delivered'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = [
+        (STATUS_NEW, 'جديد'), (STATUS_PREPARING, 'قيد التحضير'), (STATUS_READY, 'جاهز'),
+        (STATUS_DELIVERED, 'مُسلَّم'), (STATUS_CANCELLED, 'ملغى'),
+    ]
+    hotel          = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='food_orders')
+    order_no       = models.CharField(max_length=30, blank=True)
+    source_type    = models.CharField(max_length=20, blank=True)
+    service_type   = models.CharField(max_length=20, blank=True)
+    room           = models.ForeignKey(Room, null=True, blank=True, on_delete=models.SET_NULL, related_name='food_orders')
+    room_number    = models.CharField(max_length=20, blank=True)
+    reservation    = models.ForeignKey(Reservation, null=True, blank=True, on_delete=models.SET_NULL, related_name='food_orders')
+    reservation_no = models.CharField(max_length=30, blank=True)
+    guest_name     = models.CharField(max_length=200, blank=True)
+    table_number   = models.CharField(max_length=20, blank=True)
+    customer_name  = models.CharField(max_length=200, blank=True)
+    items          = models.JSONField(default=list)
+    amount         = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    currency       = models.CharField(max_length=10, default='SAR')
+    payment_method = models.CharField(max_length=20, blank=True)
+    # د‑4: تفصيل المقبوض عند إنشاء الطلب (نقدي/إلكتروني/كرت/على حساب الغرفة)
+    amount_cash       = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    amount_electronic = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    amount_card       = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    amount_room       = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # على حساب الغرفة (ذمّة)
+    room_settled      = models.BooleanField(default=False)   # هل سُوِّي جزء حساب الغرفة؟
+    status         = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_NEW)
+    notes          = models.CharField(max_length=500, blank=True)
+    delivered_at   = models.DateTimeField(null=True, blank=True)
+    cancelled_at   = models.DateTimeField(null=True, blank=True)
+    cancel_reason  = models.CharField(max_length=300, blank=True)
+    created_by     = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    created_at     = models.DateTimeField(auto_now_add=True)
+    updated_at     = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['hotel', 'status'])]
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if not self.order_no:
+            FoodOrder.objects.filter(pk=self.pk).update(order_no=f'ORD-{self.pk:05d}')
+            self.order_no = f'ORD-{self.pk:05d}'
+
+    def __str__(self):
+        return f'{self.order_no or self.pk} — {self.amount} {self.currency}'
+
+
+# ─── FolioCharge (كشف حساب النزيل — رسوم إضافية) ───────────────────────────
+class FolioCharge(models.Model):
+    hotel          = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='folio_charges')
+    reservation    = models.ForeignKey(Reservation, null=True, blank=True, on_delete=models.SET_NULL, related_name='folio_charges')
+    guest_name     = models.CharField(max_length=200, blank=True)
+    room_number    = models.CharField(max_length=20, blank=True)
+    booking_number = models.CharField(max_length=30, blank=True)
+    charge_type    = models.CharField(max_length=40, blank=True)
+    amount         = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    currency       = models.CharField(max_length=10, default='SAR')
+    description    = models.CharField(max_length=300, blank=True)
+    charge_date    = models.DateField(null=True, blank=True)
+    settled        = models.BooleanField(default=False)
+    created_by     = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    created_at     = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['hotel', 'settled']), models.Index(fields=['reservation'])]
+
+    def __str__(self):
+        return f'{self.charge_type} — {self.amount} {self.currency}'
+
+
+# ─── GuestProfile (أعلام/ملاحظات النزلاء — مفتاحها هوية النزيل) ─────────────
+class GuestProfile(models.Model):
+    FLAG_NORMAL = 'normal'
+    FLAG_VIP = 'vip'
+    FLAG_BLACKLIST = 'blacklist'
+    FLAG_CHOICES = [(FLAG_NORMAL, 'عادي'), (FLAG_VIP, 'VIP'), (FLAG_BLACKLIST, 'محظور')]
+    hotel      = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='guest_profiles')
+    guest_key  = models.CharField(max_length=120)
+    flag       = models.CharField(max_length=20, choices=FLAG_CHOICES, default=FLAG_NORMAL)
+    notes      = models.TextField(blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('hotel', 'guest_key')
+        indexes = [models.Index(fields=['hotel'])]
+
+    def __str__(self):
+        return f'{self.guest_key} — {self.flag}'
+
+
+# ─── AuditLog (سجلّ التدقيق — أثر ثابت لمن فعل ماذا ومتى) ────────────────────
+class AuditLog(models.Model):
+    """سجلّ أحداث ثابت (append‑only): من (actor) فعل أي إجراء على أي كيان، ومتى.
+
+    - `hotel` فارغ للأحداث على مستوى المنصّة (فنادق/اشتراكات/باقات).
+    - يُكتب عبر `record_audit()` فقط؛ لا تعديل/حذف من الـAPI (للقراءة فقط).
+    """
+    hotel        = models.ForeignKey(Hotel, null=True, blank=True, on_delete=models.CASCADE, related_name='audit_logs')
+    actor        = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='audit_actions')
+    actor_name   = models.CharField(max_length=150, blank=True)   # لقطة (يبقى الاسم لو حُذف المستخدم)
+    actor_role   = models.CharField(max_length=30, blank=True)
+    action       = models.CharField(max_length=60)                # مثل: reservation.check_in
+    entity_type  = models.CharField(max_length=40, blank=True)    # مثل: reservation / payment / hotel
+    entity_id    = models.CharField(max_length=40, blank=True)
+    summary      = models.CharField(max_length=300, blank=True)   # وصف بشري جاهز للعرض
+    created_at   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['hotel', '-created_at']),
+            models.Index(fields=['action']),
+            models.Index(fields=['entity_type', 'entity_id']),
+        ]
+
+    def __str__(self):
+        return f'{self.created_at:%Y-%m-%d %H:%M} · {self.action} · {self.actor_name}'
+
+
+# ─── LoginChallenge (د‑6: تحدّي التحقق بخطوتين — كود يظهر للمدير داخل النظام) ─
+class LoginChallenge(models.Model):
+    user       = models.ForeignKey(User, on_delete=models.CASCADE, related_name='login_challenges')
+    hotel      = models.ForeignKey(Hotel, null=True, blank=True, on_delete=models.CASCADE)
+    ticket     = models.CharField(max_length=48, unique=True)
+    code       = models.CharField(max_length=8)
+    consumed   = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['hotel', 'consumed', 'created_at'])]
+
+    def __str__(self):
+        return f'2FA {self.user_id} · {self.code}'
+
+
+# ─── HotelAgreementAcceptance (د‑8: قبول الفندق لاتفاقية حجوزات الموقع) ──────
+class HotelAgreementAcceptance(models.Model):
+    hotel            = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='agreement_acceptances')
+    version          = models.PositiveIntegerField()
+    accepted_by      = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    accepted_by_name = models.CharField(max_length=150, blank=True)
+    agreement_text   = models.TextField(blank=True)   # لقطة نصّ الاتفاقية وقت القبول
+    accepted_at      = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('hotel', 'version')
+        indexes = [models.Index(fields=['hotel', 'version'])]
+
+    def __str__(self):
+        return f'Agreement v{self.version} · hotel {self.hotel_id}'
+
+
+# ─── DayClose (د‑7: إغلاق اليوم الحقيقي — لقطة مُخزَّنة تُغلق بصلاحية المدير) ─
+class DayClose(models.Model):
+    hotel          = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='day_closes')
+    business_date  = models.DateField()
+    closed_by      = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
+    closed_by_name = models.CharField(max_length=150, blank=True)
+    snapshot       = models.JSONField(default=dict)   # الأرقام والفحوصات وقت الإغلاق
+    notes          = models.TextField(blank=True)
+    created_at     = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('hotel', 'business_date')
+        ordering = ['-business_date']
+        indexes = [models.Index(fields=['hotel', '-business_date'])]
+
+    def __str__(self):
+        return f'DayClose {self.hotel_id} · {self.business_date}'

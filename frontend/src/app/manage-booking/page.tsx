@@ -117,7 +117,7 @@ export default function ManageBookingPage() {
     fetch(apiUrl(`/public/bookings/${booking.public_booking_no}/cancel/`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone: booking.guest_phone, reason: cancelReason }),
+      body: JSON.stringify({ phone: phone.trim(), reason: cancelReason }),
     })
       .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
       .then(({ ok, data }) => {
@@ -138,7 +138,7 @@ export default function ManageBookingPage() {
       {/* Header */}
       <header className="pub-header">
         <div className="pub-header-inner">
-          <Link href="/" className="pub-logo">Fandqi</Link>
+          <Link href="/" className="pub-logo">funduqii</Link>
           <nav>
             <ul className="pub-nav-links">
               <li><Link href="/" className="pub-nav-link">الرئيسية</Link></li>
@@ -360,7 +360,7 @@ export default function ManageBookingPage() {
 
       <footer className="pub-footer">
         <div className="pub-container">
-          <p>© Fandqi — منصة فندقي للحجز الفندقي</p>
+          <p>© funduqii — منصة فندقي للحجز الفندقي</p>
         </div>
       </footer>
     </div>

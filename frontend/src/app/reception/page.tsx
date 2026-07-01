@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { KeyRound, DoorOpen } from "lucide-react";
 import { apiUrl, getAuthHeaders as apiHeaders } from "@/lib/api";
+import { useLang } from "@/lib/i18n/LangContext";
 
 interface Room {
   id: number;
@@ -13,6 +14,7 @@ interface Room {
 }
 
 export default function ReceptionDashboard() {
+  const { t } = useLang();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -47,46 +49,46 @@ export default function ReceptionDashboard() {
     <div className="ds-page">
       <div className="page-header">
         <div>
-          <h1>لوحة الاستقبال</h1>
+          <h1>{t("لوحة الاستقبال")}</h1>
           <p>{today}</p>
         </div>
         <div className="page-actions">
           <Link href="/reception/reservations" className="ds-btn ds-btn-neutral ds-btn-sm">
-            الحجوزات
+            {t("الحجوزات")}
           </Link>
           <Link href="/reception/payments" className="ds-btn ds-btn-primary ds-btn-sm">
-            المدفوعات
+            {t("المدفوعات")}
           </Link>
         </div>
       </div>
 
       {loading ? (
         <div className="ds-card-p">
-          <p className="text-muted">جارٍ تحميل البيانات...</p>
+          <p className="text-muted">{t("جارٍ تحميل البيانات...")}</p>
         </div>
       ) : (
         <>
           {/* Summary Cards */}
           <div className="ds-summary-grid">
             <div className="ds-summary-card">
-              <p className="ds-summary-label">غرف متاحة</p>
+              <p className="ds-summary-label">{t("غرف متاحة")}</p>
               <p className="ds-summary-value text-success">{available}</p>
-              <p className="ds-summary-note">من أصل {totalRooms} غرفة</p>
+              <p className="ds-summary-note">{t("من أصل")} {totalRooms} {t("غرفة")}</p>
             </div>
             <div className="ds-summary-card">
-              <p className="ds-summary-label">غرف مشغولة</p>
+              <p className="ds-summary-label">{t("غرف مشغولة")}</p>
               <p className="ds-summary-value text-warning">{occupied}</p>
-              <p className="ds-summary-note">نسبة الإشغال</p>
+              <p className="ds-summary-note">{t("نسبة الإشغال")}</p>
             </div>
             <div className="ds-summary-card">
-              <p className="ds-summary-label">وصول اليوم</p>
+              <p className="ds-summary-label">{t("وصول اليوم")}</p>
               <p className="ds-summary-value text-primary">—</p>
-              <p className="ds-summary-note">قريباً</p>
+              <p className="ds-summary-note">{t("قريباً")}</p>
             </div>
             <div className="ds-summary-card">
-              <p className="ds-summary-label">مغادرة اليوم</p>
+              <p className="ds-summary-label">{t("مغادرة اليوم")}</p>
               <p className="ds-summary-value text-danger">—</p>
-              <p className="ds-summary-note">قريباً</p>
+              <p className="ds-summary-note">{t("قريباً")}</p>
             </div>
           </div>
 
@@ -96,10 +98,10 @@ export default function ReceptionDashboard() {
               <div className="ds-card-p" style={{ textAlign: "center", cursor: "pointer" }}>
                 <KeyRound size={32} style={{ color: "var(--color-success)", marginBottom: "0.5rem" }} />
                 <p style={{ fontWeight: 700, fontSize: "1rem", color: "var(--color-heading)" }}>
-                  تسجيل وصول سريع
+                  {t("تسجيل وصول سريع")}
                 </p>
                 <p className="text-muted" style={{ fontSize: "0.8rem", marginTop: "0.25rem" }}>
-                  استقبال ضيف جديد
+                  {t("استقبال ضيف جديد")}
                 </p>
               </div>
             </Link>
@@ -107,10 +109,10 @@ export default function ReceptionDashboard() {
               <div className="ds-card-p" style={{ textAlign: "center", cursor: "pointer" }}>
                 <DoorOpen size={32} style={{ color: "var(--color-warning)", marginBottom: "0.5rem" }} />
                 <p style={{ fontWeight: 700, fontSize: "1rem", color: "var(--color-heading)" }}>
-                  تسجيل مغادرة سريع
+                  {t("تسجيل مغادرة سريع")}
                 </p>
                 <p className="text-muted" style={{ fontSize: "0.8rem", marginTop: "0.25rem" }}>
-                  إنهاء إقامة ضيف
+                  {t("إنهاء إقامة ضيف")}
                 </p>
               </div>
             </Link>
@@ -118,7 +120,7 @@ export default function ReceptionDashboard() {
 
           {/* Room Status Section */}
           <div className="ds-card-p">
-            <h2 style={{ marginBottom: "1rem", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--color-heading)" }}>حالة الغرف</h2>
+            <h2 style={{ marginBottom: "1rem", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--color-heading)" }}>{t("حالة الغرف")}</h2>
             <div
               style={{
                 display: "grid",
@@ -127,53 +129,53 @@ export default function ReceptionDashboard() {
               }}
             >
               <div className="ds-summary-card">
-                <p className="ds-summary-label">متاحة</p>
+                <p className="ds-summary-label">{t("متاحة")}</p>
                 <p className="ds-summary-value text-success">{available}</p>
               </div>
               <div className="ds-summary-card">
-                <p className="ds-summary-label">مشغولة</p>
+                <p className="ds-summary-label">{t("مشغولة")}</p>
                 <p className="ds-summary-value text-warning">{occupied}</p>
               </div>
               {reserved > 0 && (
                 <div className="ds-summary-card">
-                  <p className="ds-summary-label">محجوزة</p>
+                  <p className="ds-summary-label">{t("محجوزة")}</p>
                   <p className="ds-summary-value text-primary">{reserved}</p>
                 </div>
               )}
               {maintenance > 0 && (
                 <div className="ds-summary-card">
-                  <p className="ds-summary-label">صيانة</p>
+                  <p className="ds-summary-label">{t("صيانة")}</p>
                   <p className="ds-summary-value text-danger">{maintenance}</p>
                 </div>
               )}
               {cleaning > 0 && (
                 <div className="ds-summary-card">
-                  <p className="ds-summary-label">تنظيف</p>
+                  <p className="ds-summary-label">{t("تنظيف")}</p>
                   <p className="ds-summary-value text-accent">{cleaning}</p>
                 </div>
               )}
               <div className="ds-summary-card">
-                <p className="ds-summary-label">الإجمالي</p>
+                <p className="ds-summary-label">{t("الإجمالي")}</p>
                 <p className="ds-summary-value">{totalRooms}</p>
               </div>
             </div>
 
             {totalRooms === 0 && (
               <p className="text-muted" style={{ textAlign: "center", marginTop: "1rem" }}>
-                لا توجد غرف مسجلة
+                {t("لا توجد غرف مسجلة")}
               </p>
             )}
           </div>
 
           {/* Quick Links */}
           <div className="ds-card-p">
-            <h2 style={{ marginBottom: "1rem", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--color-heading)" }}>روابط سريعة</h2>
+            <h2 style={{ marginBottom: "1rem", fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--color-heading)" }}>{t("روابط سريعة")}</h2>
             <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
               <Link href="/reception/reservations" className="ds-btn ds-btn-neutral">
-                الحجوزات
+                {t("الحجوزات")}
               </Link>
               <Link href="/reception/payments" className="ds-btn ds-btn-primary">
-                المدفوعات
+                {t("المدفوعات")}
               </Link>
             </div>
           </div>

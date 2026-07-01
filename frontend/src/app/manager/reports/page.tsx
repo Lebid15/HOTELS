@@ -17,6 +17,8 @@ interface Reservation {
   room:number|null; room_number:string|null; room_floor:number|null;
   check_in_date:string; check_out_date:string;
   total:string|number; paid:string|number; currency:string;
+  // مشتقّات سلسلة المال (الغرفة + الخدمات − المدفوع)
+  grand_total?:string|number; balance_due?:string|number; charges_total?:string|number;
   status:string; created_at?:string; updated_at?:string;
 }
 interface RoomItem {
@@ -91,6 +93,11 @@ function fmtDate(d:string):string{
   try{return new Date(d).toLocaleDateString("ar-SA");}catch{return d||"—";}
 }
 function n(v:string|number):number{ return Number(v)||0; }
+/** الدين = balance_due من الـBackend (يشمل الفوليو/الطعام) أو total−paid احتياطًا. */
+function resBal(r:{total:string|number;paid:string|number;balance_due?:string|number}):number{
+  if(r.balance_due!=null) return Math.max(0,n(r.balance_due));
+  return Math.max(0,n(r.total)-n(r.paid));
+}
 function money(v:string|number,cur="USD"):string{
   return `${n(v).toLocaleString("en-US")} ${cur}`;
 }
@@ -317,7 +324,7 @@ export default function ReportsPage(){
 
   const resTotal     = useMemo(()=>filteredRes.reduce((s,r)=>s+n(r.total),0),[filteredRes]);
   const resPaid      = useMemo(()=>filteredRes.reduce((s,r)=>s+n(r.paid),0),[filteredRes]);
-  const resRemaining = useMemo(()=>filteredRes.reduce((s,r)=>s+Math.max(0,n(r.total)-n(r.paid)),0),[filteredRes]);
+  const resRemaining = useMemo(()=>filteredRes.reduce((s,r)=>s+resBal(r),0),[filteredRes]);
   const foodTotal    = useMemo(()=>filteredOrders.reduce((s,o)=>s+n(o.amount),0),[filteredOrders]);
   const foodCash     = useMemo(()=>filteredOrders.filter(o=>o.payment_method==="cash").reduce((s,o)=>s+n(o.amount),0),[filteredOrders]);
   const foodElec     = useMemo(()=>filteredOrders.filter(o=>o.payment_method==="electronic").reduce((s,o)=>s+n(o.amount),0),[filteredOrders]);
@@ -420,7 +427,7 @@ export default function ReportsPage(){
           r.check_out_date??"—",
           RES_STATUS_LABELS[r.status]??r.status,
           String(n(r.total)),String(n(r.paid)),
-          String(Math.max(0,n(r.total)-n(r.paid))),
+          String(resBal(r)),
         ]),
       ],fn);
     }else if(tab==="financial"){
@@ -548,7 +555,7 @@ export default function ReportsPage(){
             </thead>
             <tbody>
               {[...filteredRes].sort((a,b)=>(b.check_in_date||"").localeCompare(a.check_in_date||"")).map(r=>{
-                const rem=Math.max(0,n(r.total)-n(r.paid));
+                const rem=resBal(r);
                 const ss=RES_STATUS_STYLE[r.status]??{background:"#f1f5f9",color:"#475569"};
                 return(
                   <tr key={r.id}>

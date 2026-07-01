@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { RefreshCw, Download, Monitor, FileBarChart, SlidersHorizontal } from "lucide-react";
 import { apiUrl, getAuthHeaders } from "@/lib/api";
+import { useLang } from "@/lib/i18n/LangContext";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 interface WebBooking {
@@ -111,6 +112,7 @@ function formatDate(d: string) {
 }
 
 export default function PlatformWebBookingsPage() {
+  const { t } = useLang();
   const [data, setData]       = useState<WebBookingsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState("");
@@ -146,17 +148,18 @@ export default function PlatformWebBookingsPage() {
     fetch(apiUrl(`/platform/web-bookings/?${buildQuery()}`), { headers: getAuthHeaders() })
       .then(r => (r.ok ? r.json() : Promise.reject()))
       .then((d: WebBookingsData) => { setData(d); setLoading(false); })
-      .catch(() => { setError("تعذّر تحميل حجوزات الموقع"); setLoading(false); });
-  }, [buildQuery]);
+      .catch(() => { setError(t("تعذّر تحميل حجوزات الموقع")); setLoading(false); });
+  }, [buildQuery, t]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل بيانات عند الإقلاع/تغيّر الفلاتر
   useEffect(() => { load(); }, [load]);
 
   function exportCsv() {
     const rows = data?.bookings ?? [];
     const headers = [
-      "رقم الحجز", "الفندق", "المدينة", "الزبون", "الهاتف", "الدخول", "الخروج",
-      "نوع الغرفة", "القيمة", "العملة", "حالة الحجز", "العمولة", "عملة العمولة",
-      "حالة العمولة", "التاريخ",
+      t("رقم الحجز"), t("الفندق"), t("المدينة"), t("الزبون"), t("الهاتف"), t("الدخول"), t("الخروج"),
+      t("نوع الغرفة"), t("القيمة"), t("العملة"), t("حالة الحجز"), t("العمولة"), t("عملة العمولة"),
+      t("حالة العمولة"), t("التاريخ"),
     ];
     const escape = (v: string | number) => {
       const s = String(v ?? "");
@@ -173,10 +176,10 @@ export default function PlatformWebBookingsPage() {
       b.room_type_label,
       money(b.total),
       b.currency,
-      BOOKING_STATUS[b.status]?.label ?? b.status,
+      BOOKING_STATUS[b.status] ? t(BOOKING_STATUS[b.status].label) : b.status,
       money(b.commission_amount),
       b.commission_currency,
-      COMMISSION_STATUS[b.commission_status]?.label ?? b.commission_status,
+      COMMISSION_STATUS[b.commission_status] ? t(COMMISSION_STATUS[b.commission_status].label) : b.commission_status,
       formatDate(b.created_at),
     ].map(escape).join(","));
     const csv = "﻿" + [headers.join(","), ...lines].join("\n");
@@ -198,15 +201,15 @@ export default function PlatformWebBookingsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1>حجوزات الموقع</h1>
-          <p>كل الحجوزات الواردة من الموقع العام عبر جميع الفنادق</p>
+          <h1>{t("حجوزات الموقع")}</h1>
+          <p>{t("كل الحجوزات الواردة من الموقع العام عبر جميع الفنادق")}</p>
         </div>
         <div className="page-actions">
           <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={load} disabled={loading}>
-            <RefreshCw size={15} className={loading ? "spin" : ""} /> تحديث
+            <RefreshCw size={15} className={loading ? "spin" : ""} /> {t("تحديث")}
           </button>
           <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={exportCsv} disabled={!bookings.length}>
-            <Download size={15} /> تصدير CSV
+            <Download size={15} /> {t("تصدير CSV")}
           </button>
         </div>
       </div>
@@ -214,34 +217,34 @@ export default function PlatformWebBookingsPage() {
       {/* Summary cards */}
       <div className="pf-grid-3">
         <div className="ds-summary-card">
-          <p className="ds-summary-label">إجمالي الحجوزات</p>
+          <p className="ds-summary-label">{t("إجمالي الحجوزات")}</p>
           <div className="ds-summary-value">{summary?.total ?? 0}</div>
-          <p className="ds-summary-note">كل حجوزات الموقع</p>
+          <p className="ds-summary-note">{t("كل حجوزات الموقع")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">بانتظار الوصول</p>
+          <p className="ds-summary-label">{t("بانتظار الوصول")}</p>
           <div className="ds-summary-value text-warning">{summary?.awaiting ?? 0}</div>
-          <p className="ds-summary-note">حجوزات لم تصل بعد</p>
+          <p className="ds-summary-note">{t("حجوزات لم تصل بعد")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">تم الدخول</p>
+          <p className="ds-summary-label">{t("تم الدخول")}</p>
           <div className="ds-summary-value text-success">{summary?.checked_in ?? 0}</div>
-          <p className="ds-summary-note">ضيوف سجّلوا الدخول</p>
+          <p className="ds-summary-note">{t("ضيوف سجّلوا الدخول")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">مكتملة</p>
+          <p className="ds-summary-label">{t("مكتملة")}</p>
           <div className="ds-summary-value text-success">{summary?.completed ?? 0}</div>
-          <p className="ds-summary-note">حجوزات منتهية</p>
+          <p className="ds-summary-note">{t("حجوزات منتهية")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">ملغاة</p>
+          <p className="ds-summary-label">{t("ملغاة")}</p>
           <div className="ds-summary-value text-danger">{summary?.cancelled ?? 0}</div>
-          <p className="ds-summary-note">حجوزات ملغاة</p>
+          <p className="ds-summary-note">{t("حجوزات ملغاة")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">لم يحضر</p>
+          <p className="ds-summary-label">{t("لم يحضر")}</p>
           <div className="ds-summary-value text-warning">{summary?.no_show ?? 0}</div>
-          <p className="ds-summary-note">ضيوف لم يحضروا</p>
+          <p className="ds-summary-note">{t("ضيوف لم يحضروا")}</p>
         </div>
       </div>
 
@@ -249,7 +252,7 @@ export default function PlatformWebBookingsPage() {
       <div className="pf-filter-bar">
         <span className="pf-filter-bar-icon"><SlidersHorizontal size={16} /></span>
         <select className="select" value={period} onChange={e => setPeriod(e.target.value)}>
-          {PERIODS.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+          {PERIODS.map(p => <option key={p.key} value={p.key}>{t(p.label)}</option>)}
         </select>
         {period === "custom" && (
           <>
@@ -258,22 +261,22 @@ export default function PlatformWebBookingsPage() {
           </>
         )}
         <select className="select" value={hotel} onChange={e => setHotel(e.target.value)}>
-          <option value="">كل الفنادق</option>
+          <option value="">{t("كل الفنادق")}</option>
           {(filters?.hotels ?? []).map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
         </select>
         <select className="select" value={city} onChange={e => setCity(e.target.value)}>
-          <option value="">كل المدن</option>
+          <option value="">{t("كل المدن")}</option>
           {(filters?.cities ?? []).map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <select className="select" value={currency} onChange={e => setCurrency(e.target.value)}>
-          <option value="">كل العملات</option>
+          <option value="">{t("كل العملات")}</option>
           {(filters?.currencies ?? []).map(c => <option key={c} value={c}>{c}</option>)}
         </select>
         <select className="select" value={arrivalStatus} onChange={e => setArrivalStatus(e.target.value)}>
-          {ARRIVAL_STATUS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+          {ARRIVAL_STATUS.map(s => <option key={s.key} value={s.key}>{t(s.label)}</option>)}
         </select>
         <select className="select" value={commissionStatus} onChange={e => setCommission(e.target.value)}>
-          {COMMISSION_FILTER.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+          {COMMISSION_FILTER.map(s => <option key={s.key} value={s.key}>{t(s.label)}</option>)}
         </select>
       </div>
 
@@ -281,32 +284,32 @@ export default function PlatformWebBookingsPage() {
       {error ? (
         <div className="ds-alert ds-alert-danger">{error}</div>
       ) : loading ? (
-        <p className="text-muted">جارٍ التحميل...</p>
+        <p className="text-muted">{t("جارٍ التحميل...")}</p>
       ) : bookings.length === 0 ? (
         <div className="ds-empty-state">
           <Monitor size={48} className="ds-empty-icon" />
-          <h3>لا توجد حجوزات مطابقة</h3>
-          <p>لم يتم العثور على حجوزات موقع تطابق الفلاتر المحددة.</p>
+          <h3>{t("لا توجد حجوزات مطابقة")}</h3>
+          <p>{t("لم يتم العثور على حجوزات موقع تطابق الفلاتر المحددة.")}</p>
         </div>
       ) : (
         <div className="ds-table-wrap">
           <table className="ds-table">
             <thead>
               <tr>
-                <th>رقم الحجز</th>
-                <th>الفندق</th>
-                <th>المدينة</th>
-                <th>الزبون</th>
-                <th>الهاتف</th>
-                <th>الدخول</th>
-                <th>الخروج</th>
-                <th>نوع الغرفة</th>
-                <th>القيمة</th>
-                <th>حالة الحجز</th>
-                <th>العمولة</th>
-                <th>حالة العمولة</th>
-                <th>التاريخ</th>
-                <th>إجراءات</th>
+                <th>{t("رقم الحجز")}</th>
+                <th>{t("الفندق")}</th>
+                <th>{t("المدينة")}</th>
+                <th>{t("الزبون")}</th>
+                <th>{t("الهاتف")}</th>
+                <th>{t("الدخول")}</th>
+                <th>{t("الخروج")}</th>
+                <th>{t("نوع الغرفة")}</th>
+                <th>{t("القيمة")}</th>
+                <th>{t("حالة الحجز")}</th>
+                <th>{t("العمولة")}</th>
+                <th>{t("حالة العمولة")}</th>
+                <th>{t("التاريخ")}</th>
+                <th>{t("إجراءات")}</th>
               </tr>
             </thead>
             <tbody>
@@ -324,17 +327,17 @@ export default function PlatformWebBookingsPage() {
                     <td>{formatDate(b.check_out_date)}</td>
                     <td>{b.room_type_label || "—"}</td>
                     <td>{money(b.total)} {b.currency}</td>
-                    <td><span className={bs.cls}>{bs.label}</span></td>
+                    <td><span className={bs.cls}>{t(bs.label)}</span></td>
                     <td>
                       {b.commission_amount != null && Number(b.commission_amount) > 0
                         ? <>{money(b.commission_amount)} {b.commission_currency}</>
                         : "—"}
                     </td>
-                    <td><span className={cs.cls}>{cs.label}</span></td>
+                    <td><span className={cs.cls}>{t(cs.label)}</span></td>
                     <td>{formatDate(b.created_at)}</td>
                     <td>
                       <Link href={`/platform/earnings/${b.hotel_id}`} className="ds-btn ds-btn-neutral ds-btn-xs">
-                        <FileBarChart size={13} /> تقرير الفندق
+                        <FileBarChart size={13} /> {t("تقرير الفندق")}
                       </Link>
                     </td>
                   </tr>

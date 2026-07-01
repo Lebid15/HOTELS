@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, KeyRound, ExternalLink, X } from "lucide-react";
 import { apiUrl, getAuthJsonHeaders as apiH } from "@/lib/api";
+import { useLang } from "@/lib/i18n/LangContext";
 
 interface Hotel {
   id: number;
@@ -24,6 +25,7 @@ const SUB_BADGE: Record<string, string> = { active: "ds-badge ds-badge-success",
 function ResetPasswordModal({
   hotel, onClose, onDone,
 }: { hotel: Hotel; onClose: () => void; onDone: (msg: string) => void }) {
+  const { t } = useLang();
   const [pass,   setPass]   = useState("");
   const [confirm,setConfirm]= useState("");
   const [showP,  setShowP]  = useState(false);
@@ -32,18 +34,18 @@ function ResetPasswordModal({
   const [err,    setErr]    = useState("");
 
   async function handle() {
-    if (!pass)            return setErr("كلمة المرور مطلوبة");
-    if (pass.length < 8)  return setErr("كلمة المرور 8 أحرف على الأقل");
-    if (pass !== confirm)  return setErr("كلمتا المرور غير متطابقتين");
+    if (!pass)            return setErr(t("كلمة المرور مطلوبة"));
+    if (pass.length < 8)  return setErr(t("كلمة المرور 8 أحرف على الأقل"));
+    if (pass !== confirm)  return setErr(t("كلمتا المرور غير متطابقتين"));
     setSaving(true); setErr("");
     try {
       const res  = await fetch(apiUrl(`/hotels/${hotel.id}/reset_manager_password/`), {
         method: "POST", headers: apiH(), body: JSON.stringify({ new_password: pass }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) { setErr(data.error ?? "فشلت العملية"); return; }
-      onDone("تم إعادة تعيين كلمة مرور المدير بنجاح");
-    } catch { setErr("خطأ في الاتصال"); }
+      if (!res.ok) { setErr(data.error ?? t("فشلت العملية")); return; }
+      onDone(t("تم إعادة تعيين كلمة مرور المدير بنجاح"));
+    } catch { setErr(t("خطأ في الاتصال")); }
     finally { setSaving(false); }
   }
 
@@ -57,21 +59,21 @@ function ResetPasswordModal({
     <div className="ds-modal-backdrop" onClick={onClose}>
       <div className="ds-modal-card narrow" onClick={e => e.stopPropagation()}>
         <div className="ds-modal-head">
-          <h2>إعادة تعيين كلمة المرور</h2>
+          <h2>{t("إعادة تعيين كلمة المرور")}</h2>
           <button className="icon-btn" onClick={onClose}><X size={14} strokeWidth={2.5} /></button>
         </div>
         <div className="ds-modal-body">
           <p className="text-muted" style={{ marginBottom: "1rem", fontSize: "0.9rem" }}>
-            الفندق: <strong style={{ color: "var(--color-heading)" }}>{hotel.name}</strong>
+            {t("الفندق")}: <strong style={{ color: "var(--color-heading)" }}>{hotel.name}</strong>
             {hotel.manager_username && (
-              <> — المدير: <span style={{ color: "var(--color-primary)", fontFamily: "monospace", fontWeight: 700 }}>@{hotel.manager_username}</span></>
+              <> — {t("المدير")}: <span style={{ color: "var(--color-primary)", fontFamily: "monospace", fontWeight: 700 }}>@{hotel.manager_username}</span></>
             )}
           </p>
 
           <div className="field">
-            <label className="field-label">كلمة المرور الجديدة *</label>
+            <label className="field-label">{t("كلمة المرور الجديدة")} *</label>
             <div style={{ position: "relative" }}>
-              <input className="input" type={showP ? "text" : "password"} placeholder="8 أحرف على الأقل"
+              <input className="input" type={showP ? "text" : "password"} placeholder={t("8 أحرف على الأقل")}
                 value={pass} onChange={e => setPass(e.target.value)} style={{ paddingLeft: "2.5rem" }} autoFocus />
               <button type="button" style={eyeStyle} onClick={() => setShowP(p => !p)}>
                 {showP ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -80,9 +82,9 @@ function ResetPasswordModal({
           </div>
 
           <div className="field" style={{ marginTop: "0.75rem" }}>
-            <label className="field-label">تأكيد كلمة المرور *</label>
+            <label className="field-label">{t("تأكيد كلمة المرور")} *</label>
             <div style={{ position: "relative" }}>
-              <input className="input" type={showC ? "text" : "password"} placeholder="أعد كتابة كلمة المرور"
+              <input className="input" type={showC ? "text" : "password"} placeholder={t("أعد كتابة كلمة المرور")}
                 value={confirm} onChange={e => setConfirm(e.target.value)} style={{ paddingLeft: "2.5rem" }} />
               <button type="button" style={eyeStyle} onClick={() => setShowC(p => !p)}>
                 {showC ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -93,10 +95,10 @@ function ResetPasswordModal({
           {err && <div className="ds-alert ds-alert-danger" style={{ marginTop: "0.75rem" }}>{err}</div>}
         </div>
         <div className="ds-modal-foot">
-          <button className="ds-btn ds-btn-neutral" onClick={onClose} disabled={saving}>إلغاء</button>
+          <button className="ds-btn ds-btn-neutral" onClick={onClose} disabled={saving}>{t("إلغاء")}</button>
           <button className="ds-btn ds-btn-warning" onClick={handle} disabled={saving}>
             <KeyRound size={14} strokeWidth={2.5} />
-            {saving ? "جارٍ الحفظ..." : "إعادة تعيين"}
+            {saving ? t("جارٍ الحفظ...") : t("إعادة تعيين")}
           </button>
         </div>
       </div>
@@ -106,6 +108,7 @@ function ResetPasswordModal({
 
 /* ── ManagersPage ──────────────────────────────────────────────────────────── */
 export default function ManagersPage() {
+  const { t } = useLang();
   const [hotels,  setHotels]  = useState<Hotel[]>([]);
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState("");
@@ -125,6 +128,7 @@ export default function ManagersPage() {
       .catch(() => setHotels([]))
       .finally(() => setLoading(false));
   };
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل/ضبط حالة مقصود عند الإقلاع
   useEffect(() => { load(); }, []);
 
   // Only show hotels that have a manager account
@@ -164,12 +168,12 @@ export default function ManagersPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1>مديرو الفنادق</h1>
-          <p>عرض حسابات مديري الفنادق وإعادة تعيين كلمات المرور عند الحاجة</p>
+          <h1>{t("مديرو الفنادق")}</h1>
+          <p>{t("عرض حسابات مديري الفنادق وإعادة تعيين كلمات المرور عند الحاجة")}</p>
         </div>
         <div className="page-actions">
           <Link href="/platform/hotels" className="ds-btn ds-btn-neutral ds-btn-sm">
-            <ExternalLink size={14} strokeWidth={2} /> إدارة الفنادق
+            <ExternalLink size={14} strokeWidth={2} /> {t("إدارة الفنادق")}
           </Link>
         </div>
       </div>
@@ -177,19 +181,19 @@ export default function ManagersPage() {
       {/* KPI cards */}
       <div className="pf-grid-3">
         <div className="ds-summary-card">
-          <p className="ds-summary-label">إجمالي المديرين</p>
+          <p className="ds-summary-label">{t("إجمالي المديرين")}</p>
           <p className="ds-summary-value">{managers.length}</p>
-          <p className="ds-summary-note">مديرون لديهم حسابات دخول</p>
+          <p className="ds-summary-note">{t("مديرون لديهم حسابات دخول")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">فنادق فعالة</p>
+          <p className="ds-summary-label">{t("فنادق فعالة")}</p>
           <p className="ds-summary-value text-success">{activeManagers}</p>
-          <p className="ds-summary-note">المدير يعمل في فندق فعّال</p>
+          <p className="ds-summary-note">{t("المدير يعمل في فندق فعّال")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">فنادق موقوفة</p>
+          <p className="ds-summary-label">{t("فنادق موقوفة")}</p>
           <p className="ds-summary-value text-warning">{suspendedHotels}</p>
-          <p className="ds-summary-note">الفندق موقوف مؤقتاً</p>
+          <p className="ds-summary-note">{t("الفندق موقوف مؤقتاً")}</p>
         </div>
       </div>
 
@@ -200,7 +204,7 @@ export default function ManagersPage() {
             className="input"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="بحث باسم المستخدم أو الاسم أو الفندق..."
+            placeholder={t("بحث باسم المستخدم أو الاسم أو الفندق...")}
           />
         </div>
 
@@ -208,26 +212,26 @@ export default function ManagersPage() {
           <table className="ds-table">
             <thead>
               <tr>
-                <th>الفندق</th>
-                <th>اسم المستخدم</th>
-                <th>الاسم المعروض</th>
-                <th>البريد الإلكتروني</th>
-                <th>حالة الفندق</th>
-                <th>الاشتراك</th>
-                <th>الإجراءات</th>
+                <th>{t("الفندق")}</th>
+                <th>{t("اسم المستخدم")}</th>
+                <th>{t("الاسم المعروض")}</th>
+                <th>{t("البريد الإلكتروني")}</th>
+                <th>{t("حالة الفندق")}</th>
+                <th>{t("الاشتراك")}</th>
+                <th>{t("الإجراءات")}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
                   <td colSpan={7} className="text-muted" style={{ textAlign: "center", padding: "2rem" }}>
-                    جارٍ التحميل...
+                    {t("جارٍ التحميل...")}
                   </td>
                 </tr>
               ) : visible.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-muted" style={{ textAlign: "center", padding: "2rem" }}>
-                    {search ? "لا توجد نتائج مطابقة." : "لا يوجد مديرون مسجلون بعد."}
+                    {search ? t("لا توجد نتائج مطابقة.") : t("لا يوجد مديرون مسجلون بعد.")}
                   </td>
                 </tr>
               ) : (
@@ -243,13 +247,13 @@ export default function ManagersPage() {
                     <td className="text-muted">{h.manager_email?.trim() || "—"}</td>
                     <td>
                       <span className={STATUS_BADGE[h.status] ?? "ds-badge ds-badge-neutral"}>
-                        {STATUS_LABEL[h.status] ?? h.status}
+                        {STATUS_LABEL[h.status] ? t(STATUS_LABEL[h.status]) : h.status}
                       </span>
                     </td>
                     <td>
                       {h.subscription_status
                         ? <span className={SUB_BADGE[h.subscription_status] ?? "ds-badge ds-badge-neutral"}>
-                            {SUB_LABEL[h.subscription_status] ?? h.subscription_status}
+                            {SUB_LABEL[h.subscription_status] ? t(SUB_LABEL[h.subscription_status]) : h.subscription_status}
                           </span>
                         : <span className="text-muted">—</span>}
                     </td>
@@ -258,7 +262,7 @@ export default function ManagersPage() {
                         className="ds-btn ds-btn-warning ds-btn-sm"
                         onClick={() => setResetTarget(h)}
                       >
-                        <KeyRound size={13} strokeWidth={2.5} /> كلمة المرور
+                        <KeyRound size={13} strokeWidth={2.5} /> {t("كلمة المرور")}
                       </button>
                     </td>
                   </tr>

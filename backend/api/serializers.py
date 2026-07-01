@@ -1,5 +1,6 @@
+from decimal import Decimal
 from rest_framework import serializers
-from .models import Hotel, Package, Subscription, SubscriptionRequest, Room, Staff, Reservation, MaintenanceTicket, HotelRating
+from .models import Hotel, Package, Subscription, SubscriptionRequest, Room, Staff, Reservation, MaintenanceTicket, Payment, Expense, PlatformSettings, LostFoundItem, ShiftHandover, MenuItem, FoodOrder, FolioCharge, GuestProfile, HotelRating, AuditLog, DayClose
 
 
 class HotelSerializer(serializers.ModelSerializer):
@@ -10,9 +11,14 @@ class HotelSerializer(serializers.ModelSerializer):
         model = Hotel
         fields = [
             'id', 'name', 'country', 'city', 'address', 'phone', 'email',
+            'currency', 'logo', 'owner_name', 'website', 'food_settings',
             'status', 'floors_count', 'manager_name', 'manager_email',
             'manager_username', 'subscription_status',
             'cover_image', 'map_url', 'latitude', 'longitude',
+            # د‑8: حضور الفندق على موقع الحجز
+            'public_listing_enabled', 'public_booking_enabled',
+            'public_description_short', 'public_description_full',
+            'stars', 'hotel_type', 'cancellation_policy',
             'created_at', 'updated_at',
         ]
 
@@ -91,6 +97,7 @@ class RoomSerializer(serializers.ModelSerializer):
             'id', 'hotel', 'number', 'floor', 'type', 'capacity',
             'status', 'price', 'currency', 'notes', 'created_at', 'updated_at',
         ]
+        extra_kwargs = {'hotel': {'read_only': True}}  # B‑7: يُضبط من الخادم فقط
 
 
 class ReservationSerializer(serializers.ModelSerializer):
@@ -98,17 +105,90 @@ class ReservationSerializer(serializers.ModelSerializer):
     room_number      = serializers.CharField(source='room.number', read_only=True, allow_null=True)
     room_floor       = serializers.IntegerField(source='room.floor', read_only=True, allow_null=True)
     created_by_name  = serializers.SerializerMethodField()
+    # ── سلسلة المال (مشتقّات محسوبة، لا تُخزَّن) ────────────────────────────
+    # الإجمالي الكامل = الغرفة (total) + الخدمات (فوليو + طعام) والدين = ما تبقّى.
+    folio_total      = serializers.SerializerMethodField()   # مجموع رسوم الفوليو
+    food_total       = serializers.SerializerMethodField()   # مجموع طلبات الطعام غير الملغاة
+    charges_total    = serializers.SerializerMethodField()   # folio + food (إجمالي الخدمات)
+    grand_total      = serializers.SerializerMethodField()   # total (الغرفة) + charges_total
+    balance_due      = serializers.SerializerMethodField()   # الدين المتبقّي (غرفة + خدمات − مدفوع)
 
     class Meta:
         model = Reservation
         fields = '__all__'
-        extra_kwargs = {'created_by': {'required': False, 'allow_null': True}}
+        extra_kwargs = {
+            'created_by': {'required': False, 'allow_null': True},
+            'hotel': {'read_only': True},  # B‑7: يُضبط من الخادم فقط
+        }
 
     def get_guest_full_name(self, obj):
         return f'{obj.guest_first_name} {obj.guest_last_name}'.strip()
 
     def get_created_by_name(self, obj):
         return obj.created_by.username if obj.created_by else None
+
+    # ── مشتقّات سلسلة المال ─────────────────────────────────────────────────
+    # تُحسب فوق العلاقات المُسبقة الجلب (prefetch_related) في get_queryset
+    # لتفادي N+1. كل رقم مشتقّ من مصدره الوحيد ولا يُكرَّر عدّه.
+    @staticmethod
+    def _folio_sum(obj):
+        return sum((c.amount for c in obj.folio_charges.all()), Decimal('0'))
+
+    @staticmethod
+    def _folio_outstanding(obj):
+        return sum((c.amount for c in obj.folio_charges.all() if not c.settled), Decimal('0'))
+
+    @staticmethod
+    def _food_sum(obj):
+        return sum((o.amount for o in obj.food_orders.all()
+                    if o.status != FoodOrder.STATUS_CANCELLED), Decimal('0'))
+
+    @staticmethod
+    def _food_room_charge(o):
+        """د‑4: الجزء المحمَّل على حساب الغرفة (ذمّة) لطلب طعام واحد.
+        الجديد: `amount_room` من التفصيل. القديم (توافق خلفي): كامل المبلغ إن كان بلا وسيلة دفع."""
+        if o.status == FoodOrder.STATUS_CANCELLED or o.room_settled:
+            return Decimal('0')
+        breakdown = (o.amount_cash or 0) + (o.amount_electronic or 0) + (o.amount_card or 0) + (o.amount_room or 0)
+        if breakdown > 0:
+            return o.amount_room or Decimal('0')
+        # توافق خلفي: طلب بلا تفصيل — يُعتبر على حساب الغرفة إن كان بلا وسيلة دفع أو «حساب غرفة».
+        pm = (o.payment_method or '').strip().lower()
+        if pm in ('', 'room_account', 'room', 'on_room', 'room_charge'):
+            return o.amount or Decimal('0')
+        return Decimal('0')
+
+    @staticmethod
+    def _food_outstanding(obj):
+        return sum((ReservationSerializer._food_room_charge(o) for o in obj.food_orders.all()), Decimal('0'))
+
+    def get_folio_total(self, obj):
+        return self._folio_sum(obj)
+
+    def get_food_total(self, obj):
+        return self._food_sum(obj)
+
+    def get_charges_total(self, obj):
+        return self._folio_sum(obj) + self._food_sum(obj)
+
+    def get_grand_total(self, obj):
+        return (obj.total or Decimal('0')) + self._folio_sum(obj) + self._food_sum(obj)
+
+    def get_balance_due(self, obj):
+        room_balance = (obj.total or Decimal('0')) - (obj.paid or Decimal('0'))
+        return room_balance + self._folio_outstanding(obj) + self._food_outstanding(obj)
+
+
+class ReservationListSerializer(ReservationSerializer):
+    """B‑6: نسخة القائمة تُسقط صور الوثائق (base64) لمنع التسريب/الحمل الضخم.
+    تُجلَب الوثائق عند فتح سجلّ واحد (retrieve) فقط."""
+    class Meta:
+        model = Reservation
+        exclude = ['guest_doc_image', 'family_doc_image', 'companion_docs']
+        extra_kwargs = {
+            'created_by': {'required': False, 'allow_null': True},
+            'hotel': {'read_only': True},
+        }
 
 
 class PublicHotelCardSerializer(serializers.ModelSerializer):
@@ -186,11 +266,31 @@ class PublicHotelRatingSerializer(serializers.ModelSerializer):
         fields = ['id', 'guest_name', 'rating', 'comment', 'created_at']
 
 
+def _mask_email(email: str) -> str:
+    if not email or '@' not in email:
+        return ''
+    name, _, domain = email.partition('@')
+    masked = (name[0] + '*' * (len(name) - 1)) if len(name) > 1 else '*'
+    return f'{masked}@{domain}'
+
+
+def _mask_phone(phone: str) -> str:
+    digits = ''.join(ch for ch in (phone or '') if ch.isdigit())
+    if not digits:
+        return ''
+    if len(digits) <= 4:
+        return '*' * len(digits)
+    return '*' * (len(digits) - 4) + digits[-4:]
+
+
 class PublicBookingDetailSerializer(serializers.ModelSerializer):
+    """B‑1: الاستجابة العامة تُقنّع بريد/هاتف الضيف (لا تُرجعهما كاملين)."""
     hotel_name = serializers.CharField(source='hotel.name', read_only=True)
     hotel_city = serializers.CharField(source='hotel.city', read_only=True)
     hotel_phone = serializers.SerializerMethodField()
     cancellation_policy = serializers.CharField(source='hotel.cancellation_policy', read_only=True)
+    guest_email = serializers.SerializerMethodField()
+    guest_phone = serializers.SerializerMethodField()
 
     class Meta:
         model = Reservation
@@ -207,15 +307,28 @@ class PublicBookingDetailSerializer(serializers.ModelSerializer):
     def get_hotel_phone(self, obj):
         return obj.hotel.phone if obj.hotel.show_contact_info else None
 
+    def get_guest_email(self, obj):
+        return _mask_email(obj.guest_email)
+
+    def get_guest_phone(self, obj):
+        return _mask_phone(obj.guest_phone)
+
 
 class StaffSerializer(serializers.ModelSerializer):
+    username  = serializers.CharField(source='user.username', read_only=True, allow_null=True)
+    has_login = serializers.SerializerMethodField()
+
     class Meta:
         model = Staff
         fields = [
             'id', 'hotel', 'full_name', 'role', 'phone', 'email',
-            'shift', 'status', 'permissions', 'notes', 'created_at', 'updated_at',
+            'shift', 'status', 'permissions', 'notes',
+            'username', 'has_login', 'created_at', 'updated_at',
         ]
-        extra_kwargs = {'hotel': {'required': False}}
+        extra_kwargs = {'hotel': {'read_only': True}}  # B‑7
+
+    def get_has_login(self, obj):
+        return obj.user_id is not None
 
 
 class MaintenanceTicketSerializer(serializers.ModelSerializer):
@@ -233,7 +346,7 @@ class MaintenanceTicketSerializer(serializers.ModelSerializer):
             'created_at', 'updated_at',
             'assigned_to_name', 'room_number', 'room_floor', 'room_status',
         ]
-        extra_kwargs = {'hotel': {'required': False}, 'ticket_no': {'read_only': True}}
+        extra_kwargs = {'hotel': {'read_only': True}, 'ticket_no': {'read_only': True}}  # B‑7
 
     def get_assigned_to_name(self, obj):
         return obj.assigned_to.full_name if obj.assigned_to else None
@@ -246,3 +359,130 @@ class MaintenanceTicketSerializer(serializers.ModelSerializer):
 
     def get_room_status(self, obj):
         return obj.room.status if obj.room else None
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    guest_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Payment
+        fields = [
+            'id', 'hotel', 'reservation', 'amount', 'currency', 'method', 'source', 'note',
+            'receipt_no', 'created_by', 'created_by_name', 'guest_name', 'created_at',
+        ]
+        extra_kwargs = {
+            'hotel': {'read_only': True},
+            'receipt_no': {'read_only': True},
+            'created_by': {'read_only': True},
+        }
+
+    def get_guest_name(self, obj):
+        r = obj.reservation
+        return f'{r.guest_first_name} {r.guest_last_name}'.strip() if r else ''
+
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+
+    class Meta:
+        model = Expense
+        fields = [
+            'id', 'hotel', 'category', 'description', 'amount', 'currency',
+            'spent_on', 'paid_to', 'notes', 'created_by', 'created_by_name', 'created_at',
+        ]
+        extra_kwargs = {'hotel': {'read_only': True}, 'created_by': {'read_only': True}}
+
+
+class PlatformSettingsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PlatformSettings
+        exclude = ['id']
+
+
+class LostFoundItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LostFoundItem
+        fields = [
+            'id', 'hotel', 'item_name', 'category', 'location', 'status',
+            'guest_name', 'room_number', 'notes', 'found_date', 'returned_date',
+            'created_by', 'created_at',
+        ]
+        extra_kwargs = {'hotel': {'read_only': True}, 'created_by': {'read_only': True}}
+
+
+class ShiftHandoverSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+
+    class Meta:
+        model = ShiftHandover
+        fields = [
+            'id', 'hotel', 'shift', 'staff_name', 'handover_date',
+            'occupied_rooms', 'arrivals', 'departures',
+            'pending_issues', 'guest_complaints', 'maintenance_notes',
+            'cash_amount', 'general_notes', 'created_by', 'created_by_name', 'created_at',
+        ]
+        extra_kwargs = {'hotel': {'read_only': True}, 'created_by': {'read_only': True}}
+
+
+class MenuItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MenuItem
+        fields = ['id', 'hotel', 'name', 'category', 'price', 'available', 'notes', 'created_at']
+        extra_kwargs = {'hotel': {'read_only': True}}
+
+
+class FoodOrderSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+
+    class Meta:
+        model = FoodOrder
+        fields = [
+            'id', 'hotel', 'order_no', 'source_type', 'service_type',
+            'room', 'room_number', 'reservation', 'reservation_no', 'guest_name',
+            'table_number', 'customer_name', 'items', 'amount', 'currency',
+            'payment_method', 'amount_cash', 'amount_electronic', 'amount_card', 'amount_room', 'room_settled',
+            'status', 'notes', 'delivered_at', 'cancelled_at',
+            'cancel_reason', 'created_by', 'created_by_name', 'created_at', 'updated_at',
+        ]
+        extra_kwargs = {'hotel': {'read_only': True}, 'order_no': {'read_only': True}, 'created_by': {'read_only': True}}
+
+
+class FolioChargeSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+
+    class Meta:
+        model = FolioCharge
+        fields = [
+            'id', 'hotel', 'reservation', 'guest_name', 'room_number', 'booking_number',
+            'charge_type', 'amount', 'currency', 'description', 'charge_date', 'settled',
+            'created_by', 'created_by_name', 'created_at',
+        ]
+        extra_kwargs = {'hotel': {'read_only': True}, 'created_by': {'read_only': True}}
+
+
+class GuestProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GuestProfile
+        fields = ['id', 'hotel', 'guest_key', 'flag', 'notes', 'updated_at']
+        extra_kwargs = {'hotel': {'read_only': True}}
+
+
+class DayCloseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DayClose
+        fields = ['id', 'hotel', 'business_date', 'closed_by', 'closed_by_name',
+                  'snapshot', 'notes', 'created_at']
+        extra_kwargs = {'hotel': {'read_only': True}, 'closed_by': {'read_only': True},
+                        'closed_by_name': {'read_only': True}}
+
+
+class AuditLogSerializer(serializers.ModelSerializer):
+    hotel_name = serializers.CharField(source='hotel.name', read_only=True, allow_null=True)
+
+    class Meta:
+        model = AuditLog
+        fields = [
+            'id', 'hotel', 'hotel_name', 'actor', 'actor_name', 'actor_role',
+            'action', 'entity_type', 'entity_id', 'summary', 'created_at',
+        ]

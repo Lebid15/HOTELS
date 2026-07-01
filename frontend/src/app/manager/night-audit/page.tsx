@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { getHotelCurrency } from "../../../lib/hotel";
 import { useLang } from "../LangContext";
-import { BASE_URL as API, getAuthHeaders as apiH } from "@/lib/api";
+import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
 import { escapeHtml as esc } from "@/lib/print";
 
 /* ─── LocalStorage Keys ────────────────────────────────────────────────────── */
@@ -294,8 +294,15 @@ export default function NightAuditPage() {
   /* ════════════════════════════════════════════════
      CLOSE DAY (Save Audit)
   ════════════════════════════════════════════════ */
-  function closeDay() {
+  async function closeDay() {
     if (!hotelId) { showToast(t("لم يتم تحديد هوية الفندق."), "error"); return; }
+
+    // د‑7: إغلاق فعلي مُخزَّن في الخادم (لقطة + مُغلِق + وقت) — بصلاحية المدير
+    try {
+      const r = await fetch(`${API}/day-close/`, { method: "POST", headers: apiHJ(),
+        body: JSON.stringify({ date: today }) });
+      if (!r.ok) { showToast(t("تعذّر إغلاق اليوم على الخادم."), "error"); return; }
+    } catch { showToast(t("خطأ في الاتصال بالخادم."), "error"); return; }
 
     const entry: AuditEntry = {
       date: today,

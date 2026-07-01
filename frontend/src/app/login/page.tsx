@@ -9,7 +9,7 @@ type Lang = "ar" | "en";
 type Mode = "login" | "register" | "forgot";
 
 const EN: Record<string, string> = {
-  "فندقي":                                              "Fandqi",
+  "فندقي":                                              "funduqii",
   "نظام إدارة الفنادق الاحترافي":                     "Professional Hotel Management System",
   "تسجيل الدخول":                                      "Sign In",
   "إنشاء حساب جديد":                                   "Create New Account",
@@ -51,6 +51,12 @@ const EN: Record<string, string> = {
   "الغرف والطوابق":                                    "Rooms & Floors",
   "التقارير المالية":                                  "Financial Reports",
   "الخدمات الفندقية":                                  "Hotel Services",
+  "تم قفل الحساب مؤقتًا بسبب محاولات فاشلة. حاول لاحقًا.": "Account temporarily locked due to failed attempts. Try again later.",
+  "الكود غير صحيح أو منتهٍ.":                          "The code is incorrect or expired.",
+  "تم تفعيل التحقق بخطوتين — أدخل الكود المُرسَل (يظهر لمدير الفندق داخل النظام).": "Two-factor authentication is enabled — enter the code (shown to the hotel manager in-system).",
+  "كود التحقق":                                        "Verification code",
+  "جارٍ التحقق...":                                    "Verifying...",
+  "تأكيد الكود":                                       "Confirm code",
 };
 
 const FEATURES = [
@@ -129,6 +135,8 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(true);
   const [loginErr, setLoginErr]     = useState("");
   const [loginLoad, setLoginLoad]   = useState(false);
+  const [tfaTicket, setTfaTicket]   = useState<string|null>(null);   // د‑6: تحقّق بخطوتين
+  const [tfaCode, setTfaCode]       = useState("");
   const [regHotel, setRegHotel]     = useState("");
   const [regUser, setRegUser]       = useState("");
   const [regEmail, setRegEmail]     = useState("");
@@ -186,8 +194,22 @@ export default function LoginPage() {
     e.preventDefault(); setLoginErr(""); setLoginLoad(true);
     try {
       const res = await fetch(apiUrl("/token/"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username, password }) });
+      if (res.status === 423) { setLoginErr(t("تم قفل الحساب مؤقتًا بسبب محاولات فاشلة. حاول لاحقًا.")); return; }
       if (!res.ok) { setLoginErr(t("اسم المستخدم أو كلمة المرور غير صحيحة")); return; }
       const d = await res.json();
+      if (d["2fa_required"]) { setTfaTicket(d.ticket); setTfaCode(""); return; }   // د‑6: خطوة الكود
+      await doLoginFlow(d.access, d.refresh);
+    } catch { setLoginErr(t("خطأ في الاتصال بالخادم")); }
+    finally   { setLoginLoad(false); }
+  }
+
+  async function handleVerify2FA(e: React.FormEvent) {
+    e.preventDefault(); setLoginErr(""); setLoginLoad(true);
+    try {
+      const res = await fetch(apiUrl("/auth/2fa/verify/"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ticket: tfaTicket, code: tfaCode }) });
+      if (!res.ok) { setLoginErr(t("الكود غير صحيح أو منتهٍ.")); return; }
+      const d = await res.json();
+      setTfaTicket(null);
       await doLoginFlow(d.access, d.refresh);
     } catch { setLoginErr(t("خطأ في الاتصال بالخادم")); }
     finally   { setLoginLoad(false); }
@@ -287,8 +309,30 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {/* ── 2FA CODE STEP (د‑6) ── */}
+        {mode === "login" && tfaTicket && (
+          <form onSubmit={handleVerify2FA} style={{ padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ background: "var(--color-primary-soft)", border: "1px solid rgba(79,70,229,.2)", borderRadius: 10, padding: "12px 14px", fontSize: 13, color: "var(--color-text)", fontWeight: 600 }}>
+              {t("تم تفعيل التحقق بخطوتين — أدخل الكود المُرسَل (يظهر لمدير الفندق داخل النظام).")}
+            </div>
+            <div className="field">
+              <label className="field-label">{t("كود التحقق")}</label>
+              <input className="input" value={tfaCode} onChange={e => setTfaCode(e.target.value.replace(/\D/g, ""))} placeholder="000000" inputMode="numeric" maxLength={6} required autoFocus style={{ letterSpacing: "0.4em", textAlign: "center", fontSize: 18, fontWeight: 800 }} />
+            </div>
+            {loginErr && (
+              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "9px 12px", fontSize: 13, color: "#b91c1c", fontWeight: 700 }}>{loginErr}</div>
+            )}
+            <button type="submit" disabled={loginLoad} className="ds-btn ds-btn-view" style={{ width: "100%", justifyContent: "center" }}>
+              {loginLoad ? t("جارٍ التحقق...") : t("تأكيد الكود")}
+            </button>
+            <p style={{ textAlign: "center", fontSize: 13, color: "var(--color-muted)", margin: 0 }}>
+              <button type="button" style={linkBtn} onClick={() => { setTfaTicket(null); setLoginErr(""); }}>{t("العودة لتسجيل الدخول")}</button>
+            </p>
+          </form>
+        )}
+
         {/* ── LOGIN ── */}
-        {mode === "login" && (
+        {mode === "login" && !tfaTicket && (
           <form onSubmit={handleLogin} style={{ padding: "20px 24px 24px", display: "flex", flexDirection: "column", gap: 14 }}>
             <div className="field">
               <label className="field-label">{t("اسم المستخدم")}</label>

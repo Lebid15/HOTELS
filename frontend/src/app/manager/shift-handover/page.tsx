@@ -28,8 +28,6 @@ interface HandoverNote {
 }
 
 /* ─── Constants ──────────────────────────────────────────────── */
-const STORAGE_KEY = (h: string) => `fandqi.shiftHandover.${h}`;
-
 const SHIFT_ICON: Record<TShift, LucideIcon> = {
   morning: Sun    as LucideIcon,
   evening: Sunset as LucideIcon,
@@ -42,7 +40,33 @@ const SHIFT_GRAD: Record<TShift, string> = {
   night:   "linear-gradient(135deg,#6366f1,#4f46e5)",
 };
 
-import { BASE_URL as API, getAuthHeaders as apiH } from "@/lib/api";
+import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
+
+function mapNote(x: Record<string, unknown>): HandoverNote {
+  return {
+    id: String(x.id ?? ""),
+    shift: String(x.shift ?? "morning") as TShift,
+    staffName: String(x.staff_name ?? ""),
+    handoverDate: String(x.handover_date ?? "").slice(0, 10),
+    occupiedRooms: Number(x.occupied_rooms ?? 0),
+    arrivals: Number(x.arrivals ?? 0),
+    departures: Number(x.departures ?? 0),
+    pendingIssues: String(x.pending_issues ?? ""),
+    guestComplaints: String(x.guest_complaints ?? ""),
+    maintenanceNotes: String(x.maintenance_notes ?? ""),
+    cashAmount: String(x.cash_amount ?? ""),
+    generalNotes: String(x.general_notes ?? ""),
+    createdAt: String(x.created_at ?? ""),
+  };
+}
+function toBody(f: Omit<HandoverNote, "id" | "createdAt">) {
+  return {
+    shift: f.shift, staff_name: f.staffName, handover_date: f.handoverDate || null,
+    occupied_rooms: f.occupiedRooms, arrivals: f.arrivals, departures: f.departures,
+    pending_issues: f.pendingIssues, guest_complaints: f.guestComplaints,
+    maintenance_notes: f.maintenanceNotes, cash_amount: f.cashAmount, general_notes: f.generalNotes,
+  };
+}
 
 function detectShift(): TShift {
   const h = new Date().getHours();
@@ -65,9 +89,6 @@ const BLANK: Omit<HandoverNote, "id" | "createdAt"> = {
   generalNotes: "",
 };
 
-function uid() {
-  return `sh-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
 function todayIso() { return new Date().toISOString().split("T")[0]; }
 function fmtDate(d: string) {
   try { return new Date(d).toLocaleDateString("ar-SA"); } catch { return d; }
@@ -97,16 +118,20 @@ export default function ShiftHandoverPage() {
   const [viewNote,  setViewNote]  = useState<HandoverNote | null>(null);
   const [deleteId,  setDeleteId]  = useState<string | null>(null);
 
-  /* ── Load / Save ── */
-  useEffect(() => {
+  /* ── Load (من الـBackend) ── */
+  const loadNotes = async () => {
     if (!hotelId) return;
-    const load = async () => {
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY(hotelId));
-        if (raw) setNotes(JSON.parse(raw));
-      } catch { /* ignore */ }
-    };
-    load();
+    try {
+      const r = await fetch(`${API}/shift-handover/?hotel=${hotelId}`, { headers: apiH() });
+      const d = await r.json();
+      setNotes((Array.isArray(d) ? d : (d.results ?? [])).map(mapNote));
+    } catch { setNotes([]); }
+  };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل/ضبط حالة مقصود عند الإقلاع
+    loadNotes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelId]);
 
   /* ── Current user (for staff name auto-fill) ── */
@@ -116,11 +141,6 @@ export default function ShiftHandoverPage() {
       .then(u => { if (u?.username) setCurrentUser(u.username); })
       .catch(() => {});
   }, []);
-
-  function save(next: HandoverNote[]) {
-    setNotes(next);
-    if (hotelId) localStorage.setItem(STORAGE_KEY(hotelId), JSON.stringify(next));
-  }
 
   /* ── KPIs ── */
   const total       = notes.length;
@@ -153,21 +173,28 @@ export default function ShiftHandoverPage() {
     setEditId(note.id);
     setModal("add");
   }
-  function submitForm() {
+  async function submitForm() {
     if (!form.staffName.trim()) return;
-    const now = new Date().toISOString();
-    if (editId) {
-      save(notes.map(n => n.id === editId ? { ...form, id: editId, createdAt: n.createdAt } : n));
-    } else {
-      save([...notes, { ...form, id: uid(), createdAt: now }]);
-    }
-    setModal(null);
+    try {
+      const r = await fetch(editId ? `${API}/shift-handover/${editId}/` : `${API}/shift-handover/`, {
+        method: editId ? "PATCH" : "POST",
+        headers: apiHJ(),
+        body: JSON.stringify(toBody(form)),
+      });
+      if (!r.ok) throw new Error();
+      setModal(null);
+      await loadNotes();
+    } catch { /* أبقِ النموذج عند الفشل */ }
   }
-  function confirmDelete() {
+  async function confirmDelete() {
     if (!deleteId) return;
-    save(notes.filter(n => n.id !== deleteId));
+    try {
+      const r = await fetch(`${API}/shift-handover/${deleteId}/`, { method: "DELETE", headers: apiH() });
+      if (!r.ok && r.status !== 204) throw new Error();
+    } catch { /* ignore */ }
     setDeleteId(null);
     setModal(null);
+    await loadNotes();
   }
 
   /* ─── KPI cards ─── */

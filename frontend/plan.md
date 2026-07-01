@@ -1,4 +1,4 @@
-# Fandqi Hotel System — Engineering Fix Plan
+# funduqii Hotel System — Engineering Fix Plan
 
 ## Phase 1 — Critical Launch Fixes ✅ COMPLETE
 

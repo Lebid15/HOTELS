@@ -2,16 +2,23 @@ import os
 from pathlib import Path
 from datetime import timedelta
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
-# SECURITY: In production set DJANGO_SECRET_KEY env variable to a strong random value
-SECRET_KEY = os.environ.get(
-    'DJANGO_SECRET_KEY',
-    'django-insecure-yw2t=5w)2n3*i2yjn*si6v0y^t26=27@uoxc@kg_nz3@1m-p=k',
-)
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY: Set DJANGO_DEBUG=false in production
 DEBUG = os.environ.get('DJANGO_DEBUG', 'true').lower() == 'true'
+
+# SECURITY (H‑4): SECRET_KEY يجب أن يأتي من البيئة على الإنتاج؛ الإقلاع يفشل إن غاب.
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY')
+if not SECRET_KEY:
+    if DEBUG:
+        SECRET_KEY = 'django-insecure-yw2t=5w)2n3*i2yjn*si6v0y^t26=27@uoxc@kg_nz3@1m-p=k'
+    else:
+        raise ImproperlyConfigured(
+            'DJANGO_SECRET_KEY must be set in production (DEBUG=false). Refusing to start.'
+        )
 
 _allowed_hosts = os.environ.get('DJANGO_ALLOWED_HOSTS', '')
 ALLOWED_HOSTS = (
@@ -28,6 +35,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
     'api',
 ]
@@ -35,6 +43,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -63,11 +72,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'core.wsgi.application'
 
+# DB: SQLite افتراضًا للتطوير؛ اضبط DATABASE_URL (PostgreSQL) على الإنتاج دون تغيير كود.
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+    )
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -86,6 +96,18 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+# WhiteNoise: ضغط + تخزين مؤقت للملفات الثابتة على الإنتاج (Manifest يحتاج collectstatic).
+STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {
+        'BACKEND': (
+            'whitenoise.storage.CompressedManifestStaticFilesStorage'
+            if not DEBUG
+            else 'django.contrib.staticfiles.storage.StaticFilesStorage'
+        )
+    },
+}
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # CORS — in production set CORS_ALLOW_ALL_ORIGINS=false and CORS_ALLOWED_ORIGINS=https://yourdomain.com
@@ -110,6 +132,10 @@ REST_FRAMEWORK = {
         'user': '1000/hour',
         'login': '5/minute',
         'register': '5/hour',
+        # B‑1: نقاط عامة حسّاسة (استعلام/إلغاء/تقييم/إنشاء حجز)
+        'public_lookup': '10/minute',
+        'public_write': '10/minute',
+        'public_booking': '5/minute',
     },
 }
 
@@ -117,7 +143,7 @@ SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=30),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': False,
+    'BLACKLIST_AFTER_ROTATION': True,
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
@@ -129,7 +155,7 @@ EMAIL_PORT          = int(os.environ.get('EMAIL_PORT', '587'))
 EMAIL_USE_TLS       = os.environ.get('EMAIL_USE_TLS', 'true').lower() == 'true'
 EMAIL_HOST_USER     = os.environ.get('EMAIL_HOST_USER', '')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', '')
-DEFAULT_FROM_EMAIL  = os.environ.get('DEFAULT_FROM_EMAIL', 'Fandqi <no-reply@fandqi.com>')
+DEFAULT_FROM_EMAIL  = os.environ.get('DEFAULT_FROM_EMAIL', 'funduqii <no-reply@funduqii.com>')
 
 if EMAIL_HOST_USER and EMAIL_HOST_PASSWORD:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
@@ -140,13 +166,13 @@ else:
 # بنية قابلة للتوصيل. اضبط SMS_PROVIDER + المفاتيح لتفعيل الإرسال الفعلي.
 # القيم: '' (معطّل) | 'twilio' | 'generic_http' (بوابة محلية).
 SMS_PROVIDER       = os.environ.get('SMS_PROVIDER', '')
-SMS_FROM           = os.environ.get('SMS_FROM', 'Fandqi')
+SMS_FROM           = os.environ.get('SMS_FROM', 'funduqii')
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
 TWILIO_AUTH_TOKEN  = os.environ.get('TWILIO_AUTH_TOKEN', '')
 SMS_HTTP_URL       = os.environ.get('SMS_HTTP_URL', '')
 SMS_HTTP_API_KEY   = os.environ.get('SMS_HTTP_API_KEY', '')
 
-PLATFORM_NAME      = os.environ.get('PLATFORM_NAME', 'Fandqi')
+PLATFORM_NAME      = os.environ.get('PLATFORM_NAME', 'funduqii')
 
 # ── WhatsApp Business Cloud API (إرسال تلقائي للضيف دون نقر) ────────────────
 # يُفعَّل تلقائيًا عند ضبط PHONE_NUMBER_ID + ACCESS_TOKEN + TEMPLATE_NAME.
@@ -162,6 +188,14 @@ WHATSAPP_TEMPLATE_NAME        = os.environ.get('WHATSAPP_TEMPLATE_NAME', '')
 WHATSAPP_TEMPLATE_LANG        = os.environ.get('WHATSAPP_TEMPLATE_LANG', 'ar')
 WHATSAPP_API_VERSION          = os.environ.get('WHATSAPP_API_VERSION', 'v21.0')
 WHATSAPP_DEFAULT_COUNTRY_CODE = os.environ.get('WHATSAPP_DEFAULT_COUNTRY_CODE', '963')  # سوريا
+
+# خلف Reverse Proxy (Nginx/كلاود): يتعرّف Django على HTTPS من ترويسة البروكسي (يمنع حلقة إعادة التوجيه).
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
+# CSRF: نطاقات موثوقة على الإنتاج (لوحة الأدمِن/الطلبات عبر HTTPS).
+_csrf_trusted = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+if _csrf_trusted:
+    CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_trusted.split(',') if o.strip()]
 
 # Production-only security headers
 if not DEBUG:

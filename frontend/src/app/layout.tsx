@@ -11,7 +11,7 @@ const tajawal = Tajawal({
 });
 
 export const metadata: Metadata = {
-  title: "فندقي — Fandqi",
+  title: "فندقي — funduqii",
   description: "نظام إدارة الفنادق الاحترافي",
 };
 

@@ -16,6 +16,46 @@ export function getHotelSettings(hotelId: string): Record<string, unknown> {
   return safeJSON(localStorage.getItem(SETTINGS_KEY(hotelId)));
 }
 
+/**
+ * Merges a settings patch into the local cache for a hotel.
+ * The backend Hotel record is the source of truth; localStorage is a
+ * synchronous read cache refreshed from the backend on layout mount so that
+ * the many sync callers of getHotelCurrency/getHotelIdentity stay unchanged.
+ */
+export function writeHotelSettings(hotelId: string, patch: Record<string, unknown>): void {
+  if (typeof window === "undefined" || !hotelId) return;
+  const cur = getHotelSettings(hotelId);
+  localStorage.setItem(SETTINGS_KEY(hotelId), JSON.stringify({ ...cur, ...patch }));
+}
+
+/** Backend Hotel shape (subset) used to hydrate the local settings cache. */
+export interface BackendHotel {
+  currency?: string; logo?: string | null; owner_name?: string; website?: string;
+  name?: string; phone?: string; email?: string; address?: string; city?: string;
+}
+
+/**
+ * Refreshes the local settings cache from a backend Hotel record so that
+ * currency + identity become dynamic across devices (single source of truth).
+ * Only overwrites the cached ops.currency / identity fields with backend values.
+ */
+export function hydrateHotelCache(hotelId: string, h: BackendHotel): void {
+  if (!hotelId || !h) return;
+  const cur = getHotelSettings(hotelId) as { ops?: Record<string, unknown>; identity?: Record<string, unknown> };
+  const ops = { ...(cur.ops ?? {}) };
+  if (h.currency) ops.currency = h.currency;
+  const identity = { ...(cur.identity ?? {}) };
+  if (h.name        != null) identity.name      = h.name;
+  if (h.owner_name  != null) identity.ownerName = h.owner_name;
+  if (h.logo        != null) identity.logo      = h.logo || null;
+  if (h.phone       != null) identity.phone     = h.phone;
+  if (h.email       != null) identity.email     = h.email;
+  if (h.address     != null) identity.address   = h.address;
+  if (h.city        != null) identity.city      = h.city;
+  if (h.website     != null) identity.website   = h.website;
+  writeHotelSettings(hotelId, { ops, identity });
+}
+
 // ─── Currency ─────────────────────────────────────────────────────────────────
 
 /**
@@ -84,18 +124,18 @@ export interface PlatformBranding {
 
 /**
  * Returns platform branding from localStorage key "fandqi.platform".
- * Fallback: { platformName: "Fandqi", platformSubtitle: "نظام إدارة الفنادق", platformLogo: null }
+ * Fallback: { platformName: "funduqii", platformSubtitle: "نظام إدارة الفنادق", platformLogo: null }
  *
  * To set platform branding from an admin panel:
  *   localStorage.setItem("fandqi.platform", JSON.stringify({ platformName, platformSubtitle, platformLogo }))
  */
 export function getPlatformBranding(): PlatformBranding {
   if (typeof window === "undefined") {
-    return { platformName: "Fandqi", platformSubtitle: "نظام إدارة الفنادق", platformLogo: null };
+    return { platformName: "funduqii", platformSubtitle: "نظام إدارة الفنادق", platformLogo: null };
   }
   const p = safeJSON(localStorage.getItem(PLATFORM_KEY)) as Partial<PlatformBranding>;
   return {
-    platformName:     p.platformName     || "Fandqi",
+    platformName:     p.platformName     || "funduqii",
     platformSubtitle: p.platformSubtitle || "نظام إدارة الفنادق",
     platformLogo:     p.platformLogo     || null,
   };

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { apiUrl, getAuthHeaders } from "@/lib/api";
+import { apiUrl, getAuthHeaders, getAuthJsonHeaders } from "@/lib/api";
+import { useLang } from "@/lib/i18n/LangContext";
 
 type PaymentMethod = "نقدي" | "بطاقة" | "تحويل";
 type PaymentStatus = "مستلمة" | "معلقة" | "مسترجعة";
@@ -60,8 +61,8 @@ function isThisWeekPayment(dateTime: string): boolean {
 }
 
 function mapPayment(p: Record<string, unknown>): Payment {
-  const method = METHOD_MAP[String(p.payment_method ?? "")] ?? "نقدي";
-  const status = STATUS_MAP[String(p.status ?? "")] ?? "مستلمة";
+  const method = METHOD_MAP[String(p.method ?? p.payment_method ?? "")] ?? "نقدي";
+  const status = STATUS_MAP[String(p.status ?? "received")] ?? "مستلمة";
   const dateRaw = String(p.created_at ?? p.date ?? "");
   const dateTime = dateRaw.includes("T") ? dateRaw.replace("T", " ").slice(0, 16) : dateRaw;
   const guestName = p.guest_name
@@ -69,7 +70,7 @@ function mapPayment(p: Record<string, unknown>): Payment {
     : `${p.guest_first_name ?? ""} ${p.guest_last_name ?? ""}`.trim() || "—";
   return {
     id: String(p.id ?? ""),
-    receiptNumber: String(p.receipt_number ?? p.booking_number ?? p.id ?? ""),
+    receiptNumber: String(p.receipt_no ?? p.receipt_number ?? p.booking_number ?? p.id ?? ""),
     guestName,
     roomNumber: String(p.room_number ?? p.room ?? "—"),
     amount: Number(p.amount ?? 0),
@@ -80,6 +81,7 @@ function mapPayment(p: Record<string, unknown>): Payment {
 }
 
 export default function PaymentsPage() {
+  const { t } = useLang();
   const [activeTab, setActiveTab] = useState<TabKey>("today");
   const [searchQuery, setSearchQuery] = useState("");
   const [methodFilter, setMethodFilter] = useState<string>("all");
@@ -140,48 +142,70 @@ export default function PaymentsPage() {
   const refundedCount = todayPayments.filter((p) => p.status === "مسترجعة").length;
 
   function handlePrint(receiptNumber: string) {
-    alert(`طباعة الإيصال: ${receiptNumber}`);
+    alert(`${t("طباعة الإيصال")}: ${receiptNumber}`);
   }
 
-  function handleSubmitPayment(e: React.FormEvent) {
+  const [formError, setFormError] = useState("");
+
+  async function handleSubmitPayment(e: React.FormEvent) {
     e.preventDefault();
-    setFormSuccess(true);
-    setNewPayment({ guestName: "", roomNumber: "", amount: "", method: "نقدي", notes: "" });
-    setTimeout(() => setFormSuccess(false), 3000);
+    setFormError("");
+    const hotelId = localStorage.getItem("hotel_id");
+    const methodBackend = ({ "نقدي": "cash", "بطاقة": "card", "تحويل": "transfer" } as Record<string, string>)[newPayment.method] ?? "cash";
+    const note = [newPayment.guestName, newPayment.roomNumber && `غرفة ${newPayment.roomNumber}`, newPayment.notes]
+      .filter(Boolean).join(" — ");
+    try {
+      const r = await fetch(apiUrl("/payments/"), {
+        method: "POST",
+        headers: getAuthJsonHeaders(),
+        body: JSON.stringify({ amount: Number(newPayment.amount), method: methodBackend, currency, note }),
+      });
+      if (!r.ok) throw new Error();
+      setFormSuccess(true);
+      setNewPayment({ guestName: "", roomNumber: "", amount: "", method: "نقدي", notes: "" });
+      setTimeout(() => setFormSuccess(false), 3000);
+      // إعادة تحميل القائمة من المصدر (لا localStorage)
+      const lr = await fetch(apiUrl(`/payments/?hotel=${hotelId}`), { headers: getAuthHeaders() });
+      const data = await lr.json();
+      const list: Record<string, unknown>[] = Array.isArray(data) ? data : data.results ?? [];
+      setPayments(list.map(mapPayment));
+    } catch {
+      setFormError(t("تعذّر تسجيل الدفعة، حاول مرة أخرى."));
+    }
   }
 
   return (
     <div className="ds-page">
       <div className="page-header">
         <div>
-          <h1>المدفوعات</h1>
-          <p>إدارة مدفوعات الضيوف وتسجيل الإيصالات</p>
+          <h1>{t("المدفوعات")}</h1>
+          <p>{t("إدارة مدفوعات الضيوف وتسجيل الإيصالات")}</p>
         </div>
         <div className="page-actions">
-          <button className="ds-btn ds-btn-neutral ds-btn-sm">تصدير التقرير</button>
+          <button className="ds-btn ds-btn-neutral ds-btn-sm">{t("تصدير التقرير")}</button>
         </div>
       </div>
 
       <div className="ds-summary-grid">
         <div className="ds-summary-card">
-          <p className="ds-summary-label">إجمالي اليوم</p>
+          <p className="ds-summary-label">{t("إجمالي اليوم")}</p>
           <p className="ds-summary-value text-success">{totalToday.toLocaleString("en-US")} {currency}</p>
-          <p className="ds-summary-note">{todayPayments.length} معاملة اليوم</p>
+          <p className="ds-summary-note">{todayPayments.length} {t("معاملة اليوم")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">معلقة</p>
+          <p className="ds-summary-label">{t("معلقة")}</p>
           <p className="ds-summary-value text-warning">{pendingCount}</p>
-          <p className="ds-summary-note">تحتاج إلى مراجعة</p>
+          <p className="ds-summary-note">{t("تحتاج إلى مراجعة")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">مستلمة</p>
+          <p className="ds-summary-label">{t("مستلمة")}</p>
           <p className="ds-summary-value text-success">{receivedCount}</p>
-          <p className="ds-summary-note">مدفوعات مكتملة</p>
+          <p className="ds-summary-note">{t("مدفوعات مكتملة")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">مسترجعة</p>
+          <p className="ds-summary-label">{t("مسترجعة")}</p>
           <p className="ds-summary-value text-danger">{refundedCount}</p>
-          <p className="ds-summary-note">تم الاسترجاع</p>
+          <p className="ds-summary-note">{t("تم الاسترجاع")}</p>
         </div>
       </div>
 
@@ -191,19 +215,19 @@ export default function PaymentsPage() {
             className={`ds-tab-btn${activeTab === "today" ? " active" : ""}`}
             onClick={() => setActiveTab("today")}
           >
-            اليوم
+            {t("اليوم")}
           </button>
           <button
             className={`ds-tab-btn${activeTab === "week" ? " active" : ""}`}
             onClick={() => setActiveTab("week")}
           >
-            هذا الأسبوع
+            {t("هذا الأسبوع")}
           </button>
           <button
             className={`ds-tab-btn${activeTab === "all" ? " active" : ""}`}
             onClick={() => setActiveTab("all")}
           >
-            الكل
+            {t("الكل")}
           </button>
         </div>
 
@@ -211,7 +235,7 @@ export default function PaymentsPage() {
           <input
             className="input"
             type="text"
-            placeholder="بحث باسم الضيف، رقم الإيصال، أو الغرفة..."
+            placeholder={t("بحث باسم الضيف، رقم الإيصال، أو الغرفة...")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -220,34 +244,34 @@ export default function PaymentsPage() {
             value={methodFilter}
             onChange={(e) => setMethodFilter(e.target.value)}
           >
-            <option value="all">كل الطرق</option>
-            <option value="نقدي">نقدي</option>
-            <option value="بطاقة">بطاقة</option>
-            <option value="تحويل">تحويل</option>
+            <option value="all">{t("كل الطرق")}</option>
+            <option value="نقدي">{t("نقدي")}</option>
+            <option value="بطاقة">{t("بطاقة")}</option>
+            <option value="تحويل">{t("تحويل")}</option>
           </select>
         </div>
 
         {loading ? (
           <div style={{ textAlign: "center", padding: "2.5rem 1rem" }}>
-            <p className="text-muted">جارٍ تحميل المدفوعات...</p>
+            <p className="text-muted">{t("جارٍ تحميل المدفوعات...")}</p>
           </div>
         ) : filteredPayments.length === 0 ? (
           <div style={{ textAlign: "center", padding: "2.5rem 1rem" }}>
-            <p className="text-muted">لا توجد مدفوعات</p>
+            <p className="text-muted">{t("لا توجد مدفوعات")}</p>
           </div>
         ) : (
           <div className="ds-table-wrap">
             <table className="ds-table">
               <thead>
                 <tr>
-                  <th>رقم الإيصال</th>
-                  <th>الضيف</th>
-                  <th>الغرفة</th>
-                  <th>المبلغ</th>
-                  <th>طريقة الدفع</th>
-                  <th>التاريخ والوقت</th>
-                  <th>الحالة</th>
-                  <th>الإجراءات</th>
+                  <th>{t("رقم الإيصال")}</th>
+                  <th>{t("الضيف")}</th>
+                  <th>{t("الغرفة")}</th>
+                  <th>{t("المبلغ")}</th>
+                  <th>{t("طريقة الدفع")}</th>
+                  <th>{t("التاريخ والوقت")}</th>
+                  <th>{t("الحالة")}</th>
+                  <th>{t("الإجراءات")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -262,18 +286,18 @@ export default function PaymentsPage() {
                       <strong>{payment.amount.toLocaleString("en-US")} {currency}</strong>
                     </td>
                     <td>
-                      <span className={methodBadge[payment.method]}>{payment.method}</span>
+                      <span className={methodBadge[payment.method]}>{t(payment.method)}</span>
                     </td>
                     <td className="text-muted">{payment.dateTime}</td>
                     <td>
-                      <span className={statusBadge[payment.status]}>{payment.status}</span>
+                      <span className={statusBadge[payment.status]}>{t(payment.status)}</span>
                     </td>
                     <td>
                       <button
                         className="ds-btn ds-btn-neutral ds-btn-sm"
                         onClick={() => handlePrint(payment.receiptNumber)}
                       >
-                        طباعة الإيصال
+                        {t("طباعة الإيصال")}
                       </button>
                     </td>
                   </tr>
@@ -285,22 +309,27 @@ export default function PaymentsPage() {
       </div>
 
       <div className="ds-card-p">
-        <h2 style={{ marginBottom: "1.25rem" }}>استلام دفعة جديدة</h2>
+        <h2 style={{ marginBottom: "1.25rem" }}>{t("استلام دفعة جديدة")}</h2>
 
         {formSuccess && (
           <div className="ds-alert ds-alert-success" style={{ marginBottom: "1rem" }}>
-            تم تسجيل الدفعة بنجاح
+            {t("تم تسجيل الدفعة بنجاح")}
+          </div>
+        )}
+        {formError && (
+          <div className="ds-alert ds-alert-danger" style={{ marginBottom: "1rem" }}>
+            {formError}
           </div>
         )}
 
         <form onSubmit={handleSubmitPayment}>
           <div className="modal-grid">
             <div className="field">
-              <label className="field-label">اسم الضيف</label>
+              <label className="field-label">{t("اسم الضيف")}</label>
               <input
                 className="input"
                 type="text"
-                placeholder="أدخل اسم الضيف"
+                placeholder={t("أدخل اسم الضيف")}
                 value={newPayment.guestName}
                 onChange={(e) => setNewPayment({ ...newPayment, guestName: e.target.value })}
                 required
@@ -308,11 +337,11 @@ export default function PaymentsPage() {
             </div>
 
             <div className="field">
-              <label className="field-label">رقم الغرفة</label>
+              <label className="field-label">{t("رقم الغرفة")}</label>
               <input
                 className="input"
                 type="text"
-                placeholder="مثال: 101"
+                placeholder={`${t("مثال")}: 101`}
                 value={newPayment.roomNumber}
                 onChange={(e) => setNewPayment({ ...newPayment, roomNumber: e.target.value })}
                 required
@@ -320,7 +349,7 @@ export default function PaymentsPage() {
             </div>
 
             <div className="field">
-              <label className="field-label">المبلغ ({currency})</label>
+              <label className="field-label">{t("المبلغ")} ({currency})</label>
               <input
                 className="input"
                 type="number"
@@ -334,23 +363,23 @@ export default function PaymentsPage() {
             </div>
 
             <div className="field">
-              <label className="field-label">طريقة الدفع</label>
+              <label className="field-label">{t("طريقة الدفع")}</label>
               <select
                 className="select"
                 value={newPayment.method}
                 onChange={(e) => setNewPayment({ ...newPayment, method: e.target.value as PaymentMethod })}
               >
-                <option value="نقدي">نقدي</option>
-                <option value="بطاقة">بطاقة</option>
-                <option value="تحويل">تحويل</option>
+                <option value="نقدي">{t("نقدي")}</option>
+                <option value="بطاقة">{t("بطاقة")}</option>
+                <option value="تحويل">{t("تحويل")}</option>
               </select>
             </div>
 
             <div className="field" style={{ gridColumn: "1 / -1" }}>
-              <label className="field-label">ملاحظات (اختياري)</label>
+              <label className="field-label">{t("ملاحظات (اختياري)")}</label>
               <textarea
                 className="textarea"
-                placeholder="أضف أي ملاحظات إضافية..."
+                placeholder={t("أضف أي ملاحظات إضافية...")}
                 rows={3}
                 value={newPayment.notes}
                 onChange={(e) => setNewPayment({ ...newPayment, notes: e.target.value })}
@@ -360,7 +389,7 @@ export default function PaymentsPage() {
 
           <div style={{ marginTop: "1.25rem" }}>
             <button type="submit" className="ds-btn ds-btn-success">
-              تسجيل الدفعة
+              {t("تسجيل الدفعة")}
             </button>
           </div>
         </form>

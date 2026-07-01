@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { X, Pencil, RefreshCw, PlayCircle, PauseCircle, FileBarChart } from "lucide-react";
 import { BASE_URL as API_BASE, getAuthHeaders, getAuthJsonHeaders } from "@/lib/api";
+import { useLang } from "@/lib/i18n/LangContext";
 
 interface HotelOption  { id: number; name: string; }
 interface PackageOption { id: number; name: string; }
@@ -74,12 +75,13 @@ const PAYMENT_BADGE: Record<string, string> = {
 function RenewModal({
   sub, onClose, onDone,
 }: { sub: Subscription; onClose: () => void; onDone: (msg: string) => void }) {
+  const { t } = useLang();
   const [months,  setMonths]  = useState(1);
   const [loading, setLoading] = useState(false);
   const [err,     setErr]     = useState("");
 
   async function handle() {
-    if (months < 1 || months > 60) return setErr("عدد الأشهر يجب أن يكون بين 1 و 60");
+    if (months < 1 || months > 60) return setErr(t("عدد الأشهر يجب أن يكون بين 1 و 60"));
     setLoading(true); setErr("");
     try {
       const res = await fetch(`${API_BASE}/subscriptions/${sub.id}/renew/`, {
@@ -89,11 +91,11 @@ function RenewModal({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data?.detail || data?.error || "فشل تجديد الاشتراك");
+        throw new Error(data?.detail || data?.error || t("فشل تجديد الاشتراك"));
       }
-      onDone(`تم تجديد اشتراك "${sub.hotel_name}" بنجاح لمدة ${months} ${months === 1 ? "شهر" : "أشهر"}`);
+      onDone(`${t("تم تجديد اشتراك")} "${sub.hotel_name}" ${t("بنجاح لمدة")} ${months} ${months === 1 ? t("شهر") : t("أشهر")}`);
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "حدث خطأ");
+      setErr(e instanceof Error ? e.message : t("حدث خطأ"));
     } finally {
       setLoading(false);
     }
@@ -103,35 +105,35 @@ function RenewModal({
     <div className="ds-modal-backdrop" onClick={onClose}>
       <div className="ds-modal-card narrow" onClick={e => e.stopPropagation()}>
         <div className="ds-modal-head">
-          <h2>تجديد الاشتراك</h2>
+          <h2>{t("تجديد الاشتراك")}</h2>
           <button className="icon-btn" onClick={onClose}><X size={14} strokeWidth={2.5} /></button>
         </div>
         <div className="ds-modal-body">
           <p className="text-muted" style={{ marginBottom: "1rem", fontSize: "0.9rem" }}>
-            الفندق: <strong style={{ color: "var(--color-heading)" }}>{sub.hotel_name}</strong>
-            {sub.package_name && <> — الباقة: <strong>{sub.package_name}</strong></>}
+            {t("الفندق")}: <strong style={{ color: "var(--color-heading)" }}>{sub.hotel_name}</strong>
+            {sub.package_name && <> — {t("الباقة")}: <strong>{sub.package_name}</strong></>}
           </p>
           {sub.end_date && (
             <p className="text-muted" style={{ marginBottom: "1rem", fontSize: "0.85rem" }}>
-              تاريخ الانتهاء الحالي: <strong>{fmtDate(sub.end_date)}</strong>
+              {t("تاريخ الانتهاء الحالي")}: <strong>{fmtDate(sub.end_date)}</strong>
               {sub.remaining_days !== null && sub.remaining_days >= 0 && (
                 <span style={{ color: "var(--color-warning)", marginRight: "0.5rem" }}>
-                  ({sub.remaining_days} يوم متبقٍ)
+                  ({sub.remaining_days} {t("يوم متبقٍ")})
                 </span>
               )}
             </p>
           )}
           <div className="field">
-            <label className="field-label">عدد الأشهر (1 – 60)</label>
+            <label className="field-label">{t("عدد الأشهر (1 – 60)")}</label>
             <input className="input" type="number" min={1} max={60} value={months}
               onChange={e => setMonths(Number(e.target.value))} autoFocus />
           </div>
           {err && <div className="ds-alert ds-alert-danger" style={{ marginTop: "0.75rem" }}>{err}</div>}
         </div>
         <div className="ds-modal-foot">
-          <button className="ds-btn ds-btn-neutral" onClick={onClose} disabled={loading}>إلغاء</button>
+          <button className="ds-btn ds-btn-neutral" onClick={onClose} disabled={loading}>{t("إلغاء")}</button>
           <button className="ds-btn ds-btn-success" onClick={handle} disabled={loading || months < 1}>
-            {loading ? "جارٍ التجديد..." : "تجديد"}
+            {loading ? t("جارٍ التجديد...") : t("تجديد")}
           </button>
         </div>
       </div>
@@ -143,6 +145,7 @@ function RenewModal({
 function EditSubModal({
   sub, packages, onClose, onDone,
 }: { sub: Subscription; packages: PackageOption[]; onClose: () => void; onDone: (msg: string) => void }) {
+  const { t } = useLang();
   const [form, setForm] = useState({
     package:        sub.package ?? "",
     status:         sub.status,
@@ -173,11 +176,11 @@ function EditSubModal({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data?.detail || data?.error || "فشل التعديل");
+        throw new Error(data?.detail || data?.error || t("فشل التعديل"));
       }
-      onDone(`تم تحديث اشتراك "${sub.hotel_name}" بنجاح`);
+      onDone(`${t("تم تحديث اشتراك")} "${sub.hotel_name}" ${t("بنجاح")}`);
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "حدث خطأ");
+      setErr(e instanceof Error ? e.message : t("حدث خطأ"));
     } finally {
       setLoading(false);
     }
@@ -190,69 +193,69 @@ function EditSubModal({
     <div className="ds-modal-backdrop" onClick={onClose}>
       <div className="ds-modal-card wide" onClick={e => e.stopPropagation()}>
         <div className="ds-modal-head">
-          <h2>تعديل الاشتراك — {sub.hotel_name}</h2>
+          <h2>{t("تعديل الاشتراك")} — {sub.hotel_name}</h2>
           <button className="icon-btn" onClick={onClose}><X size={14} strokeWidth={2.5} /></button>
         </div>
         <div className="ds-modal-body">
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "1rem" }}>
             <div className="field">
-              <label className="field-label">الباقة</label>
+              <label className="field-label">{t("الباقة")}</label>
               <select className="select" value={form.package} onChange={f("package")}>
-                <option value="">— بدون باقة —</option>
+                <option value="">{t("— بدون باقة —")}</option>
                 {packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div className="field">
-              <label className="field-label">الحالة</label>
+              <label className="field-label">{t("الحالة")}</label>
               <select className="select" value={form.status} onChange={f("status")}>
-                <option value="trial">تجريبي</option>
-                <option value="active">فعال</option>
-                <option value="expired">منتهي</option>
-                <option value="suspended">موقوف</option>
-                <option value="not_set">غير مضبوط</option>
+                <option value="trial">{t("تجريبي")}</option>
+                <option value="active">{t("فعال")}</option>
+                <option value="expired">{t("منتهي")}</option>
+                <option value="suspended">{t("موقوف")}</option>
+                <option value="not_set">{t("غير مضبوط")}</option>
               </select>
             </div>
             <div className="field">
-              <label className="field-label">حالة الدفع</label>
+              <label className="field-label">{t("حالة الدفع")}</label>
               <select className="select" value={form.payment_status} onChange={f("payment_status")}>
-                <option value="unpaid">غير مدفوع</option>
-                <option value="paid">مدفوع</option>
-                <option value="partial">جزئي</option>
+                <option value="unpaid">{t("غير مدفوع")}</option>
+                <option value="paid">{t("مدفوع")}</option>
+                <option value="partial">{t("جزئي")}</option>
               </select>
             </div>
             <div className="field">
-              <label className="field-label">المبلغ الشهري</label>
+              <label className="field-label">{t("المبلغ الشهري")}</label>
               <input className="input" type="number" min={0} step="0.01"
                 value={form.monthly_amount} onChange={f("monthly_amount")} />
             </div>
             <div className="field">
-              <label className="field-label">العملة</label>
+              <label className="field-label">{t("العملة")}</label>
               <select className="select" value={form.currency} onChange={f("currency")}>
-                <option value="SAR">ريال سعودي (SAR)</option>
-                <option value="USD">دولار (USD)</option>
-                <option value="AED">درهم (AED)</option>
-                <option value="KWD">دينار كويتي (KWD)</option>
+                <option value="SAR">{t("ريال سعودي (SAR)")}</option>
+                <option value="USD">{t("دولار (USD)")}</option>
+                <option value="AED">{t("درهم (AED)")}</option>
+                <option value="KWD">{t("دينار كويتي (KWD)")}</option>
               </select>
             </div>
             <div className="field">
-              <label className="field-label">تاريخ البداية</label>
+              <label className="field-label">{t("تاريخ البداية")}</label>
               <input className="input" type="date" value={form.start_date} onChange={f("start_date")} />
             </div>
             <div className="field">
-              <label className="field-label">تاريخ الانتهاء</label>
+              <label className="field-label">{t("تاريخ الانتهاء")}</label>
               <input className="input" type="date" value={form.end_date} onChange={f("end_date")} />
             </div>
           </div>
           <div className="field" style={{ marginTop: "1rem" }}>
-            <label className="field-label">ملاحظات</label>
+            <label className="field-label">{t("ملاحظات")}</label>
             <textarea className="textarea" rows={2} value={form.notes} onChange={f("notes")} />
           </div>
           {err && <div className="ds-alert ds-alert-danger" style={{ marginTop: "0.75rem" }}>{err}</div>}
         </div>
         <div className="ds-modal-foot">
-          <button className="ds-btn ds-btn-neutral" onClick={onClose} disabled={loading}>إلغاء</button>
+          <button className="ds-btn ds-btn-neutral" onClick={onClose} disabled={loading}>{t("إلغاء")}</button>
           <button className="ds-btn ds-btn-primary" onClick={handle} disabled={loading}>
-            {loading ? "جارٍ الحفظ..." : "حفظ التعديلات"}
+            {loading ? t("جارٍ الحفظ...") : t("حفظ التعديلات")}
           </button>
         </div>
       </div>
@@ -264,6 +267,7 @@ function EditSubModal({
 function CreateSubModal({
   hotels, packages, onClose, onDone,
 }: { hotels: HotelOption[]; packages: PackageOption[]; onClose: () => void; onDone: (msg: string) => void }) {
+  const { t } = useLang();
   const [form, setForm] = useState({
     hotel:          "",
     package:        "",
@@ -279,7 +283,7 @@ function CreateSubModal({
   const [err,     setErr]     = useState("");
 
   async function handle() {
-    if (!form.hotel) return setErr("اختر الفندق أولاً");
+    if (!form.hotel) return setErr(t("اختر الفندق أولاً"));
     setLoading(true); setErr("");
     try {
       const body = {
@@ -300,12 +304,12 @@ function CreateSubModal({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || data?.detail || "فشل إنشاء الاشتراك");
+        throw new Error(data?.error || data?.detail || t("فشل إنشاء الاشتراك"));
       }
       const hotelName = hotels.find(h => h.id === Number(form.hotel))?.name ?? "";
-      onDone(`تم إنشاء اشتراك "${hotelName}" بنجاح`);
+      onDone(`${t("تم إنشاء اشتراك")} "${hotelName}" ${t("بنجاح")}`);
     } catch (e: unknown) {
-      setErr(e instanceof Error ? e.message : "حدث خطأ");
+      setErr(e instanceof Error ? e.message : t("حدث خطأ"));
     } finally {
       setLoading(false);
     }
@@ -318,73 +322,73 @@ function CreateSubModal({
     <div className="ds-modal-backdrop" onClick={onClose}>
       <div className="ds-modal-card wide" onClick={e => e.stopPropagation()}>
         <div className="ds-modal-head">
-          <h2>إنشاء اشتراك جديد</h2>
+          <h2>{t("إنشاء اشتراك جديد")}</h2>
           <button className="icon-btn" onClick={onClose}><X size={14} strokeWidth={2.5} /></button>
         </div>
         <div className="ds-modal-body">
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "1rem" }}>
             <div className="field">
-              <label className="field-label">الفندق *</label>
+              <label className="field-label">{t("الفندق *")}</label>
               <select className="select" value={form.hotel} onChange={f("hotel")} autoFocus>
-                <option value="">— اختر الفندق —</option>
+                <option value="">{t("— اختر الفندق —")}</option>
                 {hotels.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
               </select>
             </div>
             <div className="field">
-              <label className="field-label">الباقة</label>
+              <label className="field-label">{t("الباقة")}</label>
               <select className="select" value={form.package} onChange={f("package")}>
-                <option value="">— بدون باقة —</option>
+                <option value="">{t("— بدون باقة —")}</option>
                 {packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
             </div>
             <div className="field">
-              <label className="field-label">الحالة</label>
+              <label className="field-label">{t("الحالة")}</label>
               <select className="select" value={form.status} onChange={f("status")}>
-                <option value="trial">تجريبي</option>
-                <option value="active">فعال</option>
+                <option value="trial">{t("تجريبي")}</option>
+                <option value="active">{t("فعال")}</option>
               </select>
             </div>
             <div className="field">
-              <label className="field-label">حالة الدفع</label>
+              <label className="field-label">{t("حالة الدفع")}</label>
               <select className="select" value={form.payment_status} onChange={f("payment_status")}>
-                <option value="unpaid">غير مدفوع</option>
-                <option value="paid">مدفوع</option>
-                <option value="partial">جزئي</option>
+                <option value="unpaid">{t("غير مدفوع")}</option>
+                <option value="paid">{t("مدفوع")}</option>
+                <option value="partial">{t("جزئي")}</option>
               </select>
             </div>
             <div className="field">
-              <label className="field-label">المبلغ الشهري</label>
+              <label className="field-label">{t("المبلغ الشهري")}</label>
               <input className="input" type="number" min={0} step="0.01"
                 value={form.monthly_amount} onChange={f("monthly_amount")} />
             </div>
             <div className="field">
-              <label className="field-label">العملة</label>
+              <label className="field-label">{t("العملة")}</label>
               <select className="select" value={form.currency} onChange={f("currency")}>
-                <option value="SAR">ريال سعودي (SAR)</option>
-                <option value="USD">دولار (USD)</option>
-                <option value="AED">درهم (AED)</option>
-                <option value="KWD">دينار كويتي (KWD)</option>
+                <option value="SAR">{t("ريال سعودي (SAR)")}</option>
+                <option value="USD">{t("دولار (USD)")}</option>
+                <option value="AED">{t("درهم (AED)")}</option>
+                <option value="KWD">{t("دينار كويتي (KWD)")}</option>
               </select>
             </div>
             <div className="field">
-              <label className="field-label">تاريخ البداية</label>
+              <label className="field-label">{t("تاريخ البداية")}</label>
               <input className="input" type="date" value={form.start_date} onChange={f("start_date")} />
             </div>
             <div className="field">
-              <label className="field-label">تاريخ الانتهاء</label>
+              <label className="field-label">{t("تاريخ الانتهاء")}</label>
               <input className="input" type="date" value={form.end_date} onChange={f("end_date")} />
             </div>
           </div>
           <div className="field" style={{ marginTop: "1rem" }}>
-            <label className="field-label">ملاحظات</label>
+            <label className="field-label">{t("ملاحظات")}</label>
             <textarea className="textarea" rows={2} value={form.notes} onChange={f("notes")} />
           </div>
           {err && <div className="ds-alert ds-alert-danger" style={{ marginTop: "0.75rem" }}>{err}</div>}
         </div>
         <div className="ds-modal-foot">
-          <button className="ds-btn ds-btn-neutral" onClick={onClose} disabled={loading}>إلغاء</button>
+          <button className="ds-btn ds-btn-neutral" onClick={onClose} disabled={loading}>{t("إلغاء")}</button>
           <button className="ds-btn ds-btn-primary" onClick={handle} disabled={loading}>
-            {loading ? "جارٍ الإنشاء..." : "إنشاء الاشتراك"}
+            {loading ? t("جارٍ الإنشاء...") : t("إنشاء الاشتراك")}
           </button>
         </div>
       </div>
@@ -394,6 +398,7 @@ function CreateSubModal({
 
 /* ── SubscriptionsPage ────────────────────────────────────────────────────── */
 function SubscriptionsPage() {
+  const { t } = useLang();
   const sp = useSearchParams();
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [loading,   setLoading]   = useState(true);
@@ -403,8 +408,8 @@ function SubscriptionsPage() {
   const [renewTarget,    setRenewTarget]    = useState<Subscription | null>(null);
   const [editTarget,     setEditTarget]     = useState<Subscription | null>(null);
   const [showCreate,     setShowCreate]     = useState(false);
-  const [cancelling,     setCancelling]     = useState<number | null>(null);
-  const [activatingId,   setActivatingId]   = useState<number | null>(null);
+  const [, setCancelling]   = useState<number | null>(null);
+  const [, setActivatingId] = useState<number | null>(null);
   const [hotelOptions,   setHotelOptions]   = useState<HotelOption[]>([]);
   const [packageOptions, setPackageOptions] = useState<PackageOption[]>([]);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
@@ -418,17 +423,18 @@ function SubscriptionsPage() {
     setLoading(true); setError(null);
     try {
       const res = await fetch(`${API_BASE}/subscriptions/`, { headers: getAuthHeaders() });
-      if (!res.ok) throw new Error("فشل تحميل الاشتراكات");
+      if (!res.ok) throw new Error(t("فشل تحميل الاشتراكات"));
       const data = await res.json();
       setSubscriptions(Array.isArray(data) ? data : data.results ?? []);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "حدث خطأ");
+      setError(e instanceof Error ? e.message : t("حدث خطأ"));
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل/ضبط حالة مقصود عند الإقلاع
     fetchSubscriptions();
     fetch(`${API_BASE}/hotels/`,   { headers: getAuthHeaders() }).then(r => r.json()).then(d => setHotelOptions(Array.isArray(d) ? d.map((h: {id:number;name:string}) => ({id:h.id,name:h.name})) : [])).catch(() => {});
     fetch(`${API_BASE}/packages/`, { headers: getAuthHeaders() }).then(r => r.json()).then(d => setPackageOptions(Array.isArray(d) ? d.filter((p: {status:string}) => p.status === "active").map((p: {id:number;name:string}) => ({id:p.id,name:p.name})) : [])).catch(() => {});
@@ -442,19 +448,19 @@ function SubscriptionsPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || "فشل التفعيل");
+        throw new Error(data?.error || t("فشل التفعيل"));
       }
-      showToast(`تم تفعيل اشتراك "${sub.hotel_name}"`);
+      showToast(`${t("تم تفعيل اشتراك")} "${sub.hotel_name}"`);
       fetchSubscriptions();
     } catch (e: unknown) {
-      showToast(e instanceof Error ? e.message : "حدث خطأ", "error");
+      showToast(e instanceof Error ? e.message : t("حدث خطأ"), "error");
     } finally {
       setActivatingId(null);
     }
   }
 
   async function handleCancel(sub: Subscription) {
-    if (!confirm(`هل تريد إيقاف اشتراك "${sub.hotel_name}"؟`)) return;
+    if (!confirm(`${t("هل تريد إيقاف اشتراك")} "${sub.hotel_name}"؟`)) return;
     setCancelling(sub.id);
     try {
       const res = await fetch(`${API_BASE}/subscriptions/${sub.id}/cancel/`, {
@@ -462,12 +468,12 @@ function SubscriptionsPage() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || "فشل الإيقاف");
+        throw new Error(data?.error || t("فشل الإيقاف"));
       }
-      showToast(`تم إيقاف اشتراك "${sub.hotel_name}"`);
+      showToast(`${t("تم إيقاف اشتراك")} "${sub.hotel_name}"`);
       fetchSubscriptions();
     } catch (e: unknown) {
-      showToast(e instanceof Error ? e.message : "حدث خطأ", "error");
+      showToast(e instanceof Error ? e.message : t("حدث خطأ"), "error");
     } finally {
       setCancelling(null);
     }
@@ -522,15 +528,15 @@ function SubscriptionsPage() {
       {/* Header */}
       <div className="page-header">
         <div>
-          <h1>الاشتراكات</h1>
-          <p>إدارة اشتراكات الفنادق ومتابعة حالتها وتجديدها</p>
+          <h1>{t("الاشتراكات")}</h1>
+          <p>{t("إدارة اشتراكات الفنادق ومتابعة حالتها وتجديدها")}</p>
         </div>
         <div className="page-actions">
           <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={fetchSubscriptions}>
-            تحديث
+            {t("تحديث")}
           </button>
           <button className="ds-btn ds-btn-primary ds-btn-sm" onClick={() => setShowCreate(true)}>
-            + إنشاء اشتراك
+            + {t("إنشاء اشتراك")}
           </button>
         </div>
       </div>
@@ -538,24 +544,24 @@ function SubscriptionsPage() {
       {/* KPI cards */}
       <div className="pf-grid-3">
         <div className="ds-summary-card">
-          <p className="ds-summary-label">إجمالي الاشتراكات</p>
+          <p className="ds-summary-label">{t("إجمالي الاشتراكات")}</p>
           <p className="ds-summary-value">{totalCount}</p>
-          <p className="ds-summary-note">جميع الاشتراكات</p>
+          <p className="ds-summary-note">{t("جميع الاشتراكات")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">فعالة</p>
+          <p className="ds-summary-label">{t("فعالة")}</p>
           <p className="ds-summary-value text-success">{activeCount}</p>
-          <p className="ds-summary-note">اشتراكات نشطة</p>
+          <p className="ds-summary-note">{t("اشتراكات نشطة")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">تجريبية</p>
+          <p className="ds-summary-label">{t("تجريبية")}</p>
           <p className="ds-summary-value text-primary">{trialCount}</p>
-          <p className="ds-summary-note">في فترة التجربة</p>
+          <p className="ds-summary-note">{t("في فترة التجربة")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">منتهية</p>
+          <p className="ds-summary-label">{t("منتهية")}</p>
           <p className="ds-summary-value text-danger">{expiredCount}</p>
-          <p className="ds-summary-note">انتهت صلاحيتها</p>
+          <p className="ds-summary-note">{t("انتهت صلاحيتها")}</p>
         </div>
       </div>
 
@@ -563,28 +569,28 @@ function SubscriptionsPage() {
       <div className="ds-filters">
         <input
           className="input"
-          placeholder="بحث باسم الفندق أو الباقة..."
+          placeholder={t("بحث باسم الفندق أو الباقة...")}
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{ flex: 1, minWidth: 200 }}
         />
         <select className="select" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
           style={{ width: 160 }}>
-          <option value="all">كل الحالات</option>
-          <option value="active">فعال</option>
-          <option value="trial">تجريبي</option>
-          <option value="expired">منتهي</option>
-          <option value="suspended">موقوف</option>
-          <option value="not_set">غير مضبوط</option>
+          <option value="all">{t("كل الحالات")}</option>
+          <option value="active">{t("فعال")}</option>
+          <option value="trial">{t("تجريبي")}</option>
+          <option value="expired">{t("منتهي")}</option>
+          <option value="suspended">{t("موقوف")}</option>
+          <option value="not_set">{t("غير مضبوط")}</option>
         </select>
       </div>
 
       {/* Cards */}
-      {loading && <div className="ds-card-p"><p className="text-muted">جارٍ التحميل...</p></div>}
+      {loading && <div className="ds-card-p"><p className="text-muted">{t("جارٍ التحميل...")}</p></div>}
       {error   && <div className="ds-card-p"><div className="ds-alert ds-alert-danger">{error}</div></div>}
       {!loading && !error && (
         filtered.length === 0 ? (
-          <div className="ds-card-p"><p className="pf-empty-inline">لا توجد اشتراكات</p></div>
+          <div className="ds-card-p"><p className="pf-empty-inline">{t("لا توجد اشتراكات")}</p></div>
         ) : (
           <div className="pf-entity-grid">
             {filtered.map(sub => (
@@ -596,47 +602,47 @@ function SubscriptionsPage() {
                   </div>
                   <div className="pf-entity-badges">
                     <span className={STATUS_BADGE[sub.status] ?? "ds-badge ds-badge-neutral"}>
-                      {STATUS_LABEL[sub.status] ?? sub.status}
+                      {STATUS_LABEL[sub.status] ? t(STATUS_LABEL[sub.status]) : sub.status}
                     </span>
                     {sub.end_date && isEndingSoon(sub.end_date) && sub.status === "active" && (
-                      <span className="ds-badge ds-badge-warning">تنتهي قريباً</span>
+                      <span className="ds-badge ds-badge-warning">{t("تنتهي قريباً")}</span>
                     )}
                   </div>
                 </div>
                 <div>
                   <div className="pf-kv">
-                    <span className="pf-kv-label">الدفع</span>
+                    <span className="pf-kv-label">{t("الدفع")}</span>
                     <span className="pf-kv-value">
                       <span className={PAYMENT_BADGE[sub.payment_status] ?? "ds-badge ds-badge-neutral"}>
-                        {PAYMENT_LABEL[sub.payment_status] ?? sub.payment_status}
+                        {PAYMENT_LABEL[sub.payment_status] ? t(PAYMENT_LABEL[sub.payment_status]) : sub.payment_status}
                       </span>
                     </span>
                   </div>
                   <div className="pf-kv">
-                    <span className="pf-kv-label">المبلغ الشهري</span>
+                    <span className="pf-kv-label">{t("المبلغ الشهري")}</span>
                     <span className="pf-kv-value">{fmtAmount(sub.monthly_amount, sub.currency)}</span>
                   </div>
                   <div className="pf-kv">
-                    <span className="pf-kv-label">تاريخ الانتهاء</span>
+                    <span className="pf-kv-label">{t("تاريخ الانتهاء")}</span>
                     <span className="pf-kv-value">{fmtDate(sub.end_date)}</span>
                   </div>
                   <div className="pf-kv">
-                    <span className="pf-kv-label">المتبقّي</span>
+                    <span className="pf-kv-label">{t("المتبقّي")}</span>
                     <span className="pf-kv-value">
                       {sub.remaining_days !== null
                         ? <span className={`pf-strong ${sub.remaining_days <= 7 ? "text-danger" : sub.remaining_days <= 30 ? "text-warning" : "text-success"}`}>
-                            {sub.remaining_days > 0 ? `${sub.remaining_days} يوم` : "منتهي"}
+                            {sub.remaining_days > 0 ? `${sub.remaining_days} ${t("يوم")}` : t("منتهي")}
                           </span>
                         : "—"}
                     </span>
                   </div>
                 </div>
                 <div className="pf-entity-actions">
-                  <button onClick={() => setEditTarget(sub)} className="ds-btn ds-btn-primary ds-btn-sm"><Pencil size={14} /> تعديل</button>
-                  <button onClick={() => setRenewTarget(sub)} className="ds-btn ds-btn-success ds-btn-sm"><RefreshCw size={14} /> تجديد</button>
-                  {sub.status === "trial" && <button onClick={() => handleActivateTrial(sub)} className="ds-btn ds-btn-teal ds-btn-sm"><PlayCircle size={14} /> تفعيل</button>}
-                  {(sub.status === "active" || sub.status === "trial") && <button onClick={() => handleCancel(sub)} className="ds-btn ds-btn-warning ds-btn-sm"><PauseCircle size={14} /> إيقاف</button>}
-                  <Link href={`/platform/earnings/${sub.hotel}`} className="ds-btn ds-btn-neutral ds-btn-sm"><FileBarChart size={14} /> الفندق</Link>
+                  <button onClick={() => setEditTarget(sub)} className="ds-btn ds-btn-primary ds-btn-sm"><Pencil size={14} /> {t("تعديل")}</button>
+                  <button onClick={() => setRenewTarget(sub)} className="ds-btn ds-btn-success ds-btn-sm"><RefreshCw size={14} /> {t("تجديد")}</button>
+                  {sub.status === "trial" && <button onClick={() => handleActivateTrial(sub)} className="ds-btn ds-btn-teal ds-btn-sm"><PlayCircle size={14} /> {t("تفعيل")}</button>}
+                  {(sub.status === "active" || sub.status === "trial") && <button onClick={() => handleCancel(sub)} className="ds-btn ds-btn-warning ds-btn-sm"><PauseCircle size={14} /> {t("إيقاف")}</button>}
+                  <Link href={`/platform/earnings/${sub.hotel}`} className="ds-btn ds-btn-neutral ds-btn-sm"><FileBarChart size={14} /> {t("الفندق")}</Link>
                 </div>
               </div>
             ))}

@@ -11,8 +11,7 @@ import {
   X, TrendingUp, Activity,
 } from "lucide-react";
 
-import { BASE_URL as API, getAuthHeaders as apiH } from "@/lib/api";
-const DB_KEY  = (h: string) => `fandqi.guestdb.${h}`;
+import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 type GuestFlag = "normal" | "vip" | "blacklist";
@@ -129,6 +128,10 @@ function buildProfiles(resList: RawRes[], existing: GuestProfile[]): GuestProfil
       const ids = alreadyHas ? prev.reservationIds : [...prev.reservationIds, r.id];
       map.set(key, {
         ...prev,
+        firstName: prev.firstName || r.guest_first_name || "",
+        lastName: prev.lastName || r.guest_last_name || "",
+        idNumber: prev.idNumber || r.guest_id_number || "",
+        dob: prev.dob || r.guest_dob || "",
         totalStays: ids.length,
         totalNights: prev.totalNights + (alreadyHas ? 0 : nights),
         totalSpent: prev.totalSpent + (alreadyHas ? 0 : spent),
@@ -220,8 +223,17 @@ export default function GuestsPage() {
   }
 
   function saveGuests(next: GuestProfile[]) {
-    setGuests(next);
-    if (hotelId) localStorage.setItem(DB_KEY(hotelId), JSON.stringify(next));
+    setGuests(next);  // الحالة فقط؛ الأعلام/الملاحظات تُحفَظ في الـBackend عبر upsert
+  }
+
+  async function upsertGuestProfile(guestKey: string, flag: GuestFlag, notes: string) {
+    if (!guestKey) return;
+    try {
+      await fetch(`${API}/guest-profiles/`, {
+        method: "POST", headers: apiHJ(),
+        body: JSON.stringify({ guest_key: guestKey, flag, notes }),
+      });
+    } catch { /* تجاهل */ }
   }
 
   /* ── Initial load ── */
@@ -239,25 +251,27 @@ export default function GuestsPage() {
         }
       } catch {}
 
-      const localRaw = localStorage.getItem(DB_KEY(hotelId));
-      const localGuests: GuestProfile[] = localRaw ? JSON.parse(localRaw) : [];
-
-      fetch(`${API}/reservations/?hotel=${hotelId}`, { headers: apiH() })
-        .then((r) => (r.ok ? r.json() : []))
-        .then((d) => {
-          const list: RawRes[] = Array.isArray(d) ? d : (d.results ?? []);
-          setRawRes(list);
-          const merged = buildProfiles(list, localGuests);
-          saveGuests(merged);
-          setLoading(false);
-        })
-        .catch(() => {
-          setGuests(localGuests);
-          setLoading(false);
-        });
+      try {
+        const [profs, resD] = await Promise.all([
+          fetch(`${API}/guest-profiles/?hotel=${hotelId}`, { headers: apiH() }).then(r => r.ok ? r.json() : []).catch(() => []),
+          fetch(`${API}/reservations/?hotel=${hotelId}`, { headers: apiH() }).then(r => r.ok ? r.json() : []).catch(() => []),
+        ]);
+        const profList: Record<string, unknown>[] = Array.isArray(profs) ? profs : (profs.results ?? []);
+        const existing: GuestProfile[] = profList.map(p => ({
+          id: String(p.guest_key), firstName: "", lastName: "", idNumber: String(p.guest_key),
+          phone: "", email: "", nationality: "", dob: "",
+          flag: String(p.flag ?? "normal") as GuestFlag, notes: String(p.notes ?? ""),
+          totalStays: 0, totalNights: 0, totalSpent: 0, currency: "USD",
+          lastStay: "", firstStay: "", reservationIds: [],
+          createdAt: "", updatedAt: String(p.updated_at ?? ""),
+        }));
+        const list: RawRes[] = Array.isArray(resD) ? resD : (resD.results ?? []);
+        setRawRes(list);
+        setGuests(buildProfiles(list, existing));
+      } catch { /* ignore */ }
+      setLoading(false);
     };
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelId]);
 
   /* ── Sync from API ── */
@@ -289,6 +303,7 @@ export default function GuestsPage() {
         : x
     );
     saveGuests(next);
+    upsertGuestProfile(g.id, newFlag, g.notes);
     // Update viewGuest if open
     if (viewGuest?.id === g.id) {
       setViewGuest((prev) => (prev ? { ...prev, flag: newFlag } : prev));
@@ -309,6 +324,7 @@ export default function GuestsPage() {
         : g
     );
     saveGuests(next);
+    upsertGuestProfile(editGuest.id, editFlag, editNotes);
     setEditGuest(null);
     showToast(t("تم تحديث حالة النزيل."));
   }
@@ -323,6 +339,7 @@ export default function GuestsPage() {
         : g
     );
     saveGuests(next);
+    upsertGuestProfile(viewGuest.id, viewGuest.flag, viewNotes);
     setViewGuest((prev) => (prev ? { ...prev, notes: viewNotes } : prev));
     setTimeout(() => setSavingNotes(false), 600);
     showToast(t("تم حفظ الملاحظات."));

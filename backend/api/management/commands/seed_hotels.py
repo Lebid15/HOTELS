@@ -1,18 +1,20 @@
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from api.models import Hotel, UserProfile
+from ._seedguard import ensure_seed_allowed
 
 
 class Command(BaseCommand):
-    help = 'Seed initial hotel data and link seed users'
+    help = 'Seed initial hotel data and link seed users (development only)'
 
     def handle(self, *args, **options):
+        ensure_seed_allowed()
         User = get_user_model()
         manager_user = User.objects.filter(username='manager').first()
         reception_user = User.objects.filter(username='reception').first()
 
         hotels = [
-            {'name': 'Hotel Fandqi Central', 'city': 'Cairo', 'country': 'Egypt', 'status': 'active'},
+            {'name': 'Hotel funduqii Central', 'city': 'Cairo', 'country': 'Egypt', 'status': 'active'},
             {'name': 'Grand Nile Hotel',      'city': 'Cairo', 'country': 'Egypt', 'status': 'active'},
             {'name': 'Luxury Oasis',          'city': 'Dubai', 'country': 'UAE',   'status': 'suspended'},
         ]

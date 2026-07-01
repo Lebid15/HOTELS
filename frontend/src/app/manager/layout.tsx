@@ -5,12 +5,13 @@ import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { LangContext, makeLangCtx } from "./LangContext";
-import { apiUrl, getToken, clearTokens } from "@/lib/api";
+import { apiUrl, getToken, authFetch, logout as apiLogout } from "@/lib/api";
+import { hydrateHotelCache } from "@/lib/hotel";
 import {
   LayoutDashboard, CalendarCheck, Building2, Users, ArrowRightLeft,
   Utensils, CreditCard, BarChart3, UserCog,
   PackageCheck, Settings, Bell, Globe, Menu, X, LogOut,
-  Receipt, Moon, BookOpen, ClipboardCheck, BellRing, Monitor,
+  Receipt, Moon, BookOpen, ClipboardCheck, BellRing, ScrollText,
 } from "lucide-react";
 
 // ─── Navigation definition ────────────────────────────────────────────────────
@@ -32,10 +33,11 @@ const NAV: NavItem[] = [
   { href: "/manager/night-audit",    label: "التدقيق الليلي",        Icon: Moon },
   { href: "/manager/shift-handover", label: "تسليم الوردية",         Icon: ClipboardCheck },
   { href: "/manager/reports",        label: "التقارير",              Icon: BarChart3 },
+  { href: "/manager/audit",          label: "سجلّ التدقيق",          Icon: ScrollText },
   { href: "/manager/staff",           label: "الموظفون",             Icon: UserCog },
   { href: "/manager/subscription",   label: "الاشتراك والباقات",  Icon: PackageCheck },
   { href: "/manager/hotel-settings", label: "الإعدادات",          Icon: Settings },
-  { href: "/manager/web-bookings",   label: "حجوزات الموقع",       Icon: Monitor },
+  // د‑2: أُزيل «حجوزات الموقع» كعنصر مستقل — يُوصَل إليها عبر فلتر «مصدر الحجز» داخل صفحة الحجوزات.
 ];
 
 const UNREAD_KEY   = "fandqi.notifications.unread.v1";
@@ -59,6 +61,7 @@ const NAV_LABELS: Record<string, { ar: string; en: string }> = {
   "/manager/lost-found":     { ar: "المفقودات والموجودات", en: "Lost & Found" },
   "/manager/shift-handover": { ar: "تسليم الوردية",        en: "Shift Handover" },
   "/manager/reports":         { ar: "التقارير",              en: "Reports" },
+  "/manager/audit":          { ar: "سجلّ التدقيق",          en: "Audit Log" },
   "/manager/staff":           { ar: "الموظفون",              en: "Staff" },
   "/manager/subscription":   { ar: "الاشتراك والباقات", en: "Subscription" },
   "/manager/hotel-settings": { ar: "الإعدادات",         en: "Settings" },
@@ -91,7 +94,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
   const [ownerName,        setOwnerName]        = useState("");
   const [hotelLogo,        setHotelLogo]        = useState<string | null>(null);
   // Platform branding (sidebar)
-  const [platformName,     setPlatformName]     = useState("Fandqi");
+  const [platformName,     setPlatformName]     = useState("funduqii");
   const [platformSubtitle, setPlatformSubtitle] = useState("نظام إدارة الفنادق");
   // Shell state
   const [mobileOpen,       setMobileOpen]       = useState(false);
@@ -141,9 +144,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
     };
     loadBranding();
 
-    fetch(apiUrl("/current-user/"), {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    authFetch("/current-user/")
       .then(r => (r.ok ? r.json() : Promise.reject()))
       .then(u => {
         if (u.role !== "manager") { router.push("/login"); return; }
@@ -155,7 +156,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
           localStorage.setItem("hotel_id", hid);
           localStorage.setItem("role", u.role);
 
-          // Read hotel identity + food flags from localStorage settings
+          // Read hotel identity + food flags from localStorage cache (fast, sync)
           try {
             const sRaw = localStorage.getItem(SETTINGS_KEY(hid));
             if (sRaw) {
@@ -169,6 +170,19 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
               }
             }
           } catch { /* ignore */ }
+
+          // Backend Hotel record is the source of truth: refresh the local
+          // settings cache (currency + identity) so it stays in sync across devices.
+          authFetch(`/hotels/${hid}/`)
+            .then(r => (r.ok ? r.json() : null))
+            .then(h => {
+              if (!h) return;
+              hydrateHotelCache(hid, h);
+              if (h.name)         setHotelName(h.name);
+              if (h.owner_name)   setOwnerName(h.owner_name);
+              if (h.logo != null) setHotelLogo(h.logo || null);
+            })
+            .catch(() => {});
 
           // ── Compute notification count from live API data ──────────
           const authH = { Authorization: `Bearer ${token}` };
@@ -228,8 +242,8 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   // ── Logout ───────────────────────────────────────────────────────────────
-  const logout = () => {
-    clearTokens();
+  const logout = async () => {
+    await apiLogout();
     ["role", "hotel_id"].forEach(k => localStorage.removeItem(k));
     router.push("/login");
   };
@@ -371,11 +385,11 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
             )}
           </Link>
 
-          {/* User chip */}
-          <div className="user-chip">
+          {/* User chip → الملف الشخصي (د‑6/16) */}
+          <Link href="/manager/profile" className="user-chip" title={t("الملف الشخصي")} style={{ textDecoration: "none", color: "inherit" }}>
             <span className="user-chip-avatar">{avatarLetter}</span>
             <span className="user-chip-name">{username || t("userFallback")}</span>
-          </div>
+          </Link>
 
           {/* Logout */}
           <button

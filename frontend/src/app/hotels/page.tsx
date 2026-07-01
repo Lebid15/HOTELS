@@ -57,6 +57,7 @@ function HotelsPageInner() {
       .catch(() => setLoading(false));
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل/ضبط حالة مقصود عند الإقلاع
   useEffect(() => { loadHotels(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function applyFilters(e: React.FormEvent) {
@@ -75,7 +76,7 @@ function HotelsPageInner() {
       {/* Header */}
       <header className="pub-header">
         <div className="pub-header-inner">
-          <Link href="/" className="pub-logo">Fandqi</Link>
+          <Link href="/" className="pub-logo">funduqii</Link>
           <nav>
             <ul className="pub-nav-links">
               <li><Link href="/" className="pub-nav-link">الرئيسية</Link></li>
@@ -208,7 +209,7 @@ function HotelsPageInner() {
 
       <footer className="pub-footer">
         <div className="pub-container">
-          <p>© Fandqi — منصة فندقي للحجز الفندقي</p>
+          <p>© funduqii — منصة فندقي للحجز الفندقي</p>
         </div>
       </footer>
     </div>

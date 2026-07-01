@@ -1,15 +1,16 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard, Building2, UserCog, Package, BadgeCheck,
   ClipboardList, CalendarCheck, TrendingUp, FileBarChart, Bell,
-  Settings, LogOut, ChevronLeft, ChevronRight, Menu, X,
+  Settings, LogOut, ChevronLeft, ChevronRight, Menu, X, Globe, ScrollText,
 } from "lucide-react";
-import { apiUrl, getToken, getAuthHeaders, clearTokens } from "@/lib/api";
+import { apiUrl, getToken, getAuthHeaders, authFetch, logout as apiLogout } from "@/lib/api";
+import { LangContext, makeLangCtx, readLang, applyLang, type Lang } from "@/lib/i18n/LangContext";
 
 interface NavItem { href: string; label: string; Icon: LucideIcon; }
 
@@ -23,37 +24,33 @@ const NAV: NavItem[] = [
   { href: "/platform/web-bookings",          label: "حجوزات الموقع",    Icon: CalendarCheck },
   { href: "/platform/earnings",              label: "أرباحي",           Icon: TrendingUp },
   { href: "/platform/reports",               label: "تقارير المنصة",    Icon: FileBarChart },
+  { href: "/platform/audit",                 label: "سجلّ التدقيق",     Icon: ScrollText },
   { href: "/platform/notifications",         label: "إشعارات المنصة",   Icon: Bell },
   { href: "/platform/settings",              label: "إعدادات المنصة",   Icon: Settings },
 ];
 
-const PLATFORM_KEY = "fandqi.platform";
 const NOTIF_READ_KEY = "fandqi.platform.notifs.read";
 
 interface Branding { platformName: string; platformSubtitle: string; platformLogo: string; }
 
-function readBranding(): Branding {
-  const fallback: Branding = { platformName: "Fandqi", platformSubtitle: "نظام إدارة الفنادق", platformLogo: "" };
-  if (typeof window === "undefined") return fallback;
-  try {
-    const p = JSON.parse(localStorage.getItem(PLATFORM_KEY) ?? "{}");
-    return {
-      platformName: p.platformName || fallback.platformName,
-      platformSubtitle: p.platformSubtitle || fallback.platformSubtitle,
-      platformLogo: p.platformLogo || "",
-    };
-  } catch { return fallback; }
-}
-
 export default function PlatformLayout({ children }: { children: React.ReactNode }) {
   const [username, setUsername]   = useState("");
-  const [branding, setBranding]   = useState<Branding>({ platformName: "Fandqi", platformSubtitle: "نظام إدارة الفنادق", platformLogo: "" });
+  const [branding, setBranding]   = useState<Branding>({ platformName: "funduqii", platformSubtitle: "نظام إدارة الفنادق", platformLogo: "" });
   const [compact, setCompact]     = useState(false);
   const [authReady, setAuthReady] = useState(false);
   const [unread, setUnread]       = useState(0);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [lang, setLang]           = useState<Lang>(() => readLang());
   const router   = useRouter();
   const pathname = usePathname();
+
+  const langCtx = useMemo(() => makeLangCtx(lang), [lang]);
+  const t = langCtx.t;
+  function toggleLang() {
+    const next: Lang = lang === "ar" ? "en" : "ar";
+    setLang(next);
+    applyLang(next);
+  }
 
   // ── Platform notifications unread count (platform-only) ──────────────────
   const loadNotifCount = useCallback(() => {
@@ -73,9 +70,18 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
   useEffect(() => {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
-    setBranding(readBranding());
+    if (lang === "en") { document.documentElement.dir = "ltr"; document.documentElement.lang = "en"; }
+    // هوية المنصّة الديناميكية من الـBackend (بدل localStorage)
+    fetch(apiUrl("/platform/settings/"), { headers: getAuthHeaders() })
+      .then(r => r.ok ? r.json() : Promise.reject())
+      .then(d => setBranding({
+        platformName: d.site_name || "funduqii",
+        platformSubtitle: d.subtitle || "نظام إدارة الفنادق",
+        platformLogo: d.logo_url || "",
+      }))
+      .catch(() => {});
 
-    fetch(apiUrl("/current-user/"), { headers: { Authorization: `Bearer ${token}` } })
+    authFetch("/current-user/")
       .then(r => (r.ok ? r.json() : Promise.reject()))
       .then(u => {
         if (u.role !== "platform_owner") { router.push("/login"); return; }
@@ -84,18 +90,19 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         loadNotifCount();
       })
       .catch(() => router.push("/login"));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- lang read once on mount from lazy state
   }, [router, loadNotifCount]);
 
-  // refresh branding + notif count on navigation
+  // refresh notif count on navigation (الهوية تُحمَّل مرّة من الـBackend عند الإقلاع)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل/ضبط حالة مقصود عند الإقلاع
     setMobileOpen(false);
-    setBranding(readBranding());
     if (authReady) loadNotifCount();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  const logout = () => {
-    clearTokens();
+  const logout = async () => {
+    await apiLogout();
     ["role", "hotel_id"].forEach(k => localStorage.removeItem(k));
     router.push("/login");
   };
@@ -106,19 +113,20 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
   if (!authReady) {
     return (
       <div className="auth-loading-screen">
-        <p className="text-muted">جارٍ التحقق...</p>
+        <p className="text-muted">{t("جارٍ التحقق...")}</p>
       </div>
     );
   }
 
   return (
-    <div className={`app-shell${compact ? " sidebar-compact" : ""}`} dir="rtl">
+    <LangContext.Provider value={langCtx}>
+    <div className={`app-shell${compact ? " sidebar-compact" : ""}`} dir={langCtx.dir}>
 
       {mobileOpen && (
         <div className="sidebar-overlay" onClick={() => setMobileOpen(false)} aria-hidden="true" />
       )}
 
-      <aside className={`sidebar${compact ? " compact" : ""}${mobileOpen ? " drawer-open" : ""}`} aria-label="القائمة الرئيسية">
+      <aside className={`sidebar${compact ? " compact" : ""}${mobileOpen ? " drawer-open" : ""}`} aria-label={t("القائمة الرئيسية")}>
         <div className="sidebar-header">
           {branding.platformLogo ? (
             <span className="pf-logo-frame">
@@ -131,12 +139,12 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
           {!compact && (
             <div className="sidebar-brand-meta">
               <p className="sidebar-brand-title">{branding.platformName}</p>
-              <p className="sidebar-brand-sub">صاحب المنصة</p>
+              <p className="sidebar-brand-sub">{t("صاحب المنصة")}</p>
             </div>
           )}
         </div>
 
-        <nav className="sidebar-nav" aria-label="تنقل">
+        <nav className="sidebar-nav" aria-label={t("تنقل")}>
           {NAV.map(item => {
             const active = item.href === "/platform"
               ? pathname === "/platform"
@@ -150,7 +158,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
                 onClick={() => setMobileOpen(false)}
               >
                 <span className="nav-icon"><item.Icon size={20} strokeWidth={1.8} /></span>
-                {!compact && <span className="nav-label">{item.label}</span>}
+                {!compact && <span className="nav-label">{t(item.label)}</span>}
                 {!compact && item.href === "/platform/notifications" && unread > 0 && (
                   <span className="ds-badge ds-badge-hot nav-count">{unread > 9 ? "9+" : unread}</span>
                 )}
@@ -161,10 +169,10 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
 
         <div className="sidebar-footer">
           <button className="sidebar-toggle" onClick={() => setCompact(c => !c)}
-            aria-label={compact ? "توسيع القائمة" : "طي القائمة"}>
+            aria-label={compact ? t("توسيع القائمة") : t("طي القائمة")}>
             {compact
               ? <ChevronLeft size={16} />
-              : <><ChevronRight size={16} /><span>طي القائمة</span></>
+              : <><ChevronRight size={16} /><span>{t("طي القائمة")}</span></>
             }
           </button>
         </div>
@@ -174,21 +182,24 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         <button
           className="topbar-hamburger"
           onClick={() => setMobileOpen(o => !o)}
-          aria-label={mobileOpen ? "إغلاق القائمة" : "فتح القائمة"}
+          aria-label={mobileOpen ? t("إغلاق القائمة") : t("فتح القائمة")}
           aria-expanded={mobileOpen}
         >
           {mobileOpen ? <X size={22} strokeWidth={2} /> : <Menu size={22} strokeWidth={2} />}
         </button>
         <div className="topbar-title">
           <div className="topbar-title-strong">{branding.platformName}</div>
-          <p>المنصة المركزية</p>
+          <p>{t("المنصة المركزية")}</p>
         </div>
         <div className="topbar-actions">
+          <button className="topbar-icon-btn" onClick={toggleLang} title={lang === "ar" ? "English" : "عربي"} aria-label={lang === "ar" ? "English" : "عربي"}>
+            <Globe size={22} strokeWidth={1.8} />
+          </button>
           <Link
             href="/platform/notifications"
             className="topbar-icon-btn"
-            title="إشعارات المنصة"
-            aria-label={unread > 0 ? `إشعارات المنصة · ${unread}` : "إشعارات المنصة"}
+            title={t("إشعارات المنصة")}
+            aria-label={unread > 0 ? `${t("إشعارات المنصة")} · ${unread}` : t("إشعارات المنصة")}
           >
             <Bell size={22} strokeWidth={1.8} />
             {unread > 0 && <span className="topbar-badge" aria-hidden="true">{unread > 9 ? "9+" : unread}</span>}
@@ -196,12 +207,12 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
 
           <div className="user-chip">
             <span className="user-chip-avatar">{avatarLetter}</span>
-            <span className="user-chip-name">{username || "المستخدم"}</span>
+            <span className="user-chip-name">{username || t("المستخدم")}</span>
           </div>
 
-          <button onClick={logout} className="ds-btn ds-btn-neutral ds-btn-sm" title="تسجيل الخروج">
+          <button onClick={logout} className="ds-btn ds-btn-neutral ds-btn-sm" title={t("تسجيل الخروج")}>
             <LogOut size={16} strokeWidth={2} />
-            <span>خروج</span>
+            <span>{t("خروج")}</span>
           </button>
         </div>
       </header>
@@ -210,5 +221,6 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
         {children}
       </main>
     </div>
+    </LangContext.Provider>
   );
 }

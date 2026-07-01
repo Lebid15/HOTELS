@@ -9,12 +9,10 @@ import {
 } from "lucide-react";
 
 import { useLang } from "../LangContext";
-import { BASE_URL as API, getAuthHeaders as apiH } from "@/lib/api";
+import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
 import { escapeHtml as esc } from "@/lib/print";
 
-const FOLIO_KEY   = (h: string) => `fandqi.folio.${h}`;
 const SET_KEY     = (h: string) => `fandqi.settings.${h}`;
-const RES_KEY     = (h: string) => `fandqi.reservations.${h}`;
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 type TChargeType =
@@ -88,6 +86,24 @@ const TYPE_BG: Record<TChargeType, string> = {
   other:        "#f8fafc",
 };
 
+function mapCharge(x: Record<string, unknown>): FolioCharge {
+  return {
+    id: String(x.id ?? ""),
+    reservationId: (x.reservation as number | string) ?? "",
+    guestName: String(x.guest_name ?? ""),
+    roomNumber: String(x.room_number ?? ""),
+    bookingNumber: String(x.booking_number ?? ""),
+    type: String(x.charge_type ?? "other") as TChargeType,
+    amount: Number(x.amount ?? 0),
+    currency: String(x.currency ?? "USD"),
+    description: String(x.description ?? ""),
+    date: String(x.charge_date ?? "").slice(0, 10),
+    createdAt: String(x.created_at ?? ""),
+    createdBy: String(x.created_by_name ?? ""),
+    settled: Boolean(x.settled),
+  };
+}
+
 const TYPE_ICONS: Record<TChargeType, LucideIcon> = {
   minibar:      ShoppingCart as LucideIcon,
   laundry:      Shirt as LucideIcon,
@@ -102,7 +118,6 @@ const TYPE_ICONS: Record<TChargeType, LucideIcon> = {
 
 /* ─── Helpers ──────────────────────────────────────────────────────────────── */
 function todayISO() { return new Date().toISOString().slice(0, 10); }
-function nowISO()   { return new Date().toISOString(); }
 
 function fmtDate(d?: string) {
   if (!d) return "—";
@@ -214,7 +229,6 @@ export default function FolioPage() {
     other:        t("أخرى"),
   };
   const hotelId  = typeof window !== "undefined" ? (localStorage.getItem("hotel_id") ?? "") : "";
-  const username = typeof window !== "undefined" ? (localStorage.getItem("username") ?? t("مدير")) : t("مدير");
 
   const [charges,      setCharges]      = useState<FolioCharge[]>([]);
   const [reservations, setReservations] = useState<ActiveReservation[]>([]);
@@ -252,25 +266,10 @@ export default function FolioPage() {
         if (s?.ops?.currency) setCurrency(s.ops.currency);
       } catch {}
 
-      // Folio charges from localStorage
-      try {
-        const raw = localStorage.getItem(FOLIO_KEY(hotelId));
-        if (raw) setCharges(JSON.parse(raw));
-      } catch {}
-
-      // Reservations from localStorage (checked_in)
-      try {
-        const raw = localStorage.getItem(RES_KEY(hotelId));
-        if (raw) {
-          const arr = JSON.parse(raw) as Record<string, unknown>[];
-          const checked = arr
-            .filter(r => String(r.status ?? "").toLowerCase() === "checked_in")
-            .map(r => normalizeRes(r, t));
-          setReservations(checked);
-        }
-      } catch {}
+      // الرسوم والحجوزات تُجلَب من الـBackend أدناه
     };
     loadSync();
+    loadCharges();
 
     // Fetch checked-in reservations from API (non-blocking)
     fetch(`${API}/reservations/?hotel=${hotelId}&status=checked_in`, { headers: apiH() })
@@ -292,9 +291,13 @@ export default function FolioPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelId]);
 
-  function saveCharges(next: FolioCharge[]) {
-    setCharges(next);
-    if (hotelId) localStorage.setItem(FOLIO_KEY(hotelId), JSON.stringify(next));
+  async function loadCharges() {
+    if (!hotelId) return;
+    try {
+      const r = await fetch(`${API}/folio-charges/?hotel=${hotelId}`, { headers: apiH() });
+      const d = await r.json();
+      setCharges((Array.isArray(d) ? d : (d.results ?? [])).map(mapCharge));
+    } catch { setCharges([]); }
   }
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 3000); }
@@ -349,36 +352,40 @@ export default function FolioPage() {
     const res = reservations.find(r => String(r.id) === form.reservationId);
     if (!res) { setFormErr(t("الحجز غير موجود.")); return; }
 
-    const charge: FolioCharge = {
-      id:            `folio-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-      reservationId: res.id,
-      guestName:     res.guestName,
-      roomNumber:    res.roomNumber,
-      bookingNumber: res.bookingNumber,
-      type:          form.type,
-      amount:        amt,
-      currency,
-      description:   form.description.trim(),
-      date:          form.date,
-      createdAt:     nowISO(),
-      createdBy:     username,
-      settled:       false,
+    const body = {
+      reservation: res.id ? Number(res.id) : null,
+      guest_name: res.guestName, room_number: res.roomNumber, booking_number: res.bookingNumber,
+      charge_type: form.type, amount: amt, currency,
+      description: form.description.trim(), charge_date: form.date, settled: false,
     };
-
-    saveCharges([charge, ...charges]);
-    setForm(blankForm());
-    showToast(t("تم إضافة الرسمة بنجاح."));
+    (async () => {
+      try {
+        const r = await fetch(`${API}/folio-charges/`, { method: "POST", headers: apiHJ(), body: JSON.stringify(body) });
+        if (!r.ok) throw new Error();
+        setForm(blankForm());
+        showToast(t("تم إضافة الرسمة بنجاح."));
+        await loadCharges();
+      } catch { setFormErr(t("تعذّر إضافة الرسمة.")); }
+    })();
   }
 
-  function settleCharge(id: string) {
-    saveCharges(charges.map(c => c.id === id ? { ...c, settled: true } : c));
-    showToast(t("تمت التسوية."));
+  async function settleCharge(id: string) {
+    try {
+      const r = await fetch(`${API}/folio-charges/${id}/`, { method: "PATCH", headers: apiHJ(), body: JSON.stringify({ settled: true }) });
+      if (!r.ok) throw new Error();
+      showToast(t("تمت التسوية."));
+      await loadCharges();
+    } catch { showToast(t("تعذّرت التسوية.")); }
   }
 
-  function deleteCharge(id: string) {
-    saveCharges(charges.filter(c => c.id !== id));
-    setDeleteId(null);
-    showToast(t("تم حذف الرسمة."));
+  async function deleteCharge(id: string) {
+    try {
+      const r = await fetch(`${API}/folio-charges/${id}/`, { method: "DELETE", headers: apiH() });
+      if (!r.ok && r.status !== 204) throw new Error();
+      setDeleteId(null);
+      showToast(t("تم حذف الرسمة."));
+      await loadCharges();
+    } catch { setDeleteId(null); showToast(t("تعذّر الحذف.")); }
   }
 
   /* ─────────────────────────────────────────────────────────────────────── */

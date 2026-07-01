@@ -219,7 +219,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
     <div className="pub-shell">
       <header className="pub-header">
         <div className="pub-header-inner">
-          <Link href="/" className="pub-logo">Fandqi</Link>
+          <Link href="/" className="pub-logo">funduqii</Link>
           <Link href="/hotels" className="ds-btn ds-btn-neutral ds-btn-sm">← الفنادق</Link>
         </div>
       </header>
@@ -241,7 +241,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
       {/* Header */}
       <header className="pub-header">
         <div className="pub-header-inner">
-          <Link href="/" className="pub-logo">Fandqi</Link>
+          <Link href="/" className="pub-logo">funduqii</Link>
           <nav>
             <ul className="pub-nav-links">
               <li><Link href="/" className="pub-nav-link">الرئيسية</Link></li>
@@ -462,7 +462,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
                 ) : (
                   <>
                     <p style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", marginBottom: ".75rem" }}>
-                      لإضافة تقييم، يجب أن يكون لديك حجز في هذا الفندق عبر منصة Fandqi.
+                      لإضافة تقييم، يجب أن يكون لديك حجز في هذا الفندق عبر منصة funduqii.
                     </p>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: ".75rem", marginBottom: ".75rem" }}>
                       <div>
@@ -727,7 +727,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
 
       <footer className="pub-footer">
         <div className="pub-container">
-          <p>© Fandqi — منصة فندقي للحجز الفندقي</p>
+          <p>© funduqii — منصة فندقي للحجز الفندقي</p>
         </div>
       </footer>
     </div>

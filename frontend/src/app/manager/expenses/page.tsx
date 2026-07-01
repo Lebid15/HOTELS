@@ -7,8 +7,8 @@ import {
   Calendar, Tag, User, FileText, Banknote, Filter, X,
 } from "lucide-react";
 import { useLang } from "../LangContext";
+import { apiUrl, getAuthHeaders, getAuthJsonHeaders } from "@/lib/api";
 
-const EXPENSES_KEY = (h: string) => `fandqi.expenses.${h}`;
 const SETTINGS_KEY = (h: string) => `fandqi.settings.${h}`;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -45,7 +45,6 @@ const CAT_COLORS: Record<TCategory, { bg: string; color: string; strip: string }
 
 
 function todayISO() { return new Date().toISOString().slice(0, 10); }
-function now()      { return new Date().toISOString(); }
 function fmtDate(iso: string) {
   try {
     return new Date(iso).toLocaleDateString("ar-SA", {
@@ -62,6 +61,22 @@ function blankForm() {
     date: todayISO(),
     paidTo: "",
     notes: "",
+  };
+}
+
+function mapExpense(x: Record<string, unknown>): Expense {
+  const cat = String(x.category ?? "other");
+  return {
+    id: String(x.id ?? ""),
+    category: (CAT_COLORS[cat as TCategory] ? cat : "other") as TCategory,
+    amount: Number(x.amount ?? 0),
+    currency: String(x.currency ?? "USD"),
+    description: String(x.description ?? ""),
+    date: String(x.spent_on ?? "").slice(0, 10),
+    paidTo: x.paid_to ? String(x.paid_to) : undefined,
+    notes: x.notes ? String(x.notes) : undefined,
+    createdAt: String(x.created_at ?? ""),
+    createdBy: String(x.created_by_name ?? ""),
   };
 }
 
@@ -88,7 +103,6 @@ export default function ExpensesPage() {
   ];
 
   const hotelId  = typeof window !== "undefined" ? (localStorage.getItem("hotel_id") ?? "") : "";
-  const username = typeof window !== "undefined" ? (localStorage.getItem("username") ?? "مدير") : "مدير";
 
   const [expenses,   setExpenses]   = useState<Expense[]>([]);
   const [currency,   setCurrency]   = useState("USD");
@@ -102,24 +116,27 @@ export default function ExpensesPage() {
   const [fMonth,     setFMonth]     = useState<string>("all");
   const [deleteId,   setDeleteId]   = useState<string | null>(null);
 
-  // ── Load ────────────────────────────────────────────────────────────────
+  // ── Load (من الـBackend — لا localStorage) ───────────────────────────────
+  const loadExpenses = async () => {
+    if (!hotelId) return;
+    try {
+      const r = await fetch(apiUrl(`/expenses/?hotel=${hotelId}`), { headers: getAuthHeaders() });
+      const data = await r.json();
+      const list: Record<string, unknown>[] = Array.isArray(data) ? data : data.results ?? [];
+      setExpenses(list.map(mapExpense));
+    } catch { setExpenses([]); }
+  };
+
   useEffect(() => {
     if (!hotelId) return;
-    const load = async () => {
-      const raw = localStorage.getItem(EXPENSES_KEY(hotelId));
-      if (raw) { try { setExpenses(JSON.parse(raw)); } catch {} }
-      try {
-        const s = JSON.parse(localStorage.getItem(SETTINGS_KEY(hotelId)) ?? "{}");
-        if (s.ops?.currency) setCurrency(s.ops.currency);
-      } catch {}
-    };
-    load();
+    try {
+      const s = JSON.parse(localStorage.getItem(SETTINGS_KEY(hotelId)) ?? "{}");
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل/ضبط حالة مقصود عند الإقلاع
+      if (s.ops?.currency) setCurrency(s.ops.currency);
+    } catch {}
+    loadExpenses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelId]);
-
-  function save(next: Expense[]) {
-    setExpenses(next);
-    if (hotelId) localStorage.setItem(EXPENSES_KEY(hotelId), JSON.stringify(next));
-  }
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 3000); }
 
@@ -186,47 +203,37 @@ export default function ExpensesPage() {
     setShowForm(true);
   }
 
-  function saveExpense() {
+  async function saveExpense() {
     if (!form.description.trim()) { setFormErr(t("وصف المصروف مطلوب.")); return; }
     const amt = parseFloat(form.amount);
     if (!amt || amt <= 0) { setFormErr(t("المبلغ يجب أن يكون أكبر من صفر.")); return; }
     if (!form.date) { setFormErr(t("التاريخ مطلوب.")); return; }
-
-    if (editId) {
-      const next = expenses.map(e => e.id === editId ? ({
-        ...e,
-        category: form.category,
-        amount: amt,
-        description: form.description.trim(),
-        date: form.date,
-        paidTo: form.paidTo.trim() || undefined,
-        notes: form.notes.trim() || undefined,
-      }) : e);
-      save(next);
-      showToast(t("تم تحديث المصروف."));
-    } else {
-      const entry: Expense = {
-        id: `exp-${Date.now()}`,
-        category: form.category,
-        amount: amt,
-        currency,
-        description: form.description.trim(),
-        date: form.date,
-        paidTo: form.paidTo.trim() || undefined,
-        notes: form.notes.trim() || undefined,
-        createdAt: now(),
-        createdBy: username,
-      };
-      save([entry, ...expenses]);
-      showToast(t("تم إضافة المصروف بنجاح."));
-    }
-    setShowForm(false);
+    const body = {
+      category: form.category, amount: amt, currency,
+      description: form.description.trim(), spent_on: form.date,
+      paid_to: form.paidTo.trim(), notes: form.notes.trim(),
+    };
+    try {
+      const r = await fetch(editId ? apiUrl(`/expenses/${editId}/`) : apiUrl("/expenses/"), {
+        method: editId ? "PATCH" : "POST",
+        headers: getAuthJsonHeaders(),
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error();
+      showToast(editId ? t("تم تحديث المصروف.") : t("تم إضافة المصروف بنجاح."));
+      setShowForm(false);
+      await loadExpenses();
+    } catch { setFormErr(t("تعذّر الحفظ، حاول مرة أخرى.")); }
   }
 
-  function deleteExpense(id: string) {
-    save(expenses.filter(e => e.id !== id));
-    setDeleteId(null);
-    showToast(t("تم حذف المصروف."));
+  async function deleteExpense(id: string) {
+    try {
+      const r = await fetch(apiUrl(`/expenses/${id}/`), { method: "DELETE", headers: getAuthHeaders() });
+      if (!r.ok && r.status !== 204) throw new Error();
+      setDeleteId(null);
+      showToast(t("تم حذف المصروف."));
+      await loadExpenses();
+    } catch { setDeleteId(null); showToast(t("تعذّر الحذف.")); }
   }
 
   // ─────────────────────────────────────────────────────────────────────────

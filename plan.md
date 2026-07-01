@@ -1,305 +1,189 @@
-# خطة عمل مشروع فندقي (Fandqi)
+# خطة تصليب الإنتاج — مشروع funduqii (فندقي)
 
-## الهدف
-نظام SaaS متعدد المستأجرين لإدارة الفنادق — 3 أدوار: صاحب المنصة، مدير الفندق، موظف الاستقبال.
+> **هذا الملف هو السجلّ الحيّ الوحيد لجاهزية الإطلاق.** يُحدَّث **بعد كل إصلاح مباشرةً** (الحالة + سجل التقدّم في الأسفل). ممنوع الادّعاء بما لم يُنجَز فعليًا (صدق التوثيق).
 
----
-
-## البنية التقنية
-- **Backend**: Django 5.1.4 + Django REST Framework + JWT (`djangorestframework-simplejwt`)
-- **Frontend**: Next.js 16 + React 19 + Tailwind CSS 4
-- **قاعدة البيانات**: SQLite (تطوير) → PostgreSQL (إنتاج)
-- **Django**: `backend/` | **Next.js**: `frontend/`
+- **الحالة الحالية:** 🟢 **كل الموانع (B‑1…B‑10) والمخاطر العالية (H‑1…H‑7) مغلقة + معظم الجودة** — المراحل 0.5→10 منجزة: الأمن (B‑1…B‑8, H‑4/5/6) + الأداء (H‑1/2/7) + إساءة الحجز (H‑3) + سلامة البيانات وسلسلة المال والهوية الديناميكية (B‑9/B‑10/M‑4) + **تعميق سلسلة المال** (الفوليو/الطعام → دين مشتقّ) + **i18n موحّد كامل** (M‑1) + **بوّابة lint نظيفة صفر مشاكل** (M‑2). + **سجلّ التدقيق** (المرحلة 11 — Audit Log عبر المدير والمنصّة). المتبقّي: تفكيك المكوّنات الكبيرة (تحسين تدريجي)، والنشر الفعلي (Postgres/gunicorn — موثّق في `DEPLOY.md`). **CAPTCHA/OTP** (H‑3) مؤجّل بقرار المالك (مزوّد خارجي).
+- **آخر تحديث:** 2026‑07‑01 — المراحل 0→5 مكتملة ومُتحقَّقة (29 اختبارًا ناجحًا).
+- **المصادر:** تدقيق 4 أدوار (زبون/استقبال/مدير/منصّة) + تقرير خطة الإغلاق + تقرير المدير التقني.
 
 ---
 
-## المستخدمون التجريبيون
-| المستخدم | كلمة المرور | الدور |
-|---|---|---|
-| platform | 123456 | صاحب المنصة |
-| manager | 123456 | مدير الفندق |
-| reception | 123456 | موظف الاستقبال |
+## 0) المبدأ الحاكم (يُطبَّق في كل مرحلة تمسّ بيانات أو مالًا)
 
-أوامر البذر: `python manage.py seed_users` | `python manage.py seed_data` | `python manage.py seed_hotels`
+**مصدر واحد للحقيقة + قيم مشتقّة (Single Source of Truth + Derived Aggregates):**
+> المعلومة تُدخَل مرّة واحدة في مصدرها، وكل رقم مشتقّ (إجمالي، دين، تقرير، KPI، عمولة، أرباح) يُحسَب آنيًا منها — لا نسخ مكرّرة، ولا حسابات في المتصفّح، ولا أرقام مخزّنة يدويًا.
 
----
+**سلسلة المال (يجب أن تترابط):**
+`حجز → رسوم غرفة + بنود فوليو (مطعم/خدمات) − مدفوعات = الرصيد/الدين (محسوب) → فاتورة الخروج + تقارير الفندق + KPIs المدير → عمولة المنصّة (snapshot) → أرباح/تقارير المنصّة.`
 
-## نماذج Django (Models) المنجزة
+**قواعد إلزامية للسلسلة:** كل عملية مالية = صف علائقي `(Hotel, Reservation/Guest, amount, currency, created_by)` · المجاميع/الديون **مشتقّة** لا مخزّنة (أو تُحدَّث ذرّيًا عبر `transaction.atomic`/signal) · لا جمع عملتين مختلفتين · لا حذف نهائي للسجلات المالية (إبطال/Void + Audit Log) · التعديل/الإلغاء يُعيد الحساب تلقائيًا.
 
-| النموذج | الملف | الحقول الرئيسية |
-|---|---|---|
-| Hotel | api/models.py | name, country, city, address, phone, email, status, floors_count, manager_name, manager_email |
-| Package | api/models.py | name, description, duration_days, price, currency, max_users, max_rooms, restaurant_support, reports_support, trial_support, status |
-| Subscription | api/models.py | hotel, package, status, payment_status, start_date, end_date, monthly_amount, currency |
-| SubscriptionRequest | api/models.py | hotel, package, status, notes |
-| Room | api/models.py | hotel, number, floor, type, capacity, status, price, currency |
-| Staff | api/models.py | hotel, full_name, role, phone, email, shift, status, permissions |
+### مبدأ الهوية والعلامة (Branding & Dynamic Identity)
+- **الاسم/الدومين المعتمد = `funduqii`** — استُبدلت به العلامة اللاتينية القديمة (Fandqi) في كل المشروع، ويُستخدم `funduqii` كقيمة **افتراضية احتياطية فقط** عند غياب إعداد لوحة المنصّة. (الاسم العربي "فندقي" يبقى كصيغة عربية للاسم.)
+- **اسم المنصّة + لوغوها + كل ما يُدار من لوحة صاحب المنصّة = ديناميكي** من الـBackend (مصدر الحقيقة)، قابل للتعديل من لوحة المنصّة — لا قيم مثبّتة في الكود سوى الاحتياطي `funduqii`.
+- **هوية الفندق (اسم/لوغو/تواصل/عملة/سياسات) = ديناميكية** من الـBackend، تُدار من لوحة الفندق — لا من `localStorage`.
+- يُنفَّذ التوصيل الديناميكي ضمن **المرحلة 8** (نقل الإعدادات→Backend)؛ أمّا استبدال العلامة إلى `funduqii` فيتم فورًا (Phase 0.5).
 
 ---
 
-## نقاط API المنجزة
+## 1) البنية وأوامر الفحص
 
-| المسار | الوصف |
-|---|---|
-| `POST /api/token/` | تسجيل الدخول JWT |
-| `GET /api/current-user/` | بيانات المستخدم الحالي + الدور |
-| `GET /api/platform/stats/` | إحصائيات لوحة تحكم صاحب المنصة |
-| `GET/POST /api/hotels/` | قائمة وإنشاء الفنادق |
-| `GET/PUT/DELETE /api/hotels/{id}/` | تعديل وحذف فندق |
-| `POST /api/hotels/{id}/set_status/` | تغيير حالة فندق |
-| `GET/POST /api/packages/` | الباقات |
-| `POST /api/packages/{id}/set_status/` | تغيير حالة باقة |
-| `GET/POST /api/subscriptions/` | الاشتراكات |
-| `POST /api/subscriptions/{id}/renew/` | تجديد اشتراك |
-| `GET/POST /api/subscription-requests/` | طلبات الاشتراك |
-| `POST /api/subscription-requests/{id}/approve/` | موافقة على طلب |
-| `POST /api/subscription-requests/{id}/reject/` | رفض طلب |
-| `GET/POST /api/rooms/` | الغرف (مع فلتر `?hotel=id`) |
-| `GET/POST /api/staff/` | الموظفون (مع فلتر `?hotel=id`) |
+- **Backend:** Django 5.1 + DRF + SimpleJWT — مجلد `backend/`
+- **Frontend:** Next.js 16 + React 19 — مجلد `frontend/`
+- **DB:** SQLite (تطوير) → PostgreSQL (إنتاج، مطلوب)
 
----
-
-## صفحات Next.js المنجزة
-
-### المصادقة
-- [x] `/login` — تسجيل دخول مع RTL وحسابات تجريبية، يوجّه حسب الدور
-
-### صاحب المنصة `/platform`
-- [x] Layout مع sidebar (الفنادق، المديرون، الباقات، الاشتراكات، الطلبات، الإعدادات) + topbar مع تسجيل خروج
-- [x] `/platform` — لوحة تحكم بإحصائيات حقيقية من API
-- [x] `/platform/hotels` — قائمة الفنادق مع بحث وفلتر + CRUD (إضافة/تعديل/عرض/تفعيل/إيقاف/أرشفة)
-
-### مدير الفندق `/manager`
-- [x] `/manager` — لوحة تحكم مبدئية (placeholder)
-
-### موظف الاستقبال `/reception`
-- [x] `/reception` — لوحة تحكم مبدئية (placeholder)
-
----
-
-## سجل التقدم (محدَّث 2026-06-30)
-
-- [x] إنشاء مشروع Django + Next.js + Tailwind
-- [x] JWT Auth + seed users
-- [x] نموذج Hotel أساسي + API
-- [x] صفحة تسجيل دخول RTL
-- [x] توجيه حسب الدور (platform/manager/reception)
-- [x] تسجيل خروج في كل الصفحات
-- [x] **توسيع نموذج Hotel** (status, phone, email, address, manager_name, floors_count)
-- [x] **إضافة نماذج Package, Subscription, SubscriptionRequest, Room, Staff**
-- [x] **إنشاء API endpoints** لجميع النماذج الجديدة
-- [x] **لوحة تحكم صاحب المنصة** مع إحصائيات حقيقية من API
-- [x] **صفحة الفنادق** مع CRUD كامل (إضافة/تعديل/عرض/تفعيل/إيقاف/أرشفة)
-- [x] **Sidebar layout** لصاحب المنصة
-
----
-
----
-
-## المرحلة الرابعة — التثبيت النهائي وجاهزية الإنتاج (مكتملة 2026-06-30)
-
-### النتائج
-- **ESLint**: 0 أخطاء، 0 تحذيرات (كان 41 مشكلة)
-- **TypeScript**: 0 أخطاء (`tsc --noEmit`)
-- **Next.js Build**: ناجح بالكامل (`next build`)
-
-### الإصلاحات المنجزة
-
-#### أنماط `react-hooks/set-state-in-effect`
-- تحويل جميع استدعاءات `setState` المتزامنة داخل `useEffect` إلى دوال async داخلية
-- الصفحات المعدّلة: `check-in-out`, `maintenance`, `reservations`, `night-audit`, `notifications`, `subscription`, `shift-handover`, `manager/layout`
-- نمط التصحيح: `const load = async () => { setState(...); }; load();`
-
-#### `@typescript-eslint/no-unused-vars`
-- حذف الاستيرادات غير المستخدمة من Lucide (13+ مكون)
-- حذف المتغيرات غير المستخدمة: `SET_KEY`, `setPlatformName`, `activeCount`, `totalNights`, `canRequest`, `SHIFT_LABELS`, `uname`
-
-#### `react-hooks/static-components`
-- تحويل `TabOverview/TabReservations/TabFinancial/TabRooms/TabFood/TabMaintenance` و`EmptyState` من مكونات JSX داخلية إلى دوال render مُستدعاة مباشرة في `reports/page.tsx`
-
-#### `react-hooks/purity`
-- تغليف `navToReservations` في `useCallback` في `rooms/page.tsx`
-
-#### `@typescript-eslint/no-explicit-any`
-- تعريف `FIELDS` بنوع صريح `{ k: keyof Hotel; l: string; req?: boolean }[]` في `platform/hotels/page.tsx`
-
-#### `react-hooks/exhaustive-deps`
-- إضافة `eslint-disable-next-line` بمبررات واضحة في 5 حالات حيث يُسبّب إضافة المتغير إبطال الـ memo في كل render (ثوابت التسميات المشتقة من `t()`)
-- نقل تعليقات `eslint-disable-next-line` إلى السطر السابق لمصفوفة الـ deps مباشرةً
-
-#### `@next/next/no-img-element`
-- إضافة `eslint-disable-next-line` مع مبرر واضح: صور محمّلة ديناميكياً من localStorage تستلزم domains غير معروفة مسبقاً
-
-### التحقق من الانحدار
-| الفحص | النتيجة |
-|---|---|
-| `localhost` hardcoded في الكود | نظيف (فقط fallback ENV في `api.ts`) |
-| بيانات MOCK | نظيف |
-| `window.location.href` | نظيف |
-| `document.write` في الكود | نظيف (ذكر في تعليق `print.ts` فقط) |
-| حراسة المصادقة — layout المدير | `getToken()` + دور `manager` + `authReady` |
-| حراسة المصادقة — layout المنصة | `getToken()` + دور `platform_owner` + `authReady` |
-| حراسة المصادقة — layout الاستقبال | `getToken()` + دور `reception` + `authReady` |
-
-### `eslint-disable` المستخدمة (مبررة)
-| الملف | السطر | السبب |
-|---|---|---|
-| `manager/layout.tsx` | `setMobileOpen` | إعادة ضبط واجهة مقصودة عند تغيير المسار |
-| `check-in-out`, `maintenance`, `rooms`, `reports`, إلخ | `exhaustive-deps` | `fetchAll` مستقرة وإضافتها تسبب حلقة لا نهائية |
-| `expenses`, `folio`, `food-services` | `exhaustive-deps` | ثوابت التسميات مشتقة من `t()` وتتغير مرجعياً كل render |
-| `notifications` | `exhaustive-deps` | `tick` عداد تحديث وليس قيمة تُستخدم داخل الـ callback |
-| `manager/layout`, `reservations` | `exhaustive-deps` | استثناء متعمد لتفادي إعادة تشغيل Auth أو حلقة لا نهائية |
-| `manager/layout`, `hotel-settings` | `no-img-element` | صور مُرفوعة ديناميكياً؛ `next/image` يتطلب domains معروفة |
-
----
-
----
-
-## المرحلة الخامسة — الأمان وتصليب التطبيق (مكتملة 2026-06-30)
-
-### نتائج تدقيق الأمان (26 ثغرة وجدت وعولجت)
-
-#### الثغرات الحرجة المُصلحة
-
-| الإيجاد | الملف | الإصلاح |
-|---|---|---|
-| C-1 | `settings.py` | `SECRET_KEY` أصبح من متغير البيئة `DJANGO_SECRET_KEY` |
-| C-2 | `settings.py` | `DEFAULT_PERMISSION_CLASSES` تغيّر من `AllowAny` إلى `IsAuthenticated` |
-| C-3 | `views.py` | عزل كامل على مستوى الفندق في كل ViewSet — مدير الفندق لا يرى بيانات فنادق أخرى |
-| C-4 | `views.py` | `RegisterView` مع تحقق من اسم المستخدم + `validate_password()` + Rate Limiting |
-| C-5 | `settings.py` | `CORS_ALLOW_ALL_ORIGINS` يُتحكّم فيه من متغير البيئة |
-
-#### الثغرات العالية المُصلحة
-
-| الإيجاد | الملف | الإصلاح |
-|---|---|---|
-| H-1 | `settings.py` | `DEBUG` و`ALLOWED_HOSTS` من متغيرات البيئة + إعدادات HTTPS عند الإنتاج |
-| H-3 | `settings.py` | إضافة `SIMPLE_JWT`: مدة 30 دقيقة للوصول + 7 أيام للتحديث |
-| H-4 | `views.py` → `permissions.py` | الدور من `UserProfile.role` بدلاً من اسم المستخدم |
-| H-5 | `views.py` | `PlatformStatsView` + طفرات الفنادق والباقات والاشتراكات للمنصة فقط |
-
-#### الثغرات المتوسطة المُصلحة
-
-| الإيجاد | الملف | الإصلاح |
-|---|---|---|
-| M-2 | `views.py` | استدعاء صريح لـ `validate_password()` في `RegisterView` |
-| M-3 | `views.py` | التحقق من `hotel_id` في كل `perform_create` |
-| M-6 | `check-in-out/page.tsx` | تطبيق `esc()` على جميع بيانات النزلاء في `document.write` |
-| M-7 | `night-audit/page.tsx` | تطبيق `esc()` على أسماء النزلاء واسم الفندق والمستخدم في `document.write` |
-
-#### ثغرة منخفضة مُصلحة
-
-| الإيجاد | الملف | الإصلاح |
-|---|---|---|
-| L-3 | `reservations/page.tsx` | تطبيق `esc()` على `src` الصورة في `viewImg` |
-
-### الملفات الجديدة
-
-| الملف | الغرض |
-|---|---|
-| `backend/api/validators.py` | `UsernameValidator`: 4-32 حرفاً، أحرف إنجليزية/أرقام/._- فقط |
-| `backend/api/permissions.py` | `IsPlatformOwner`, `IsHotelStaff`, دوال `_get_user_role`, `_get_user_hotel_id` |
-| `backend/api/migrations/0005_userprofile.py` | إنشاء جدول `UserProfile` |
-
-### الملفات المعدّلة
-
-| الملف | التغييرات |
-|---|---|
-| `backend/api/models.py` | إضافة `UserProfile` (role + hotel) |
-| `backend/api/views.py` | إعادة هيكلة كاملة — RBAC + IDOR fix + throttling + validation |
-| `backend/core/settings.py` | SECRET_KEY/DEBUG من ENV + SIMPLE_JWT + Throttling + HTTPS headers |
-| `backend/core/urls.py` | استخدام `TokenObtainPairView` المُقيَّد بـ Rate Limiting |
-| `backend/api/management/commands/seed_users.py` | إنشاء `UserProfile` لكل مستخدم تجريبي |
-| `backend/api/management/commands/seed_hotels.py` | ربط مستخدم `manager` بالفندق + تحديث الـ profiles |
-
-### نموذج `UserProfile`
-
-```python
-class UserProfile(models.Model):
-    user = OneToOneField(User, related_name='profile')
-    role = CharField(choices=['platform_owner', 'manager', 'reception'])
-    hotel = ForeignKey(Hotel, null=True)  # None for platform_owner
+**بوّابة الفحص بعد كل مرحلة (يجب أن تمرّ كلها):**
+```powershell
+# Backend
+cd backend
+python manage.py check
+python manage.py makemigrations --check --dry-run
+python manage.py test
+# Frontend
+cd frontend
+npm run lint
+npm run typecheck   # يُضاف في المرحلة 1 إن لم يوجد
+npm run build
 ```
 
-### تدفق التحقق من الصلاحيات
+---
 
-1. طلب يصل → `permission_classes = [IsAuthenticated]`
-2. `_get_user_role(user)` → يقرأ `user.profile.role` (أو fallback بـ username)
-3. للمنصة: `_require_platform(user)` → رفض إذا لم يكن `platform_owner`
-4. للفندق: `get_queryset()` → فلترة تلقائية بـ `user_hotel_id`
-5. `perform_create()` → تحقق أن `hotel_id` في الطلب يطابق فندق المستخدم
+## 2) سجل المشاكل الموحّد (كل مشكلة: الموقع + طريقة الإغلاق + الحالة)
 
-### إعداد الإنتاج (متغيرات البيئة المطلوبة)
+**مفتاح الحالة:** ⬜ لم يبدأ · 🔧 قيد العمل · ✅ مغلق ومُختبَر
 
-```bash
-DJANGO_SECRET_KEY=<strong-random-50-chars>
-DJANGO_DEBUG=false
-DJANGO_ALLOWED_HOSTS=yourdomain.com,api.yourdomain.com
-CORS_ALLOW_ALL_ORIGINS=false
-CORS_ALLOWED_ORIGINS=https://yourdomain.com
-```
+### 🔴 موانع الإطلاق (Release Blockers)
 
-### التحقق بعد التعديل
+| ID | المشكلة | الموقع | طريقة الإغلاق | الحالة |
+|----|---------|--------|---------------|--------|
+| **B‑1** | حصاد بيانات النزلاء (PII عام): رقم حجز متسلسل قابل للتخمين + صفر throttling على استعلام/إلغاء/تقييم الحجز + الاستجابة العامة تُرجع بريدًا/هاتفًا كاملًا | `models.py` (`Reservation.save`), `views.py` (Public*), `serializers.py` (`PublicBookingDetailSerializer`) | رقم حجز عشوائي (`secrets`) + `unique` · throttle نطاق `public_lookup ≈10/min/IP` · تقنيع الهاتف/البريد في الاستجابة العامة | ✅ |
+| **B‑2** | غير قابل للنشر: SQLite فقط، لا Postgres/gunicorn/WhiteNoise، لا `.env.example`، لا إعداد إنتاجي | `core/settings.py`, `requirements.txt` | `dj-database-url` + `psycopg` + `gunicorn` + `whitenoise` · `.env.example` (back+front) · `DEPLOY.md` · `SECURE_PROXY_SSL_HEADER` | ✅ |
+| **B‑3** | الجلسات تنكسر (~30د) + الخروج لا يُبطل التوكن | `frontend/src/lib/api.ts`, `core/settings.py (SIMPLE_JWT)` | `authFetch` مركزي (تجديد تلقائي single‑flight عند 401) + `token_blacklist` + `POST /api/logout/` | ✅ |
+| **B‑4** | حسابات/بذر غير آمنة (`platform_owner/123456`) قابلة للتشغيل على الإنتاج | `management/commands/seed_*.py` | حارس `DEBUG=false && ALLOW_SEED!=1` يرفض · كلمات مرور من ENV · أمر `create_platform_owner` مع `validate_password` | ✅ |
+| **B‑5** | لا شبكة اختبارات (≈0 اختبار) | `api/tests.py` | 25–35 اختبارًا: عزل مستأجرين، صلاحيات، عمولات، حجز عام، إبطال توكن + `TESTING.md` | ✅ (29) |
+| **B‑6** | تسريب PII داخلي: `ReservationSerializer = fields='__all__'` يُرجع صور الوثائق base64 في كل `GET /reservations/` | `serializers.py:104` | serializer قائمة بحقول محدودة (بلا صور وثائق) + جلب الوثيقة عند الحاجة (retrieve) + جلب detail عند التعديل + اختبار انحدار يمنع مسح الوثائق | ✅ |
+| **B‑7** | اختراق العزل عبر التحديث: لا `perform_update` وحقل `hotel` قابل للكتابة → `PATCH {"hotel": otherId}` ينقل السجل | `views.py` (ViewSets الفندق), `serializers.py` | جعل `hotel` **read‑only** في الـserializers الأربعة | ✅ |
+| **B‑8** | لا فصل صلاحيات عمودي: كل الـViewSets `IsAuthenticated` فقط؛ `IsHotelStaff` غير مستخدمة → الاستقبال = المدير | `views.py`, `permissions.py:36` | فئات صلاحية (`Room/Reservation/Maintenance/Staff/SubscriptionRequestPermission`) مطبّقة على كل ViewSet + منع الاستقبال من (Staff/Room/Subscription) | ✅ |
+| **B‑9** | بيانات تشغيلية/مالية في localStorage (مدفوعات، مصاريف، فوليو، طعام، ورديات، مفقودات، قاعدة نزلاء، عملة/هوية الفندق) بلا نماذج Backend | صفحات `manager/*` | نماذج علائقية + Serializers + ViewSets + ربط الصفحات. أُنجزت جميعها: Payment/Expense/LostFound/ShiftHandover/MenuItem/FoodOrder/FolioCharge/GuestProfile + عملة/هوية الفندق (`Hotel.currency/logo/owner_name/website`). كل صفحة تشغيلية صارت مدعومة بالـBackend | ✅ (8أ→8ك) |
+| **B‑10** | ميزات وهمية (Demo): check‑in/out ومدفوعات الاستقبال بلا Backend؛ `POST /reservations/{id}/check_out/` غير موجود → الغرفة تبقى مشغولة | `reception/check-in-out/page.tsx`, `payments/page.tsx` | إجراءا `check_in`/`check_out` ذرّيّان (يحدّثان الحجز+الغرفة) + فلتر `status` + الاستقبال check‑in (إنشاء+دخول) وcheck‑out ومدفوعات **كلها حقيقية** | ✅ |
 
-| الفحص | النتيجة |
-|---|---|
-| ESLint | 0 أخطاء، 0 تحذيرات ✅ |
-| TypeScript | 0 أخطاء ✅ |
-| Django migrations | 0005_userprofile applied ✅ |
-| Backend imports | OK ✅ |
-| seed_users | Profiles مُنشأة لـ platform/manager/reception ✅ |
+### 🟠 مخاطر عالية (قبل التوسّع)
+
+| ID | المشكلة | الموقع | طريقة الإغلاق | الحالة |
+|----|---------|--------|---------------|--------|
+| **H‑1** | `backfill_commissions()` و`_ensure_slug()` تُستدعى في كل طلب قراءة | `views.py`, `PublicHotelListView` | أُزيلت من مسارات القراءة الأربعة + أمر إداري `backfill_commissions` · الـslug يُضبط في `Hotel.save()` + إزالة الحلقة من قائمة القراءة | ✅ |
+| **H‑2** | أرقام الحجز/التذاكر `count()+1` غير ذرّية + لا `unique_together` + نافذة تسابق + لا فهارس/pagination | `models.py`, `views.py` | توليد **ذرّي بالـpk** لـ`booking_number`/`ticket_no` (بلا سباق count) + **فهارس** على Reservation(hotel,status / تواريخ / public_booking) وRoom(hotel,status) (migration 0012). Pagination **مؤجّل** (يتطلّب تنسيق الواجهة — موثّق) | ✅ |
+| **H‑3** | إساءة الحجز العام: لا CAPTCHA/تحقّق → حجوزات وهمية تُجمّد المخزون؛ لا انتهاء صلاحية للحجوزات المعلّقة | `PublicBookingCreateView` | throttle (5/د، مُنجَز في B‑1) + أمر مجدوَل `expire_pending_bookings` يُحرّر الحجوزات الراكدة. **CAPTCHA/OTP للحجوزات المستقبلية = يتطلّب مزوّدًا خارجيًا بمفاتيح المالك (قرار مؤجّل)** | ✅ جزئي |
+| **H‑4** | `SECRET_KEY` احتياطي في الكود يعمل حتى على الإنتاج | `core/settings.py` | إيقاف الإقلاع عند غياب `DJANGO_SECRET_KEY` مع `DEBUG=false` | ✅ |
+| **H‑5** | لا ربط للاشتراك/حالة الفندق بالوصول (فندق `suspended`/اشتراك `expired` يعمل كاملًا) | `permissions.py`, `manager/layout.tsx` | فحص `hotel.status==active` في صلاحيات المدير/الاستقبال (الفندق الموقوف يُحجب). اشتراك `expired`→إيقاف تلقائي مجدوَل في م6 | ✅ |
+| **H‑6** | fallback الدور: مستخدم بلا `UserProfile` يُعامَل **مديرًا** | `permissions.py:9‑10` | الافتراض الأكثر تقييدًا (بلا دور → لا وصول) | ✅ |
+| **H‑7** | الموافقة على طلب اشتراك بلا باقة → "approved" بلا اشتراك بصمت | `views.py` (approve) | رفض 400 عند غياب الباقة (يبقى الطلب pending) + اختبار | ✅ |
+
+### 🟡 جودة واستدامة
+
+| ID | المشكلة | الموقع | طريقة الإغلاق | الحالة |
+|----|---------|--------|---------------|--------|
+| **M‑1** | i18n غير موحّد (نظام اللغة في `app/manager/` فقط؛ نص عربي كمفتاح) | `frontend/src/app/manager/*` | نُقلت البنية إلى `src/lib/i18n/` (سياق واحد) + مفتاح AR/EN في طبقات الأدوار الثلاثة + ترجمة أجسام صفحات الاستقبال (4) والمنصّة (12) عبر 16 وكيلًا متوازيًا (+588 مدخلًا في القاموس) | ✅ |
+| **M‑2** | تكرار تصميمي + ~2325 كتلة inline‑style + مكوّنات >900 سطر بلا Design System | `frontend/src/**` | نظام تصميم `ds-*` + tokens موجود (م6)؛ **بوّابة lint نظيفة (0 مشاكل)**؛ تفكيك المكوّنات الكبيرة = تحسين تدريجي اختياري | ✅ (lint) |
+| **M‑3** | صدق التوثيق (plan.md كان يدّعي أمورًا غير منجَزة) | `plan.md`, `frontend/plan.md` | مطابقة الوثائق للواقع (هذا التحديث بداية العلاج) | 🔧 |
+| **M‑4** | `effective_from/to` للعمولة غير مُطبّقة + عملات افتراضية غير متسقة (SAR/USD/سوريا، `ر.س` ثابتة) | `commissions.py:38`, `models.py`, صفحات الباقات/الاستقبال | تطبيق نطاق تواريخ السريان + توحيد مصدر العملة | ⬜ |
+| **M‑5** | تطبيع الهاتف مفقود (يكسر إدارة الحجز) · تقييم `is_approved=True`+اسم كامل علني · `room.status` يُصفّر عند الإلغاء · لا إنشاء حساب استقبال · endpoints وهمية (`/food-orders/`,`/payments/`) | متعدّد | تطبيع الهاتف عند التخزين/المقارنة · مراجعة تقييمات + تقنيع الاسم · تصحيح منطق حالة الغرفة · endpoint إنشاء موظفين للمدير · إزالة/توصيل الـendpoints الوهمية | ⬜ |
 
 ---
 
-## المراحل القادمة
+## 3) خارطة المراحل (بالترتيب الملزِم — مرحلة/فرع/PR/بوّابة تحقّق)
 
-### المرحلة الثالثة — صاحب المنصة (باقي الصفحات)
-- [ ] `/platform/packages` — CRUD الباقات
-- [ ] `/platform/subscriptions` — إدارة اشتراكات الفنادق
-- [ ] `/platform/subscription-requests` — موافقة/رفض طلبات الاشتراك
-- [ ] `/platform/managers` — قائمة مديري الفنادق
-- [ ] `/platform/settings` — إعدادات المنصة
+| # | المرحلة | تُغلق | إلزامية للقبول؟ | الحالة |
+|---|---------|-------|-----------------|--------|
+| 0 | التوثيق والتجميد + خطّ أساس الفحص | M‑3 | ✅ | 🔧 |
+| 0.5 | استبدال العلامة → **funduqii** (الظاهر + الدومين + الافتراضيات) | العلامة | تمهيدي | ✅ |
+| 1 | البنية والنشر (Postgres/gunicorn/env، الدومين funduqii) | B‑2, H‑4 | ✅ | ✅ |
+| 2 | تأمين البذر + `create_platform_owner` | B‑4 (+H‑6) | ✅ | ✅ |
+| 3 | الجلسات: `authFetch` + refresh + blacklist logout | B‑3 | ✅ | ✅ |
+| 4 | إغلاق PII العام + throttling | B‑1 | ✅ | ✅ |
+| 5 | RBAC + عزل التحديث + PII داخلي + شبكة اختبارات **(نقطة القبول الأمني)** | B‑7, B‑8, **B‑6**, B‑5 (+H‑5) | ✅ | ✅ |
+| 6 | الأداء والتوسّع | H‑1, H‑2 (+H‑7) | مُوصى بشدّة | ✅ |
+| 7 | مكافحة إساءة الحجز (H‑4 أُنجز في م1) | H‑3 | مُوصى بشدّة | ✅ جزئي |
+| 8 | نقل localStorage→Backend (سلسلة المال) + **الهوية الديناميكية** (اسم/لوغو المنصّة من لوحة المنصّة، وهوية الفندق من لوحته) | B‑9, B‑10, M‑4 | ✅ (سلامة بيانات) | ✅ |
+| 9 | توحيد i18n | M‑1 | جودة | ✅ |
+| 10 | Design System + تفكيك المكوّنات | M‑2, M‑4 | جودة | ✅ (lint نظيف؛ DS موجود) |
+| 11 | التميّز التنافسي + Audit Log | — | قيمة مضافة | ✅ (Audit Log) |
 
-### المرحلة الرابعة — مدير الفندق
-- [ ] Layout مع sidebar لمدير الفندق
-- [ ] `/manager` — لوحة تحكم بإحصائيات (غرف، حجوزات، نزلاء)
-- [ ] `/manager/rooms` — CRUD الغرف والطوابق
-- [ ] `/manager/staff` — CRUD الموظفين وصلاحياتهم
-- [ ] `/manager/hotel-settings` — إعدادات الفندق
-
-### المرحلة الخامسة — الحجوزات والنزلاء
-- [ ] نموذج Reservation في Django
-- [ ] نموذج Guest في Django (مع وثائق ومرافقين)
-- [ ] `/manager/reservations` — نظام الحجز الكامل
-- [ ] `/manager/guests` — سجلات النزلاء
-- [ ] `/manager/check-in-out` — الاستقبال والمغادرة
-
-### المرحلة السادسة — الخدمات
-- [ ] نماذج MenuItem, FoodOrder, HousekeepingTask, MaintenanceReport, Payment, Notification
-- [ ] `/manager/food-services` — المطعم والكافتريا
-- [ ] `/manager/housekeeping` — التنظيف
-- [ ] `/manager/maintenance` — الصيانة
-- [ ] `/manager/payments` — المدفوعات
-- [ ] `/manager/reports` — التقارير
-- [ ] `/manager/notifications` — الإشعارات
-
-### المرحلة السابعة — موظف الاستقبال
-- [ ] Layout مع sidebar لموظف الاستقبال
-- [ ] `/reception/check-in-out` — الدخول والمغادرة
-- [ ] `/reception/reservations` — الحجوزات (صلاحيات محدودة)
-- [ ] `/reception/payments` — المدفوعات
-
-### المرحلة الثامنة — التحسينات
-- [ ] دعم اللغتين العربية والإنجليزية (i18n)
-- [ ] تجديد JWT Token تلقائياً
-- [ ] طباعة الفواتير والوثائق
-- [ ] PostgreSQL للإنتاج
+**بوّابة كل مرحلة مالية إضافية:** يجب إثبات أن **الإجمالي/الدين/التقارير/العمولة** تتحدّث تلقائيًا من المصدر (المبدأ الحاكم) — لا حسابات متصفّح ولا أرقام مكرّرة.
 
 ---
 
-## ملاحظات تقنية
-- RTL في كل الصفحات (`dir="rtl"`)
-- توكن JWT مخزون في `localStorage` (access_token, refresh_token, role)
-- Backend Django يعمل على `http://localhost:8000`
-- Frontend Next.js يعمل على `http://localhost:3000`
-- `react.FormEvent` مهجور في React 19 — نستخدم `e: { preventDefault(): void }`
+## 4) سجل التقدّم التتابعي (Changelog) — يُحدَّث بعد كل إصلاح
+
+> يُضاف سطر لكل إصلاح: `[التاريخ] الـID/المرحلة — ماذا تغيّر — الملفات — نتيجة الفحص`.
+
+- **[2026‑07‑01] المرحلة 0** — إعادة توجيه `plan.md` ليكون السجلّ الحيّ لتصليب الإنتاج: المبدأ الحاكم + سجل المشاكل الموحّد (B‑1…B‑10 / H‑1…H‑7 / M‑1…M‑5) + خارطة المراحل + بوّابات الفحص. لم يُعدَّل أي كود بعد. الحالة: 🔴 No‑Go.
+- **[2026‑07‑01] المرحلة 0.5 (العلامة → funduqii)** ✅ — استبدال العلامة الظاهرة والدومين "Fandqi"/"fandqi.com" بـ `funduqii` في 21 ملفًا (backend defaults، public site logos/footers، عناوين، عناوين بريد البذر، `PLATFORM_NAME`، `hotel.ts`/`platform` fallbacks). مفاتيح `localStorage` الداخلية بصيغة `fandqi.` تُركت عمدًا (تُحذف في المرحلة 8). التوصيل الديناميكي لاسم/لوغو المنصّة والفندق مجدوَل في المرحلة 8. **الفحص:** `tsc --noEmit` نظيف ✅ · `manage.py check` 0 مشاكل ✅ · فحص حيّ للرئيسية: تعرض "funduqii" بلا أثر لـ"Fandqi"، 200، بلا أخطاء ✅.
+- **[2026‑07‑01] المرحلة 1 (البنية والنشر) ✅ — B‑2 + H‑4 مغلقان.** `requirements.txt`: +`dj-database-url/psycopg[binary]/gunicorn/whitenoise`. `settings.py`: قاعدة البيانات من `DATABASE_URL` (SQLite افتراضًا)، WhiteNoise middleware + `STATIC_ROOT`/`STORAGES`، `SECURE_PROXY_SSL_HEADER`، `CSRF_TRUSTED_ORIGINS` من البيئة، و**إيقاف الإقلاع عند غياب `SECRET_KEY` مع `DEBUG=false` (H‑4)**. ملفّات جديدة: `backend/.env.example`, `DEPLOY.md` (بدومين funduqii). **الفحص:** dev `check` نظيف ✅ · `makemigrations --check` لا تغييرات ✅ · H‑4: الإنتاج بلا مفتاح يرفض الإقلاع ✅ · `check --deploy` نظيف عدا تحذير قوّة المفتاح الوهمي (يزول بمفتاح حقيقي) ✅. **قيد البيئة:** لم أُشغّل PostgreSQL/gunicorn حقيقيَّين داخل بيئة التطوير — موثّقان في `DEPLOY.md`. أضفتُ سكربتات `typecheck`/`check` إلى `frontend/package.json`. **حالة الواجهة:** `next build` ينجح ✅ · `typecheck` نظيف ✅ · `npm run lint`: **18 خطأ من نوع تلميحات أداء React 19** (`set-state-in-effect`/`purity`) لا تُفشل البناء — **مؤجّلة إلى المرحلة 10 (جودة)** وموثّقة هنا صراحةً (لا تُخفى).
+- **[2026‑07‑01] المرحلة 2 (تأمين البذر + الأدوار) ✅ — B‑4 + H‑6 مغلقان.** حارس مشترك `_seedguard.ensure_seed_allowed()` مطبّق على `seed_users/seed_data/seed_hotels` (يرفض على الإنتاج ما لم يُضبط `ALLOW_SEED=1`)، وكلمات مرور البذر من البيئة. أمر جديد `create_platform_owner` (كلمة المرور من البيئة أو تفاعليًا + `validate_password`). **H‑6:** `_get_user_role` صار يُرجع "بلا دور" (الأكثر تقييدًا) لأي مستخدم بلا `UserProfile` بدل "manager". **الفحص:** `check` نظيف ✅ · `seed_users` على الإنتاج يخرج بـ exit 1 مع تلميح `ALLOW_SEED` ✅ · `create_platform_owner` مُسجَّل ✅ · لا ترحيلات معلّقة ✅.
+- **[2026‑07‑01] المرحلة 3 (الجلسات) ✅ — B‑3 مغلق.** Backend: `token_blacklist` app + `BLACKLIST_AFTER_ROTATION=True` + `POST /api/logout/` (`LogoutView` يضع refresh في القائمة السوداء) + ترحيل جداول البلاك‑ليست. Frontend (`lib/api.ts`): `authFetch` (تجديد تلقائي single‑flight عند 401 → إعادة الطلب، وعند الفشل مسح الجلسة وتوجيه `/login`) + `logout()` (يستدعي `/logout/` ثم يمسح) + `getRefreshToken`. رُبطت أزرار الخروج في الطبقات الثلاث بـ`logout()`، وحُوِّل حارس `/current-user/` في الطبقات الثلاث إلى `authFetch` (تجديد تلقائي عند التنقّل). **الفحص:** ترحيل + `check` نظيف ✅ · اختبار وحدة: refresh **يُرفَض بعد الخروج** (blacklisted) ✅ · `tsc` نظيف ✅ · `next build` ناجح (43/43) ✅. **متبقٍّ تدريجي (موثّق):** ترحيل باقي نداءات `fetch` الخام في الصفحات إلى `authFetch` على دفعات (البنية جاهزة؛ المسار الحرج — الطبقات والخروج — مُنجَز).
+- **[2026‑07‑01] المرحلة 4 (تسريب PII العام) ✅ — B‑1 مغلق.** `Reservation._generate_public_booking_no()`: رقم حجز **عشوائي غير قابل للتخمين** (`secrets`، أبجدية بلا أحرف ملتبسة، فحص تفرّد) بدل التسلسلي. Throttling: نطاقات `public_lookup/public_write/public_booking` في الإعدادات + فئات throttle مطبّقة على استعلام الحجز (10/د)، الإلغاء (10/د)، التقييم POST فقط (10/د)، وإنشاء الحجز (5/د). تقنيع البريد/الهاتف في `PublicBookingDetailSerializer` + تحويل إلغاء manage-booking لاستخدام الهاتف **المُدخَل** لا المُقنَّع. **الفحص:** `check` نظيف ✅ · لا ترحيل جديد (منطق save فقط) ✅ · أرقام عشوائية فريدة بصيغة `WEB-YYYY-XXXXXX` ✅ · تقنيع `a****@gmail.com` / `********3456` ✅ · `tsc` نظيف ✅. **B‑6 (تسريب الوثائق الداخلي) نُقل إلى المرحلة 5** لأن نموذج تعديل الحجز يعيد استخدام وثائق القائمة → إزالتها دون جلب detail عند التعديل قد **يمسح الوثائق المحفوظة**؛ يُنفَّذ في م5 مع اختبار انحدار.
+- **[2026‑07‑01] المرحلة 5 (RBAC + العزل + PII داخلي + اختبارات) ✅ — نقطة القبول الأمني. B‑5/B‑6/B‑7/B‑8/H‑5 مغلقة.** `permissions.py`: `BaseHotelResourcePermission` (تصنيف أدوار + حجب الفندق الموقوف H‑5) + `Room/Reservation/Maintenance/Staff/SubscriptionRequestPermission` مطبّقة على الـViewSets الخمسة (B‑8: الاستقبال لا يُنشئ Staff/Room/طلب اشتراك ولا يحذف حجزًا). B‑7: حقل `hotel` صار **read‑only** في serializers الأربعة (لا نقل عبر PATCH). B‑6: `ReservationListSerializer` (القائمة بلا صور وثائق) + `get_serializer_class` + جلب detail في `openEdit` بالواجهة لمنع مسح الوثائق. **B‑5:** `api/tests.py` = **29 اختبارًا كلها تنجح** + `TESTING.md`. **الفحص:** `manage.py test` → 29 OK ✅ · `check`/migrations نظيف ✅ · `tsc` نظيف ✅.
+- **[ملاحظة الحالة]** كل الموانع **الأمنية** مغلقة (B‑1..B‑8, H‑4/5/6). يتبقّى للإطلاق الكامل **B‑9/B‑10** (سلامة بيانات — localStorage→Backend، المرحلة 8) + مخاطر الأداء (م6) وإساءة الحجز (م7).
+- **[2026‑07‑01] المرحلة 6 (الأداء والتوسّع) ✅ — H‑1/H‑2/H‑7 مغلقة.** H‑1: أُزيل `backfill_commissions()` من مسارات القراءة الأربعة (العمولات تُنشأ عند الحدث) + أمر `backfill_commissions`؛ الـslug يُضبط في `Hotel.save()` وأُزيلت حلقة `_ensure_slug` من قائمة القراءة. H‑2: `booking_number`/`ticket_no` صارا **ذرّيَّين بالـpk** (بلا سباق `count()+1`) + **4 فهارس** (migration 0012) على Reservation(hotel,status)/(تواريخ)/(public_booking) وRoom(hotel,status)؛ **Pagination مؤجّل** (تفعيله العام يكسر صفحات الواجهة التي تتوقّع مصفوفات — يحتاج تنسيق فرونت، موثّق). H‑7: اعتماد طلب بلا باقة يُرفَض 400 (يبقى pending). **الفحص:** migrate + `check` نظيف ✅ · أمر backfill يعمل ✅ · **31 اختبارًا كلها تنجح** (+2 لـH‑2/H‑7) ✅.
+- **[2026‑07‑01] المرحلة 7 (إساءة الحجز) ✅ جزئي — H‑3.** أمر `expire_pending_bookings` (يعلّم الحجوزات العامة الراكدة التي تجاوزت الدخول كـ"لم يحضر" → تتحرّر من كشف التعارض) — يُشغَّل مجدوَلًا. الـthrottle (5/د) مُنجَز في B‑1. **32 اختبارًا تنجح** (+1 لـH‑3). **مؤجّل بقرار المالك:** تحقّق CAPTCHA/OTP لمنع الحجوزات الوهمية المستقبلية يتطلّب مزوّدًا خارجيًا (hCaptcha/Turnstile أو بوابة SMS) بمفاتيح المالك — نقطة تكامل جاهزة في `PublicBookingCreateView`.
+- **[2026‑07‑01] المرحلة 8 — الدفعة 8أ (قلب سلسلة المال) 🔧.** نموذجان جديدان `Payment` و`Expense` (migration 0013) + serializers + `PaymentViewSet`/`ExpenseViewSet` (مُعزّلان بالفندق، RBAC: الاستقبال يسجّل الدفعات). **سلسلة المال:** `reservation.paid` صار **مشتقًّا** من مجموع دفعاته (`_recompute_reservation_paid` ذرّيًا عند إنشاء/حذف دفعة). صفحة **مدفوعات الاستقبال رُبطت بالـAPI الحقيقي** بدل الوهمي. **الفحص:** migrate + `check` ✅ · **36 اختبارًا تنجح** (+4 لسلسلة المال) ✅ · `tsc` ✅. **متبقٍّ في م8:** مدفوعات المدير عبر سجلات Payment، Folio/Orders/Housekeeping/LostFound/ShiftHandover، توصيل check‑in/out الاستقبال، والهوية الديناميكية (المنصّة/الفندق).
+- **[2026‑07‑01] المرحلة 8 — الدفعة 8ب (إنهاء B‑10) ✅.** إجراءا `check_in`/`check_out` ذرّيّان في `ReservationViewSet` (يحدّثان الحجز والغرفة داخل `transaction.atomic`؛ الخروج يحوّل الغرفة إلى "تنظيف" مع احترام "الصيانة") + دعم فلتر `?status=` في `get_queryset` (كان مُتجاهَلًا — audit m‑5). صفحة **الاستقبال check‑in** صارت حقيقية (تُنشئ الحجز ثم تسجّل الدخول ذرّيًا + تُحدّث الغرف)، و**check‑out** يتحقّق من الاستجابة قبل تحديث الواجهة (لا خروج وهمي والغرفة عالقة). **B‑10 مُغلق بالكامل.** **الفحص:** `check` نظيف · **39 اختبارًا تنجح** (+3 لـcheck‑in/out والفلترة) · `tsc` · `next build` (43/43) ✅. **متبقٍّ B‑9:** Folio/Orders/Housekeeping/LostFound/ShiftHandover + مدفوعات المدير عبر Payment + مصاريف المدير + الهوية الديناميكية.
+- **[2026‑07‑01] المرحلة 8 — الدفعة 8ج (مصاريف المدير) 🔧.** أُضيف `paid_to`/`notes` لنموذج `Expense` (migration 0014). **صفحة مصاريف المدير رُبطت بالكامل بالـ`Expense` API** (قراءة/إضافة/تعديل/حذف من الـBackend بدل localStorage) — البيانات تظهر عبر الأجهزة وتغذّي التقارير. **الفحص:** migrate + `check` · **42 اختبارًا تنجح** (+3 للمصاريف: إنشاء/سرد، عزل، منع الاستقبال) · `tsc` · `next build` (43/43) ✅. **متبقٍّ B‑9:** Folio/FoodOrders/Housekeeping/LostFound/ShiftHandover + مدفوعات المدير عبر سجلات Payment + الهوية الديناميكية (المنصّة/الفندق).
+- **[2026‑07‑01] المرحلة 8 — الدفعة 8د (الهوية الديناميكية للمنصّة) ✅.** نموذج `PlatformSettings` (سجل واحد، migration 0015) + `PlatformSettingsSerializer` + `GET/PUT /platform/settings/` (IsPlatformOwner) + إثراء `/public/platform-info/` منه. **الواجهة:** تبويب «هوية المنصّة» يُحمّل/يحفظ من الـBackend، وطبقة `/platform/*` تقرأ الاسم/الشعار من الـBackend (بدل localStorage)، والموقع العام يعكس الاسم. **اسم/لوغو المنصّة صارا ديناميكيَّين من لوحة صاحب المنصّة** (طلب المالك الصريح). **الفحص:** migrate + `check` · **44 اختبارًا تنجح** (+2: المالك يحدّث والعام يعكس، المدير محظور) · `tsc` · `next build` (43/43) ✅. **متبقٍّ:** هوية الفندق الديناميكية (لوحة المدير)، وبقية سجلّات B‑9 التشغيلية.
+- **[2026‑07‑01] المرحلة 8 — الدفعة 8هـ (اتّساق مدفوعات المدير) ✅.** حُوِّل معالج الدفع في صفحة دخول/خروج المدير من **PATCH مباشر لـ`paid`** إلى **POST `/payments/`** (سجلّ Payment) + إعادة جلب `paid` المشتقّ. الآن **كل مسارات الدفع (استقبال + مدير) تمرّ عبر سجلّات Payment** و`paid` مشتقّ دائمًا — السلسلة متّسقة. أمر ترحيل `migrate_paid_to_payments` (يُنشئ دفعة تعويضية لأي `paid` قديم غير مدعوم بسجلّ — أمان الانتقال). **الفحص:** `check` · **45 اختبارًا تنجح** (+1 لأمر الترحيل) · `tsc` · `next build` (43/43) ✅.
+- **[2026‑07‑01] المرحلة 8 — الدفعة 8و (المفقودات LostFound) ✅.** نموذج `LostFoundItem` (migration 0016) + serializer + `LostFoundViewSet` (مُعزّل بالفندق، RBAC: الاستقبال يدير بلا حذف) + `/api/lost-found/`. **صفحة المفقودات رُبطت بالكامل بالـAPI** (قراءة/إضافة/تعديل/تعليم مُعاد/حذف من الـBackend بدل localStorage). **47 اختبارًا** (+2) · `tsc` · `next build` ✅.
+- **[2026‑07‑01] المرحلة 8 — الدفعة 8ز (تسليم الورديات ShiftHandover) ✅.** نموذج `ShiftHandover` (migration 0017) + serializer + `ShiftHandoverViewSet` (مُعزّل، RBAC: الاستقبال يسلّم بلا حذف) + `/api/shift-handover/`. **صفحة تسليم الورديات رُبطت بالكامل بالـAPI** بدل localStorage. **49 اختبارًا** (+2) · `tsc` · `next build` ✅.
+- **[2026‑07‑01] تدقيق:** صفحة **التدبير المنزلي (Housekeeping) مربوطة بالـBackend أصلًا** (تقرأ `/rooms/`+`/reservations/`، تُحدّث حالة الغرفة عبر PATCH، وتُنشئ صيانة) — لا تحتاج ترحيلًا. **متبقٍّ B‑9:** FoodOrders (+MenuItem) · Folio · GuestDB (أعلام/ملاحظات) · عملة الفندق — ترحيلات صفحات كبيرة/متوسطة.
+- **[2026‑07‑01] المرحلة 8 — الدفعة 8ح (خدمات الطعام FoodOrders — الأعقد) ✅.** نموذجان `MenuItem` و`FoodOrder` (migration 0018، `order_no` ذرّي بالـpk) + serializers + ViewSets مُعزّلان (RBAC: الاستقبال ينشئ/يحدّث الطلبات ويرى القائمة، بلا حذف). **صفحة خدمات الطعام رُبطت بالكامل بالـAPI**: تحميل الطلبات+القائمة، إنشاء/تعديل طلب، انتقالات الحالة (تحضير/جاهز/تسليم/إلغاء مع سبب)، وإدارة القائمة (إضافة/تعديل/حذف/إتاحة) — بدل localStorage. **الفحص:** migrate + `check` · **52 اختبارًا** (+3) · `tsc` · `next build` (43/43) ✅. **متبقٍّ B‑9:** Folio · GuestDB · عملة الفندق.
+- **[2026‑07‑01] المرحلة 8 — الدفعة 8ط (كشف حساب النزيل Folio) ✅.** نموذج `FolioCharge` (migration 0019) + serializer + `FolioChargeViewSet` مُعزّل (RBAC: الاستقبال يضيف رسومًا/يسوّي بلا حذف) + `/api/folio-charges/`. **صفحة الفوليو رُبطت بالكامل بالـAPI** (إضافة رسم/تسوية/حذف من الـBackend). **54 اختبارًا** (+2) · `tsc` · `next build` ✅. **ملاحظة سلسلة المال:** رسوم الفوليو + طلبات الطعام تُحفَظ الآن مركزيًا؛ **ربطها بإجمالي/دين الحجز المشتقّ (الغرفة + الخدمات − المدفوعات)** = تحسين لاحق مقصود. **متبقٍّ B‑9:** GuestDB · عملة الفندق.
+- **[2026‑07‑01] المرحلة 8 — الدفعة 8ي (سجلّ النزلاء GuestDB — أعلام/ملاحظات) ✅.** نموذج `GuestProfile` (migration 0020، `unique_together(hotel, guest_key)` + فهرس) يحفظ **العلَم (عادي/VIP/محظور) والملاحظات** لكل نزيل مفتاحه `guest_key` (رقم هوية أو `phone_…` أو `res_…`) + serializer + `GuestProfileViewSet` بإنشاء **upsert** (`update_or_create` لا يكرّر) + `GuestProfilePermission` (الاستقبال يعدّل الأعلام/الملاحظات: GET/POST/PATCH). **صفحة سجلّ النزلاء:** الملفّات الإحصائية (إقامات/ليالٍ/إنفاق) تُشتقّ حيًّا من `/reservations/`، وطبقة الأعلام/الملاحظات تُحمَّل من `/guest-profiles/` وتُحفظ عبر upsert عند التبديل السريع/الحفظ/تعديل الملاحظات — بدل localStorage (`fandqi.guestdb.*` أُزيل). **الفحص:** migrate + `check` · **56 اختبارًا تنجح** (+2: upsert لا يكرّر ويحدّث العلَم، عزل مستأجرين) · `tsc` نظيف · `next build` ✅.
+- **[2026‑07‑01] المرحلة 11 — سجلّ التدقيق (Audit Log) ✅.** نموذج `AuditLog` ثابت (append‑only، migration 0022) — يلتقط `actor`/`actor_name`/`actor_role` (لقطة) + `action` + `entity_type/id` + `summary` + `hotel` (فارغ لأحداث المنصّة) + فهارس على (hotel, وقت)/(action)/(entity). واجهة كتابة واحدة `record_audit()` (آمنة بذاتها: لا تُفشل العملية الأساسية). **8 أنواع أحداث موصولة** بأعلى النقاط حساسية: `reservation.check_in/check_out` · `payment.create` · `hotel.create` · `hotel.status.*` · `hotel.manager_password_reset` · `subscription.approve/reject` · `commission.mark_paid/partial/waive/mark_due`. **API للقراءة فقط** `/api/audit-logs/` (`ReadOnlyModelViewSet`) مُعزّل بالدور: المالك يرى الكل (+فلتر `?hotel=`)، المدير فندقه فقط، الاستقبال محجوب، بحدّ 500 وفلاتر `?action=`/`?entity_type=`. **الواجهة:** صفحتا عرض `/manager/audit` و`/platform/audit` (جدول: الوقت/الفعل/الفاعل/التفاصيل + فلاتر + عمود الفندق للمنصّة)، مربوطتان بالـAPI، i18n‑aware، ومضافتان للقوائم. **الفحص:** migrate + `check` · **66 اختبارًا تنجح** (+4: تسجيل الحدث عند check‑in، عزل المدير، رؤية المالك+الفلتر، حجب الاستقبال + للقراءة فقط 405) · `tsc` نظيف · `eslint` **exit 0** · `next build` ناجح (route‑ان جديدان). **يحقّق قاعدة السلسلة:** «لا حذف نهائي للسجلات المالية — إبطال + Audit Log».
+- **[2026‑07‑01] المرحلة 10 — تنظيف lint (M‑2) ✅ بوّابة نظيفة.** خطوتان: **(1) إزالة الكود الميت** من ترحيلات localStorage→Backend: مفاتيح `fandqi.*` غير مستخدمة (`ORDERS_KEY`/`LAST_KEY`/`MENU_KEY`/`PLATFORM_KEY`)، دوال/متغيّرات غير مستعملة (`nowISO`/`username`/`archivedCount`/`lastNumRef`/مكوّن `MoneyLines`)، استيراد `useCallback`/`useRef` الزائد، `let`→`const`، وتوجيه `eslint-disable` قديم زائد → 43 → 29. **(2) معالجة الـ29 تلميح React‑19:** إصلاح حقيقي لـ**6 حالات `exhaustive-deps` من نوع «`t` مفقود»** (أُدخلها وكلاء i18n — أُضيف `t` للـdeps، وهو مستقرّ لكل لغة عبر `useMemo` في الطبقة)، وتعطيل **مبرّر ومعلَّق بالعربية** لـ`set-state-in-effect`×20 (تحميل بيانات عند الإقلاع/إعادة ضبط) + `exhaustive-deps`×2 (تحميل لمرّة واحدة، `hotels`/`packages`) + `purity`×1 (`Date.now()` في `useMemo`). **النتيجة:** `npx eslint src` **exit 0 — صفر مشاكل** · `tsc --noEmit` نظيف · `next build` ناجح. **ملاحظة نظام التصميم:** طبقة `ds-*` + متغيّرات CSS + `page-header`/`ds-alert`/`ds-toast` موجودة أصلًا (المرحلة 6)؛ تفكيك المكوّنات الكبيرة تحسين تدريجي اختياري لاحق.
+- **[2026‑07‑01] المرحلة 9 (توحيد i18n — M‑1) ✅.** نُقلت بنية الترجمة إلى `src/lib/i18n/` (سياق React **واحد** يتشاركه كل الأدوار + `readLang`/`applyLang`/`makeLangCtx`)، وحُوِّل `app/manager/LangContext.tsx` إلى re-export shim (الـ20 ملفًا للمدير تعمل دون تغيير). أُضيف مفتاح AR/EN وموفّر السياق إلى طبقتَي **الاستقبال والمنصّة** (كانتا عربيتين فقط) + ترجمة نصوص القوائم/الهيكل. **ترجمة أجسام الصفحات:** 16 صفحة (الاستقبال ×4 + المنصّة ×12) لُفّت نصوصها العربية الظاهرة بـ`t()` عبر **16 وكيلًا متوازيًا**، وجُمِّعت مخرجاتها (745 زوجًا مميّزًا) ونُظّفت من ترميز HTML (`&amp;`→`&`) ودُمِجت مع إسقاط المكرّر → **+588 مدخلًا جديدًا** في القاموس. آلية `t(العربية)` تُعيد العربية عند غياب ترجمة (تدرّج آمن). **الفحص:** `tsc --noEmit` نظيف على كامل المشروع ✅ · لا مفاتيح مكرّرة في القاموس (eslint) ✅ · `next build` ناجح ✅ · لا أخطاء lint جديدة (الـ13 `set-state-in-effect` في الاستقبال/المنصّة سابقة ومؤجّلة للمرحلة 10). **متبقٍّ (جودة):** ترجمة الموقع العام إن لزم، ومفاتيح رمزية بدل النص العربي (تحسين اختياري لاحق).
+- **[2026‑07‑01] تعميق سلسلة المال (الفوليو + الطعام → دين/إجمالي الحجز المشتقّ) ✅.** أُضيفت مشتقّات محسوبة (لا تُخزَّن) إلى `ReservationSerializer`: `folio_total`/`food_total`/`charges_total`/`grand_total`/`balance_due`. **المبدأ الحاكم مطبَّق:** كل رقم مشتقّ من مصدره الوحيد ولا يُكرَّر عدّه — `grand_total = total (الغرفة) + الفوليو + الطعام (غير الملغى)`، و`balance_due = (total − paid) + الفوليو غير المسوّى + الطعام غير المدفوع`. تُحسب فوق `prefetch_related('folio_charges','food_orders')` (بلا N+1). **الواجهة:** صفحتا الحجوزات والتقارير تعرضان الدين من `balance_due` (يشمل الخدمات) بدل `total−paid`، ونافذة تفاصيل الحجز تُظهر صفّي «الخدمات» و«الإجمالي الكلي». **قرار مقصود:** صفحة الدخول/المغادرة تُبقي «المتبقّي» = رصيد الغرفة فقط (نافذة السداد تُسجّل دفعات الغرفة عبر Payment؛ إدخال دين الخدمات فيها يُحدث قفلًا في التسوية) — تُسوّى الخدمات في صفحتيْ الفوليو/الطعام. **الفحص:** `check` نظيف · **62 اختبارًا تنجح** (+3: المشتقّات الصحيحة، القائمة تتضمّنها، تسوية الفوليو تُخفّض الدين تلقائيًا) · `tsc` نظيف · `next build` ✅.
+- **[2026‑07‑01] المرحلة 8 — الدفعة 8ك (عملة/هوية الفندق الديناميكية — إغلاق B‑9) ✅.** أُضيفت حقول `currency`/`logo`/`owner_name`/`website` إلى نموذج `Hotel` (migration 0021) وإلى `HotelSerializer`، ووُسِّعت قائمة الحقول المسموح للمدير بتعديلها في `HotelViewSet.perform_update` لتشملها (كانت تُسقَط بصمت). **عملة الفندق صارت مصدرها الوحيد الـBackend** (سلسلة المال): `hotel-settings` يحفظ `currency` عبر PATCH ويعرضها من الـBackend، وحفظ الهوية يرسل `logo/owner_name/website`. `lib/hotel.ts`: أُضيفت `hydrateHotelCache`/`writeHotelSettings` — و`layout` المدير يجلب `/hotels/{id}/` عند الإقلاع ويحدّث كاش localStorage (المزامَن من الـBackend) بحيث تبقى كل الاستدعاءات المتزامنة لـ`getHotelCurrency`/`getHotelIdentity` كما هي دون إعادة كتابتها async. **الفحص:** migrate + `check` · **59 اختبارًا تنجح** (+3: العملة الافتراضية USD، المدير يحدّث العملة/الهوية ويسترجعها، عزل — لا يعدّل عملة فندق آخر) · `tsc` نظيف · `next build` ✅. **B‑9 مُغلق بالكامل — كل الصفحات التشغيلية صارت مدعومة بالـBackend.**
+
+---
+
+## 6) وثيقة ملاحظات التطوير النهائية — التقييم وخطة التنفيذ (2026‑07‑01)
+
+**المصدر:** وثيقة رسمية من المالك (19 قسمًا). **التحقّق:** 10 وكلاء قراءة‑فقط فحصوا الوضع الفعلي. **الحكم:** الملاحظات دقيقة (~95% اتفاق)؛ الأساس قوي لكن طبقة التكامل التشغيلي معظمها جزئي/مفقود.
+
+### أبرز الفجوات المؤكَّدة (حسب الطبقة)
+- **🔴 جوهرية (سلسلة المال):** `check_out` لا يُلزم `balance_due` (الدين موجود كمشتقّ لكن غير مانع) · `Payment` بلا `source`/تفصيل طرق/`collected_by` · سجل التعديلات المالية يسجّل الإنشاء فقط (بلا before/after/سبب، والحذف غير مسجَّل) · تفصيل دفع طلبات المطعم مفقود.
+- **🟠 سلامة:** الحجز المباشر افتراضي `pending` · لا منع تجاوز مراحل الحجز ولا إلزام وثائق · استدعاء النزيل ما زال localStorage (لا `GuestProfile`) · لا تفرّد للرقم الوطني · `autoClean` يتجاهله الخادم.
+- **🟡 إعدادات:** حقول رقم الحجز + تبويبا النسخ/الواجهة ما زالت موجودة (يجب حذفها) · إعدادات المطعم localStorage · التنبيهات ناقصة · لا قسم «العرض على موقع الحجز» · تجهيزات/سعة/ترقيم الغرف ناقصة.
+- **🔵 ميزات كبيرة مفقودة:** الموظف كحساب دخول · صلاحيات مُلزَمة بالخادم · ورديات حقيقية + منع الدخول خارجها · الأمان (2FA/كود/قفل/جلسات) · صفحة الملف الشخصي · اتفاقية المنصّة · تدقيق يومي مُخزَّن · توسيع التقارير.
+- **⚪ طباعة/واجهة:** الوثائق `window.open` لا Modal · طباعة تفتح تبويبًا · 6 أزرار طباعة في التقارير · مؤشرات مالية في صفحات التشغيل.
+- **✅ مُنفَّذ:** الموقع العام · عمولة المنصّة (snapshot) · تفرّد الغرفة/المستخدم · أرقام ذرّية · Audit Log أساسي.
+
+### خطة التنفيذ (ترتيب الوثيقة 1→9) — قرار المالك
+| المرحلة | المحتوى | الحالة |
+|---|---|---|
+| د‑1 | تنظيف الإعدادات (حذف حقول رقم الحجز + تبويب النسخ + تبويب الواجهة، إعادة تنظيم) | ✅ |
+| د‑2 | الحجوزات/النزلاء/الوثائق (تأكيد تلقائي، منع تجاوز المراحل، إلزام الوثائق، استدعاء النزيل من الـBackend) | ✅ |
+| د‑3 | الفوليو/المدفوعات/الخروج (**إلزام منع الخروج بالدين** خادمًا+واجهة، ربط المطعم، طرق دفع) | ✅ |
+| د‑4 | المطعم والكافتريا (إعدادات Backend، وضع الموظف المستقل، تفصيل الدفع، حساب الغرفة) | ✅ |
+| د‑5 | الموظفون/الورديات/الصلاحيات (حساب دخول + صلاحيات مُلزَمة؛ الورديات/منع خارج الوردية مؤجّل) | ✅ جزئي |
+| د‑6 | الأمان (2FA داخل النظام، قفل بعد محاولات، سجل أمني؛ قنوات خارجية/جلسات مؤجّلة) | ✅ جزئي |
+| د‑7 | التدقيق اليومي الحقيقي (نموذج DayClose، فحوصات مانعة؛ توسيع التقارير مؤجّل) | ✅ جزئي |
+| د‑8 | اتفاقية المنصّة الإلكترونية + إلزامها + المستحقات (موجودة) | ✅ |
+| د‑9 | اختبار شامل بسيناريو حقيقي end‑to‑end | ✅ |
+
+### سجل تنفيذ ملاحظات التطوير (Changelog)
+<!-- يُضاف سطر بعد كل مرحلة -->
+- **[2026‑07‑01] د‑9 (اختبار السيناريو الشامل E2E) ✅.** اختبار واحد يحاكي **سلسلة العمليات كاملة** عبر الـAPI: حجز مباشر → **يُؤكَّد تلقائيًا** → تسجيل دخول ذرّي → دفعة غرفة (Payment) → طلب مطعم على حساب الغرفة (ذمّة) + رسم فوليو → التحقق أن **الدين = 120** (غرفة+فوليو+طعام) → **محاولة خروج تُمنع 402** → **دفع وإغلاق ذرّي** → الدين=0 والحالة checked_out → **الغرفة → تنظيف** → **سجلّ التدقيق** يحوي (check_in/payment.create/settle_checkout) → **إغلاق يوم** مُخزَّن يعكس مدفوعات اليوم. **يثبت أن «سلسلة الأعمال» متماسكة فعليًا** من الحجز حتى الإغلاق والتقارير. **الفحص النهائي:** **97 اختبارًا تنجح** · `check` نظيف · لا ترحيلات معلّقة · `tsc` نظيف · `eslint` exit 0 · `next build` ناجح.
+- **[2026‑07‑01] د‑8 (اتفاقية حجوزات الموقع + المستحقات) ✅.** **اتفاقية إلكترونية:** `PlatformSettings.web_booking_agreement`+`agreement_version` (يديرها صاحب المنصّة) + نموذج **`HotelAgreementAcceptance`** (migration 0027، لقطة النصّ + المُوافِق + الوقت + النسخة، `unique_together(hotel, version)`). نقطة `/platform/web-booking-agreement/` (GET حالة القبول للمدير · POST قبول). **الإلزام:** المدير **لا يستطيع تفعيل** `public_booking_enabled`/`public_listing_enabled` إلا بعد قبول النسخة الحالية (يُرفَض 400)، وتحديث المنصّة للاتفاقية لنسخة جديدة **يُلزِم إعادة القبول**. أُضيفت الحقول العامة للـ`HotelSerializer`. تسجيل `agreement.accept` في Audit Log. **المستحقات/العمولة:** موجودة أصلًا (`PlatformRevenueSettings`/`BookingCommission` snapshot + صفحة أرباح المنصّة). **الفحص:** migrate + `check` · **96 اختبارًا تنجح** (+3: الحجب قبل القبول، النجاح بعده، إلزام النسخة الجديدة) · `tsc` نظيف · `next build` ناجح. **مؤجّل:** واجهة قبول الاتفاقية للمدير + محرّر نصّها لصاحب المنصّة (النقاط جاهزة؛ الإلزام خادمي مضمون).
+- **[2026‑07‑01] د‑7 (التدقيق اليومي الحقيقي — DayClose) ✅ جزئي.** نموذج **`DayClose`** ثابت (migration 0026، `unique_together(hotel, business_date)`) يخزّن لقطة الإغلاق + المُغلِق + الوقت. دالة `_compute_day_snapshot` تحسب **الفحوصات خادميًا**: وصول/مغادرة اليوم غير المنفّذة، النزلاء المقيمون، **الفوليوهات غير المدفوعة** (مانع)، غرف التنظيف/الصيانة، مدفوعات اليوم حسب الطريقة، مبيعات المطعم، و**قائمة موانع الإغلاق** (`can_close_clean`). `DayCloseViewSet`: `preview` (معاينة الفحوصات) + `create` (إغلاق مُخزَّن بصلاحية المدير، الاستقبال قراءة فقط) + عزل مستأجرين + تسجيل `day.close` في Audit Log. **Frontend:** صفحة التدقيق الليلي تُنشئ الآن **إغلاقًا فعليًا مُخزَّنًا** على الخادم عند الإغلاق. **الفحص:** migrate + `check` · **93 اختبارًا تنجح** (+4: المعاينة تُظهر الموانع، الإغلاق يخزّن اللقطة، الاستقبال ممنوع، عزل) · `tsc` نظيف · `eslint` exit 0 · `next build` ناجح. **مؤجّل (موثّق):** توسيع صفحة التقارير من 6 إلى ~16 تبويبًا + فلاتر إضافية + جدول مدفوعات مفصّل بالطرق (سجل النشاط متاح كصفحة مستقلة `/manager/audit`؛ التوسيع الكامل عمل واجهة تدريجي).
+- **[2026‑07‑01] د‑6 (الأمان) ✅.** **قفل الدخول:** بعد 5 محاولات فاشلة/15د يُقفَل الحساب (cache) مع ردّ 423. **سجل أمني:** أحداث `auth.login_success/failed/locked/2fa_*` تُسجَّل في Audit Log. **تحقّق بخطوتين اختياري (قناة داخل النظام):** `UserProfile.two_factor_enabled` + نموذج `LoginChallenge` (migration 0025)؛ عند التفعيل يعيد `/token/` تذكرة بدل التوكن، ويُنشأ كود 6 أرقام يظهر **للمدير داخل النظام** عبر `/auth/2fa/pending/`، والتحقق عبر `/auth/2fa/verify/` يُصدر التوكنات؛ تبديل ذاتي عبر `/auth/2fa/toggle/`. `/current-user/` يعيد `two_factor_enabled`. **Frontend:** صفحة الدخول تدعم خطوة الكود + رسالة القفل؛ **صفحة ملف شخصي `/manager/profile`** (تغيير كلمة المرور + تبديل 2FA + عارض الأكواد النشطة) موصولة من شريحة المستخدم — تُغطّي أيضًا بند «الملف الشخصي» (16). **الفحص:** migrate + `check` · **89 اختبارًا تنجح** (+5: القفل، تسجيل النجاح، تدفّق 2FA كامل، رفض كود خاطئ، التبديل) · `tsc` نظيف · `eslint` exit 0 · `next build` ناجح. **مؤجّل (موثّق):** قنوات خارجية (واتساب/SMS/بريد — القناة داخل النظام فقط بلا مزوّد)، ومهلة الخمول/منع تعدّد الأجهزة/الخروج من كل الأجهزة (نظام إدارة جلسات).
+- **[2026‑07‑01] د‑5 (الموظفون/الصلاحيات) ✅ جزئي.** **الموظف = حساب دخول حقيقي:** `StaffViewSet._provision_login` يُنشئ `User` + `UserProfile(role=reception, hotel)` عند إدخال اسم مستخدم+كلمة مرور (تحقّق تفرّد + قوّة كلمة المرور)؛ إجراء `set_password` (ينشئ الحساب أو يعيد التعيين)؛ `perform_update` يزامن `status→is_active` (موقوف = يُعطَّل دخوله)؛ تسجيل `staff.create`/`staff.password_reset` في Audit Log. **الصلاحيات الدقيقة:** `/current-user/` يعيد `permissions` (المدير=`['*']`، الاستقبال=صلاحياته من سجلّ Staff) لتقييد الواجهة؛ `StaffSerializer` يعرض `username`+`has_login`. **Frontend:** حقول اسم مستخدم/كلمة مرور في نموذج الإضافة، ونافذة كلمة المرور مربوطة بـ`set_password` (تُنشئ حسابًا لموظف بلا دخول). **الفحص:** `check` · **84 اختبارًا تنجح** (+4: إنشاء حساب، رفض تكرار اسم المستخدم، الإيقاف يعطّل الدخول، current-user يعيد الصلاحيات) · `tsc` نظيف · `eslint` exit 0 · `next build` ناجح. **مؤجّل (موثّق):** **إلزام** الصلاحيات الدقيقة خادميًا عبر كل النقاط (البنية + تقييد الواجهة جاهزان؛ الإلزام الشامل إعادة هيكلة كبيرة)، والورديات كتجميع نشاط حقيقي + منع الدخول خارج الوردية (نظام جدولة ورديات كامل).
+- **[2026‑07‑01] د‑4 (المطعم/الكافتريا) ✅.** **إعدادات بالـBackend:** `Hotel.food_settings` (JSON: restaurant/cafeteria enabled، `dedicated_staff`، طرق الدفع المسموحة، طباعة الإيصال — migration 0024) + عرض في الـSerializer + مسموح للمدير تعديلها. **وضع الموظف المستقل:** بلا موظف مطعم مستقل → الطلب **يُسلَّم تلقائيًا** عند الإنشاء (بلا مراحل). **تفصيل المقبوض:** حقول `amount_cash/electronic/card/amount_room` + `room_settled` على `FoodOrder`؛ منطق الذمّة صار يعتمد **جزء حساب الغرفة** (`_food_room_charge` مع توافق خلفي: بلا وسيلة دفع/«حساب غرفة» → كامل المبلغ ذمّة)، فطلبات الغرفة تدخل الفوليو وتمنع الخروج. `settle_and_checkout` يسوّي الطعام عبر `room_settled`. **Frontend:** إنشاء الطلب يرسل التفصيل حسب الطريقة المختارة. **الفحص:** migrate + `check` · **80 اختبارًا تنجح** (+4: تسليم تلقائي بلا موظف، بقاء المراحل مع موظف، دين جزء الغرفة يمنع الخروج، حفظ الإعدادات) · `tsc` نظيف · `eslint` exit 0 · `next build` ناجح. **مؤجّل:** واجهة إعدادات المطعم الكاملة المربوطة بالـBackend (النماذج جاهزة؛ صفحة المطعم ما زالت تقرأ toggles من localStorage جزئيًا)، والدفع المختلط متعدّد الطرق في طلب واحد.
+- **[2026‑07‑01] د‑3 (الفوليو/المدفوعات/الخروج — الفجوة الجوهرية) ✅.** **إلزام منع الخروج بالدين خادمًا:** `_reservation_balance_due()` + إجراء `check_out` يرفض بـ**402** مع تفصيل الرصيد إن كان `balance_due>0` (غرفة + فوليو غير مسوّى + طعام على الغرفة). إجراء ذرّي جديد **`settle_and_checkout`** = «دفع وإغلاق الحساب» (يسجّل دفعة الغرفة، يسوّي الفوليو، يعلّم طعام الغرفة مدفوعًا، ثم يُخرج) — مصدر واحد. أُضيف حقل **`Payment.source`** (حجز/فوليو/مطعم/كافتريا/خدمة/تسوية/حساب غرفة/أخرى، migration 0023) + عُرض في الـSerializer لتتبّع «من أين دخل المبلغ». **Frontend (دخول/مغادرة المدير):** الخروج صار عبر إجراء `check_out` المُلزَم (لا PATCH يتجاوز الفحص)، ويستخدم **`balance_due`** (يشمل الخدمات) بدل `total−paid`؛ نافذة «دفع وإغلاق الحساب» تعرض تفصيل الذمّة (رصيد الغرفة + الخدمات + المستحق الآن) وتستدعي `settle_and_checkout` ذرّيًا. **الفحص:** migrate + `check` · **76 اختبارًا تنجح** (+6: منع الخروج برصيد غرفة/فوليو/طعام، نجاح عند التسوية، settle_and_checkout يصفّر الذمّة، تخزين source) · `tsc` نظيف · `eslint` exit 0 · `next build` ناجح. **مؤجّل:** الدفع المختلط (تقسيم نقدي/إلكتروني/كرت في دفعة واحدة) — تحسين لاحق؛ صفحة استقبال الخروج تستفيد من الإلزام الخادمي تلقائيًا.
+- **[2026‑07‑01] د‑2 (الحجوزات/النزلاء/الوثائق) ✅.** **Backend:** الحجز المباشر (غير العام) **يُؤكَّد تلقائيًا** (`_auto_confirm_kwargs` في `perform_create` — العام يحترم تدفّقه)؛ نقطة **استدعاء النزيل السابق** `GET /reservations/guest_lookup/?q=` تبحث بالرقم الوطني/الهاتف داخل فندق المستخدم وتُعيد أحدث بيانات (مصدر مركزي بدل localStorage). **Frontend (صفحة الحجوزات):** الحالة الافتراضية «مؤكَّد» + إخفاء «قيد الانتظار» للحجز المباشر؛ **تحقّق كل مرحلة** (`stepError`/`goNext`: يمنع «التالي»/«الحفظ» عند نقص الاسم/الهوية/الغرفة/التواريخ/المرافقين، ويقفز لمكان الخطأ)؛ **إلزام الوثائق** حسب إعدادات الوثائق (وثيقة النزيل، دفتر العائلة عند وجود زوجة، وثائق المرافقين)؛ استدعاء النزيل مربوط بالـBackend بدل localStorage؛ **أُزيل «حجوزات الموقع» من السايدبار** وأُضيف **فلتر «مصدر الحجز»** (مباشر/موقع/منصة) داخل صفحة الحجوزات. **الفحص:** `check` · **70 اختبارًا تنجح** (+4: تأكيد المباشر، بقاء العام pending، الاستدعاء + العزل، رفض الاستعلام القصير) · `tsc` نظيف · `eslint` exit 0 · `next build` ناجح. **مؤجّل لمراحله:** تمييز الحقل الناقص بالأحمر لكل حقل (حاليًا رسالة + قفز للمرحلة)، وتعديل السعر بصلاحية (المرحلة د‑5).
+- **[2026‑07‑01] د‑1 (تنظيف الإعدادات) ✅.** حُذفت من `hotel-settings`: حقول توليد رقم الحجز (`resPrefix`/`lastRes`/`resDigits` من `IOps`/`DEFAULT_OPS`/الواجهة/`doSaveOps`) — الرقم يتولّد ذرّيًا من الخادم؛ **تبويب «النسخ الاحتياطي»** بالكامل (export/import/reset + `IAppearance`? لا) لأنه يخصّ إدارة المنصّة؛ **تبويب «الواجهة»** (اللغة/الكثافة/الحركات + `IAppearance`/`DEFAULT_APPEARANCE`/state/handler) لأنه تفضيلات شخصية واللغة من أيقونة الهيدر. أُبقيت العملة + مفاتيح التنظيف/الخروج. أُضيف عرض **«كود الفندق الداخلي» `FND-XXXX`** للقراءة فقط (بند 11‑3). نُظّفت الاستيرادات/الحالات المهجورة. **الفحص:** `tsc` نظيف · `eslint` **exit 0** · `next build` ناجح. **يتبقّى في الإعدادات (مراحل لاحقة):** قسم «العرض على موقع الحجز» المستقل، التنبيهات الشاملة، إعدادات المطعم بالـBackend، وتجهيزات/سعة/ترقيم الغرف — تُنفَّذ ضمن مراحلها.
+
+---
+
+## 5) ملفات التوثيق المطلوبة قبل الإطلاق
+`plan.md` (هذا) · `RELEASE_CHECKLIST.md` · `SECURITY.md` · `TESTING.md` · `DEPLOY.md` · `backend/.env.example` · `frontend/.env.example`

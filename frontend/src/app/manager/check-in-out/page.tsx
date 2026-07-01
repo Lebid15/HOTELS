@@ -207,9 +207,9 @@ export default function CheckInOutPage() {
 
   /* Payment modal */
   const [payRes,    setPayRes]    = useState<Res|null>(null);
-  const [payAmount, setPayAmount] = useState(0);
+  const [, setPayAmount] = useState(0);
   const [payMethod, setPayMethod] = useState("cash");
-  const [payNote,   setPayNote]   = useState("");
+  const [, setPayNote]   = useState("");
   const [payErr,    setPayErr]    = useState("");
   const [paying,    setPaying]    = useState(false);
 
@@ -263,12 +263,22 @@ export default function CheckInOutPage() {
     setActionRes(null);
   }
 
-  /* ── Checkout ── */
+  /* ── د‑3: دين الحجز = balance_due من الـBackend (غرفة + فوليو + طعام) ──── */
+  const balanceOf = (r:Res) => {
+    const b = (r as {balance_due?:string|number}).balance_due;
+    return b!==undefined && b!==null ? Number(b) : Number(r.total)-Number(r.paid);
+  };
+
+  /* ── Checkout (عبر إجراء check_out المُلزَم خادمًا) ── */
   async function doCheckout(r:Res) {
     setActionRes(r.id);
     try {
-      await fetch(`${API}/reservations/${r.id}/`,{method:"PATCH",headers:apiHJ(),body:JSON.stringify({status:"checked_out"})});
-      if(r.room) await fetch(`${API}/rooms/${r.room}/`,{method:"PATCH",headers:apiHJ(),body:JSON.stringify({status:"cleaning"})});
+      const resp=await fetch(`${API}/reservations/${r.id}/check_out/`,{method:"POST",headers:apiHJ(),body:"{}"});
+      if(!resp.ok){
+        const d=await resp.json().catch(()=>({}));
+        if(d.code==="balance_due"){ setActionRes(null); handleCheckOut(r); return; }
+        throw new Error();
+      }
       printStatement(r,hi);
       showToast(t("تم تسجيل خروج النزيل وتحويل الغرفة إلى التنظيف، ولن تصبح متاحة إلا بعد تأكيد تم التنظيف."));
       fetchAll();
@@ -278,33 +288,28 @@ export default function CheckInOutPage() {
   }
 
   function handleCheckOut(r:Res) {
-    const rem=Number(r.total)-Number(r.paid);
-    if(rem>0){setPayRes(r);setPayAmount(rem);setPayMethod("cash");setPayNote(t("تسوية متبقي قبل تسجيل الخروج"));setPayErr("");return;}
+    if(balanceOf(r)>0){setPayRes(r);setPayAmount(balanceOf(r));setPayMethod("cash");setPayNote(t("دفع وإغلاق الحساب قبل الخروج"));setPayErr("");return;}
     doCheckout(r);
   }
 
-  /* ── Pay ── */
-  async function handlePay() {
+  /* ── د‑3: دفع وإغلاق الحساب ثم الخروج (ذرّي عبر الـBackend) ── */
+  async function settleAndCheckout() {
     if(!payRes)return;
-    const rem=Number(payRes.total)-Number(payRes.paid);
-    if(!payAmount||payAmount<=0){setPayErr(t("أدخل مبلغ دفع صحيح."));return;}
-    if(payAmount>rem){setPayErr(t("المبلغ أكبر من المتبقي على الحساب."));return;}
     setPaying(true);
     try {
-      const newPaid=Number(payRes.paid)+payAmount;
-      await fetch(`${API}/reservations/${payRes.id}/`,{method:"PATCH",headers:apiHJ(),body:JSON.stringify({paid:newPaid})});
-      const newRem=Number(payRes.total)-newPaid;
-      showToast(t("تم تسجيل الدفعة على الحساب."));
-      const updatedR={...payRes,paid:String(newPaid)};
+      const resp=await fetch(`${API}/reservations/${payRes.id}/settle_and_checkout/`,{method:"POST",headers:apiHJ(),body:JSON.stringify({method:payMethod})});
+      if(!resp.ok)throw new Error();
+      const r=payRes;
       setPayRes(null);
-      if(newRem<=0){
-        await doCheckout(updatedR);
-      } else {
-        fetchAll();
-      }
-    } catch{setPayErr(t("حدث خطأ أثناء تسجيل الدفعة."));}
+      printStatement(r,hi);
+      showToast(t("تم دفع الحساب وإغلاقه وتسجيل الخروج."));
+      fetchAll();
+      setTimeout(()=>router.push("/manager/housekeeping"),2500);
+    } catch{setPayErr(t("حدث خطأ أثناء دفع الحساب وإغلاقه."));}
     setPaying(false);
   }
+
+  /* handlePay (الدفع الجزئي القديم) أُزيل — «دفع وإغلاق الحساب» يتم ذرّيًا عبر settleAndCheckout (د‑3). */
 
   /* ── Cross-page navigation ── */
   function navToGuests(search: string) {
@@ -324,7 +329,7 @@ export default function CheckInOutPage() {
   }
 
   /* ── Derived data ── */
-  const withTL = reservations.map(r=>({...r, tl:calcTL(r,opDate), remaining:Number(r.total)-Number(r.paid)}));
+  const withTL = reservations.map(r=>({...r, tl:calcTL(r,opDate), remaining:balanceOf(r)}));
   const activeItems    = withTL.filter(r=>["arrival_due","in_house","departure_due"].includes(r.tl));
   const arrivalCount   = activeItems.filter(r=>r.tl==="arrival_due").length;
   const inHouseCount   = activeItems.filter(r=>["in_house","departure_due"].includes(r.tl)).length;
@@ -343,7 +348,7 @@ export default function CheckInOutPage() {
     if(tab==="log") {
       list = reservations
         .filter(r=>["checked_in","checked_out"].includes(r.status))
-        .map(r=>({...r,tl:calcTL(r,opDate),remaining:Number(r.total)-Number(r.paid)}));
+        .map(r=>({...r,tl:calcTL(r,opDate),remaining:balanceOf(r)}));
     } else if(tab==="arrivals")   { list=activeItems.filter(r=>r.tl==="arrival_due"); }
     else if(tab==="in_house")     { list=activeItems.filter(r=>["in_house","departure_due"].includes(r.tl)); }
     else if(tab==="departures")   { list=activeItems.filter(r=>r.tl==="departure_due"); }
@@ -613,7 +618,7 @@ export default function CheckInOutPage() {
                     </button>
                   )}
                   {canCheckOut&&hasBalance&&(
-                    <button onClick={()=>{setPayRes(r);setPayAmount(rem);setPayMethod("cash");setPayNote(t("تسوية متبقي قبل تسجيل الخروج"));setPayErr("");}}
+                    <button onClick={()=>{setPayRes(r);setPayAmount(rem);setPayMethod("cash");setPayNote(t("دفع وإغلاق الحساب قبل الخروج"));setPayErr("");}}
                       style={{flex:1,minWidth:0,background:"#7c3aed",color:"#fff",border:"none",borderRadius:8,padding:"0.4rem 0.5rem",fontSize:12,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:4}}>
                       <CreditCard size={13} strokeWidth={2}/> {t("دفع وإغلاق الحساب")}
                     </button>
@@ -660,14 +665,15 @@ export default function CheckInOutPage() {
             </div>
             <div className="ds-modal-body">
               <p style={{fontSize:12,color:"var(--color-muted)",marginBottom:"1rem"}}>
-                {t("سجّل الدفعة المتبقية على الحجز، وبعد اكتمال السداد يتم تسجيل الخروج تلقائيًا وتحويل الغرفة إلى التنظيف.")}
+                {t("يُدفع كامل المستحق (الغرفة + الفوليو + طلبات المطعم على الغرفة) ويُغلَق الحساب، ثم يُسجَّل الخروج تلقائيًا وتتحوّل الغرفة إلى التنظيف.")}
               </p>
-              {/* Summary */}
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"0.5rem",marginBottom:"1rem"}}>
+              {/* د‑3: تفصيل الذمّة الكامل */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.5rem",marginBottom:"0.75rem"}}>
                 {[
                   {l:"رقم الحجز",v:payRes.booking_number},
                   {l:"اسم النزيل",v:`${payRes.guest_first_name} ${payRes.guest_last_name}`.trim()},
-                  {l:"المتبقي",v:`${payRes.currency} ${(Number(payRes.total)-Number(payRes.paid)).toLocaleString("en-US")}`},
+                  {l:"رصيد الغرفة",v:`${payRes.currency} ${(Number(payRes.total)-Number(payRes.paid)).toLocaleString("en-US")}`},
+                  {l:"الخدمات (فوليو/طعام)",v:`${payRes.currency} ${Number((payRes as {charges_total?:number}).charges_total??0).toLocaleString("en-US")}`},
                 ].map(item=>(
                   <div key={item.l} style={{background:"#f8fafc",borderRadius:8,padding:"0.6rem 0.75rem"}}>
                     <p style={{fontSize:10,color:"#94a3b8",marginBottom:2}}>{t(item.l)}</p>
@@ -675,36 +681,25 @@ export default function CheckInOutPage() {
                   </div>
                 ))}
               </div>
-              {payErr&&<p style={{color:"var(--color-danger)",fontSize:13,marginBottom:"0.75rem"}}>{payErr}</p>}
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.65rem",marginBottom:"0.75rem"}}>
-                <div className="field">
-                  <label className="field-label" style={{display:"flex",alignItems:"center",gap:5}}>
-                    <Banknote size={12} color="#4f46e5" strokeWidth={2}/> {t("المبلغ المدفوع")}
-                  </label>
-                  <input className="input" type="number" min="0.01" step="0.01"
-                    max={Number(payRes.total)-Number(payRes.paid)}
-                    value={payAmount} onChange={e=>setPayAmount(Number(e.target.value))} />
-                </div>
-                <div className="field">
-                  <label className="field-label" style={{display:"flex",alignItems:"center",gap:5}}>
-                    <CreditCard size={12} color="#4f46e5" strokeWidth={2}/> {t("طريقة الدفع")}
-                  </label>
-                  <select className="select" value={payMethod} onChange={e=>setPayMethod(e.target.value)}>
-                    <option value="cash">{t("نقدي")}</option>
-                    <option value="electronic">{t("إلكتروني")}</option>
-                  </select>
-                </div>
+              <div style={{background:"#fef2f2",border:"1px solid #fecaca",borderRadius:8,padding:"0.6rem 0.85rem",marginBottom:"1rem",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span style={{fontSize:12,fontWeight:700,color:"#991b1b"}}>{t("المستحق الآن")}</span>
+                <span style={{fontSize:16,fontWeight:900,color:"#b91c1c"}}>{payRes.currency} {balanceOf(payRes).toLocaleString("en-US")}</span>
               </div>
-              <div className="field">
+              {payErr&&<p style={{color:"var(--color-danger)",fontSize:13,marginBottom:"0.75rem"}}>{payErr}</p>}
+              <div className="field" style={{marginBottom:"0.75rem"}}>
                 <label className="field-label" style={{display:"flex",alignItems:"center",gap:5}}>
-                  <FileText size={12} color="#4f46e5" strokeWidth={2}/> {t("ملاحظة الدفع")}
+                  <CreditCard size={12} color="#4f46e5" strokeWidth={2}/> {t("طريقة الدفع")}
                 </label>
-                <input className="input" value={payNote} onChange={e=>setPayNote(e.target.value)} />
+                <select className="select" value={payMethod} onChange={e=>setPayMethod(e.target.value)}>
+                  <option value="cash">{t("نقدي")}</option>
+                  <option value="electronic">{t("إلكتروني")}</option>
+                  <option value="card">{t("بطاقة")}</option>
+                </select>
               </div>
             </div>
             <div className="ds-modal-foot">
               <button className="ds-btn ds-btn-danger" onClick={()=>setPayRes(null)}>{t("إلغاء")}</button>
-              <button className="ds-btn ds-btn-primary" onClick={handlePay} disabled={paying} style={{display:"flex",alignItems:"center",gap:5}}>
+              <button className="ds-btn ds-btn-primary" onClick={settleAndCheckout} disabled={paying} style={{display:"flex",alignItems:"center",gap:5}}>
                 {paying?t("جارٍ الدفع..."):<><CreditCard size={13}/> {t("دفع وإغلاق الحساب")}</>}
               </button>
             </div>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { apiUrl, getAuthHeaders } from "@/lib/api";
+import { useLang } from "@/lib/i18n/LangContext";
 
 type ReservationStatus = "confirmed" | "pending" | "cancelled";
 
@@ -74,14 +75,14 @@ function countPending(list: Reservation[]): number {
   return list.filter((r) => r.status === "pending").length;
 }
 
-function statusBadge(status: ReservationStatus) {
+function statusBadge(status: ReservationStatus, t: (s: string) => string) {
   if (status === "confirmed") {
-    return <span className="ds-badge ds-badge-success">مؤكدة</span>;
+    return <span className="ds-badge ds-badge-success">{t("مؤكدة")}</span>;
   }
   if (status === "pending") {
-    return <span className="ds-badge ds-badge-warning">معلقة</span>;
+    return <span className="ds-badge ds-badge-warning">{t("معلقة")}</span>;
   }
-  return <span className="ds-badge ds-badge-danger">ملغاة</span>;
+  return <span className="ds-badge ds-badge-danger">{t("ملغاة")}</span>;
 }
 
 function formatDate(dateStr: string): string {
@@ -91,6 +92,7 @@ function formatDate(dateStr: string): string {
 }
 
 export default function ReservationsPage() {
+  const { t } = useLang();
   const [activeTab, setActiveTab] = useState<TabKey>("all");
   const [search, setSearch] = useState("");
   const [dateFrom, setDateFrom] = useState("");
@@ -150,34 +152,34 @@ export default function ReservationsPage() {
     <div className="ds-page">
       <div className="page-header">
         <div>
-          <h1>الحجوزات</h1>
-          <p>إدارة حجوزات الضيوف ومتابعة حالاتها</p>
+          <h1>{t("الحجوزات")}</h1>
+          <p>{t("إدارة حجوزات الضيوف ومتابعة حالاتها")}</p>
         </div>
         <div className="page-actions">
-          <button className="ds-btn ds-btn-primary">+ حجز جديد</button>
+          <button className="ds-btn ds-btn-primary">{t("+ حجز جديد")}</button>
         </div>
       </div>
 
       <div className="ds-summary-grid">
         <div className="ds-summary-card">
-          <p className="ds-summary-label">اليوم</p>
+          <p className="ds-summary-label">{t("اليوم")}</p>
           <p className="ds-summary-value">{loading ? "..." : countToday(reservations)}</p>
-          <p className="ds-summary-note">وصول ومغادرة</p>
+          <p className="ds-summary-note">{t("وصول ومغادرة")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">غداً</p>
+          <p className="ds-summary-label">{t("غداً")}</p>
           <p className="ds-summary-value">{loading ? "..." : countTomorrow(reservations)}</p>
-          <p className="ds-summary-note">حجز قادم</p>
+          <p className="ds-summary-note">{t("حجز قادم")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">هذا الأسبوع</p>
+          <p className="ds-summary-label">{t("هذا الأسبوع")}</p>
           <p className="ds-summary-value">{loading ? "..." : countThisWeek(reservations)}</p>
-          <p className="ds-summary-note">حجز مجدول</p>
+          <p className="ds-summary-note">{t("حجز مجدول")}</p>
         </div>
         <div className="ds-summary-card">
-          <p className="ds-summary-label">معلقة</p>
+          <p className="ds-summary-label">{t("معلقة")}</p>
           <p className="ds-summary-value">{loading ? "..." : countPending(reservations)}</p>
-          <p className="ds-summary-note">بانتظار التأكيد</p>
+          <p className="ds-summary-note">{t("بانتظار التأكيد")}</p>
         </div>
       </div>
 
@@ -189,7 +191,7 @@ export default function ReservationsPage() {
               className={`ds-tab-btn${activeTab === tab.key ? " active" : ""}`}
               onClick={() => setActiveTab(tab.key)}
             >
-              {tab.label}
+              {t(tab.label)}
             </button>
           ))}
         </div>
@@ -198,21 +200,21 @@ export default function ReservationsPage() {
           <input
             className="input"
             type="text"
-            placeholder="بحث باسم الضيف أو رقم الحجز"
+            placeholder={t("بحث باسم الضيف أو رقم الحجز")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
           <input
             className="input"
             type="date"
-            placeholder="من تاريخ"
+            placeholder={t("من تاريخ")}
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
           />
           <input
             className="input"
             type="date"
-            placeholder="إلى تاريخ"
+            placeholder={t("إلى تاريخ")}
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
           />
@@ -224,32 +226,32 @@ export default function ReservationsPage() {
               setDateTo("");
             }}
           >
-            مسح
+            {t("مسح")}
           </button>
         </div>
 
         {loading ? (
           <div className="ds-card-p" style={{ textAlign: "center", marginTop: "1rem" }}>
-            <p className="text-muted">جارٍ تحميل الحجوزات...</p>
+            <p className="text-muted">{t("جارٍ تحميل الحجوزات...")}</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="ds-card-p" style={{ textAlign: "center", marginTop: "1rem" }}>
-            <p className="text-muted">لا توجد حجوزات</p>
+            <p className="text-muted">{t("لا توجد حجوزات")}</p>
           </div>
         ) : (
           <div className="ds-table-wrap">
             <table className="ds-table">
               <thead>
                 <tr>
-                  <th>رقم الحجز</th>
-                  <th>الضيف</th>
-                  <th>الغرفة</th>
-                  <th>تاريخ الوصول</th>
-                  <th>تاريخ المغادرة</th>
-                  <th>الليالي</th>
-                  <th>المبلغ</th>
-                  <th>الحالة</th>
-                  <th>الإجراءات</th>
+                  <th>{t("رقم الحجز")}</th>
+                  <th>{t("الضيف")}</th>
+                  <th>{t("الغرفة")}</th>
+                  <th>{t("تاريخ الوصول")}</th>
+                  <th>{t("تاريخ المغادرة")}</th>
+                  <th>{t("الليالي")}</th>
+                  <th>{t("المبلغ")}</th>
+                  <th>{t("الحالة")}</th>
+                  <th>{t("الإجراءات")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -261,16 +263,16 @@ export default function ReservationsPage() {
                     <td>{formatDate(r.checkIn)}</td>
                     <td>{formatDate(r.checkOut)}</td>
                     <td>{r.nights}</td>
-                    <td>{r.amount.toLocaleString("en-US")} ر.س</td>
-                    <td>{statusBadge(r.status)}</td>
+                    <td>{r.amount.toLocaleString("en-US")} {t("ر.س")}</td>
+                    <td>{statusBadge(r.status, t)}</td>
                     <td>
                       <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                        <button className="ds-btn ds-btn-neutral ds-btn-sm">عرض</button>
+                        <button className="ds-btn ds-btn-neutral ds-btn-sm">{t("عرض")}</button>
                         {r.status === "pending" && (
-                          <button className="ds-btn ds-btn-success ds-btn-sm">تأكيد</button>
+                          <button className="ds-btn ds-btn-success ds-btn-sm">{t("تأكيد")}</button>
                         )}
                         {r.status !== "cancelled" && (
-                          <button className="ds-btn ds-btn-danger ds-btn-sm">إلغاء</button>
+                          <button className="ds-btn ds-btn-danger ds-btn-sm">{t("إلغاء")}</button>
                         )}
                       </div>
                     </td>

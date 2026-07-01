@@ -92,7 +92,7 @@ export default function Home() {
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="pub-header">
         <div className="pub-header-inner">
-          <Link href="/" className="pub-logo">Fandqi</Link>
+          <Link href="/" className="pub-logo">funduqii</Link>
           <nav>
             <ul className="pub-nav-links">
               <li><Link href="/" className="pub-nav-link">الرئيسية</Link></li>
@@ -188,7 +188,7 @@ export default function Home() {
       {/* ── Footer ───────────────────────────────────────────── */}
       <footer className="pub-footer">
         <div className="pub-container">
-          <p style={{ fontWeight: "700", fontSize: "1rem", color: "#fff", marginBottom: ".5rem" }}>Fandqi</p>
+          <p style={{ fontWeight: "700", fontSize: "1rem", color: "#fff", marginBottom: ".5rem" }}>funduqii</p>
           <p>منصة فندقي — نظام الحجز الفندقي الاحترافي</p>
           <p style={{ marginTop: ".75rem" }}>
             <Link href="/hotels" style={{ color: "rgba(255,255,255,.6)", marginLeft: "1.5rem" }}>الفنادق</Link>

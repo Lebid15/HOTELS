@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard, KeyRound, CalendarCheck, CreditCard,
-  LogOut, ChevronLeft, ChevronRight,
+  LogOut, ChevronLeft, ChevronRight, Globe,
 } from "lucide-react";
-import { apiUrl, getToken, clearTokens } from "@/lib/api";
+import { getToken, authFetch, logout as apiLogout } from "@/lib/api";
+import { LangContext, makeLangCtx, readLang, applyLang, type Lang } from "@/lib/i18n/LangContext";
 
 interface NavItem { href: string; label: string; Icon: LucideIcon; }
 
@@ -24,16 +25,25 @@ export default function ReceptionLayout({ children }: { children: React.ReactNod
   const [hotelName, setHotelName] = useState("فندقي");
   const [compact,   setCompact]   = useState(false);
   const [authReady, setAuthReady] = useState(false);
+  const [lang,      setLang]      = useState<Lang>(() => readLang());
   const router   = useRouter();
   const pathname = usePathname();
+
+  const langCtx = useMemo(() => makeLangCtx(lang), [lang]);
+  const t = langCtx.t;
+
+  function toggleLang() {
+    const next: Lang = lang === "ar" ? "en" : "ar";
+    setLang(next);
+    applyLang(next);
+  }
 
   useEffect(() => {
     const token = getToken();
     if (!token) { router.push("/login"); return; }
+    if (lang === "en") { document.documentElement.dir = "ltr"; document.documentElement.lang = "en"; }
 
-    fetch(apiUrl("/current-user/"), {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    authFetch("/current-user/")
       .then(r => (r.ok ? r.json() : Promise.reject()))
       .then(u => {
         if (u.role !== "reception") { router.push("/login"); return; }
@@ -43,10 +53,11 @@ export default function ReceptionLayout({ children }: { children: React.ReactNod
         setAuthReady(true);
       })
       .catch(() => router.push("/login"));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- lang read once on mount from lazy state
   }, [router]);
 
-  const logout = () => {
-    clearTokens();
+  const logout = async () => {
+    await apiLogout();
     ["role", "hotel_id"].forEach(k => localStorage.removeItem(k));
     router.push("/login");
   };
@@ -56,26 +67,27 @@ export default function ReceptionLayout({ children }: { children: React.ReactNod
   if (!authReady) {
     return (
       <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"100vh", background:"var(--layout-bg)", backgroundAttachment:"fixed" }}>
-        <p style={{ color:"var(--color-muted)", fontSize:14, fontWeight:600 }}>جارٍ التحقق...</p>
+        <p style={{ color:"var(--color-muted)", fontSize:14, fontWeight:600 }}>{t("جارٍ التحقق...")}</p>
       </div>
     );
   }
 
   return (
-    <div className={`app-shell${compact ? " sidebar-compact" : ""}`} dir="rtl">
+    <LangContext.Provider value={langCtx}>
+    <div className={`app-shell${compact ? " sidebar-compact" : ""}`} dir={langCtx.dir}>
 
-      <aside className={`sidebar${compact ? " compact" : ""}`} aria-label="القائمة الرئيسية">
+      <aside className={`sidebar${compact ? " compact" : ""}`} aria-label={t("القائمة الرئيسية")}>
         <div className="sidebar-header">
           <div className="sidebar-brand-mark">{avatarLetter}</div>
           {!compact && (
             <div style={{ minWidth: 0, flex: 1 }}>
               <p className="sidebar-brand-title">{hotelName}</p>
-              <p className="sidebar-brand-sub">موظف استقبال</p>
+              <p className="sidebar-brand-sub">{t("موظف استقبال")}</p>
             </div>
           )}
         </div>
 
-        <nav className="sidebar-nav" aria-label="تنقل">
+        <nav className="sidebar-nav" aria-label={t("تنقل")}>
           {NAV.map(item => {
             const active = item.href === "/reception"
               ? pathname === "/reception"
@@ -88,7 +100,7 @@ export default function ReceptionLayout({ children }: { children: React.ReactNod
                 aria-current={active ? "page" : undefined}
               >
                 <span className="nav-icon"><item.Icon size={20} strokeWidth={1.8} /></span>
-                {!compact && <span className="nav-label">{item.label}</span>}
+                {!compact && <span className="nav-label">{t(item.label)}</span>}
               </Link>
             );
           })}
@@ -98,7 +110,7 @@ export default function ReceptionLayout({ children }: { children: React.ReactNod
           <button className="sidebar-toggle" onClick={() => setCompact(c => !c)}>
             {compact
               ? <ChevronLeft size={16} />
-              : <><ChevronRight size={16} /><span>طي القائمة</span></>
+              : <><ChevronRight size={16} /><span>{t("طي القائمة")}</span></>
             }
           </button>
         </div>
@@ -106,17 +118,20 @@ export default function ReceptionLayout({ children }: { children: React.ReactNod
 
       <header className="topbar" role="banner">
         <div className="topbar-title">
-          <h1>الاستقبال</h1>
+          <h1>{t("الاستقبال")}</h1>
           <p>{hotelName}</p>
         </div>
         <div className="topbar-actions">
+          <button className="topbar-icon-btn" onClick={toggleLang} title={lang === "ar" ? "English" : "عربي"} aria-label={lang === "ar" ? "English" : "عربي"}>
+            <Globe size={22} strokeWidth={1.8} />
+          </button>
           <div className="user-chip">
             <span className="user-chip-avatar">{avatarLetter}</span>
-            <span className="user-chip-name">{username || "المستخدم"}</span>
+            <span className="user-chip-name">{username || t("المستخدم")}</span>
           </div>
           <button onClick={logout} className="ds-btn ds-btn-neutral ds-btn-sm">
             <LogOut size={16} strokeWidth={2} />
-            <span>خروج</span>
+            <span>{t("خروج")}</span>
           </button>
         </div>
       </header>
@@ -125,5 +140,6 @@ export default function ReceptionLayout({ children }: { children: React.ReactNod
         {children}
       </main>
     </div>
+    </LangContext.Provider>
   );
 }

@@ -15,6 +15,7 @@ interface Staff {
   id:number; hotel:number; full_name:string; role:StaffRole;
   phone:string; email:string; shift:StaffShift; status:StaffStatus;
   permissions:string[]; notes:string; created_at:string; updated_at:string;
+  username?:string|null; has_login?:boolean;   // د‑5: حساب الدخول
 }
 
 /* ─── Constants ─────────────────────────────────────────── */
@@ -88,12 +89,15 @@ export default function StaffPage() {
   const [fShift2, setFShift2] = useState<StaffShift>("morning");
   const [fNotes,  setFNotes]  = useState("");
   const [fPerms,  setFPerms]  = useState<string[]>([]);
+  const [fUsername, setFUsername] = useState("");   // د‑5: حساب دخول الموظف
+  const [fPassword, setFPassword] = useState("");
   const [formErr, setFormErr] = useState("");
   const [saving,  setSaving]  = useState(false);
 
   /* Password modal */
   const [pw1, setPw1] = useState("");
   const [pw2, setPw2] = useState("");
+  const [pwUser, setPwUser] = useState("");   // د‑5: اسم مستخدم عند إنشاء حساب لموظف بلا دخول
   const [pwErr, setPwErr] = useState("");
 
   /* Shift modal */
@@ -139,6 +143,7 @@ export default function StaffPage() {
   function openAdd(){
     setFName("");setFRole2("receptionist");setFPhone("");setFEmail("");
     setFShift2("morning");setFNotes("");setFPerms(DEFAULT_PERMS.receptionist??[]);
+    setFUsername("");setFPassword("");
     setFormErr("");setSelStaff(null);setModal("add");
   }
   function openEdit(s:Staff){
@@ -147,7 +152,7 @@ export default function StaffPage() {
     setFormErr("");setSelStaff(s);setModal("edit");
   }
   function openView(s:Staff){setSelStaff(s);setModal("view");}
-  function openPassword(s:Staff){setPw1("");setPw2("");setPwErr("");setSelStaff(s);setModal("password");}
+  function openPassword(s:Staff){setPw1("");setPw2("");setPwUser("");setPwErr("");setSelStaff(s);setModal("password");}
   function openShift(s:Staff){setNewShift(s.shift);setSelStaff(s);setModal("shift");}
   function openPerms(s:Staff){setEditPerms(Array.isArray(s.permissions)?s.permissions:[]);setSelStaff(s);setModal("permissions");}
 
@@ -157,9 +162,12 @@ export default function StaffPage() {
     if(!fEmail.trim()||!fEmail.includes("@")){setFormErr(t("البريد الإلكتروني غير صالح."));return;}
     const dup=staff.find(s=>s.email.toLowerCase()===fEmail.toLowerCase()&&(modal==="add"||s.id!==selStaff?.id));
     if(dup){setFormErr(t("هذا البريد الإلكتروني مستخدم بالفعل من قبل موظف آخر."));return;}
+    // د‑5: عند الإضافة، إن أُدخل اسم مستخدم يُنشأ حساب دخول (كلمة مرور ≥ 8)
+    if(modal==="add"&&fUsername.trim()&&fPassword.length<8){setFormErr(t("كلمة المرور 8 أحرف على الأقل لإنشاء حساب الدخول."));return;}
     setSaving(true);setFormErr("");
-    const payload={hotel:Number(hotelId),full_name:fName.trim(),role:fRole2,
+    const payload:Record<string,unknown>={hotel:Number(hotelId),full_name:fName.trim(),role:fRole2,
       phone:fPhone.trim(),email:fEmail.trim(),shift:fShift2,notes:fNotes.trim(),permissions:fPerms};
+    if(modal==="add"&&fUsername.trim()){payload.username=fUsername.trim();payload.password=fPassword;}
     try{
       if(modal==="edit"&&selStaff){
         const r=await fetch(`${API}/staff/${selStaff.id}/`,{method:"PUT",headers:apiHJ(),body:JSON.stringify(payload)});
@@ -203,10 +211,17 @@ export default function StaffPage() {
       showToast(t("تم حفظ الصلاحيات."));setModal(null);fetchStaff();
     }catch{showToast(t("حدث خطأ."));}
   }
-  function handlePasswordSave(){
-    if(pw1.length<6){setPwErr(t("كلمة السر يجب أن تكون 6 أحرف على الأقل."));return;}
+  async function handlePasswordSave(){
+    if(!selStaff)return;
+    if(pw1.length<8){setPwErr(t("كلمة المرور 8 أحرف على الأقل."));return;}
     if(pw1!==pw2){setPwErr(t("كلمتا السر غير متطابقتين."));return;}
-    showToast(t("تغيير كلمة السر يتطلب نقطة API مخصصة في الخادم. تم تحديث النموذج فقط."));setModal(null);
+    const body:Record<string,unknown>={password:pw1};
+    if(!selStaff.has_login){ if(!pwUser.trim()){setPwErr(t("اسم المستخدم مطلوب لإنشاء حساب الدخول."));return;} body.username=pwUser.trim(); }
+    try{
+      const r=await fetch(`${API}/staff/${selStaff.id}/set_password/`,{method:"POST",headers:apiHJ(),body:JSON.stringify(body)});
+      if(!r.ok){const d=await r.json().catch(()=>({}));setPwErr(d.error||t("حدث خطأ."));return;}
+      showToast(t("تم تحديث كلمة المرور."));setModal(null);fetchStaff();
+    }catch{setPwErr(t("حدث خطأ."));}
   }
   function togglePerm(p:string){setFPerms(prev=>prev.includes(p)?prev.filter(x=>x!==p):[...prev,p]);}
   function toggleEditPerm(p:string){setEditPerms(prev=>prev.includes(p)?prev.filter(x=>x!==p):[...prev,p]);}
@@ -379,6 +394,19 @@ export default function StaffPage() {
                   <label className="field-label">{t("الاسم الكامل")} *</label>
                   <input className="input" value={fName} onChange={e=>setFName(e.target.value)} placeholder={t("مثال: محمد عبدالله السعيد")} />
                 </div>
+                {modal==="add"&&(<>
+                  <div className="field">
+                    <label className="field-label">{t("اسم المستخدم")}</label>
+                    <input className="input" value={fUsername} onChange={e=>setFUsername(e.target.value)} placeholder={t("لتفعيل حساب دخول (اختياري)")} autoComplete="off" />
+                  </div>
+                  <div className="field">
+                    <label className="field-label">{t("كلمة المرور")}</label>
+                    <input className="input" type="password" value={fPassword} onChange={e=>setFPassword(e.target.value)} placeholder={t("8 أحرف على الأقل")} autoComplete="new-password" />
+                  </div>
+                  <p className="text-muted" style={{gridColumn:"1/-1",fontSize:11,marginTop:-4}}>
+                    {t("عند إدخال اسم مستخدم وكلمة مرور يُنشأ حساب دخول حقيقي للموظف، وكل عملية تُسجَّل باسمه.")}
+                  </p>
+                </>)}
                 <div className="field">
                   <label className="field-label">{t("الدور الوظيفي")} *</label>
                   <select className="select" value={fRole2} onChange={e=>{
@@ -511,14 +539,21 @@ export default function StaffPage() {
               <button className="icon-btn" onClick={()=>setModal(null)}><X size={16} strokeWidth={2.5}/></button>
             </div>
             <div className="ds-modal-body">
-              <div style={{background:"#fef3c7",border:"1px solid #fbbf24",borderRadius:8,padding:"0.6rem 0.75rem",
-                marginBottom:"1rem",fontSize:12,color:"#92400e",fontWeight:700}}>
-                <AlertTriangle size={13} style={{flexShrink:0}}/> {t("هذه الميزة تتطلب نقطة API مخصصة في الخادم لتغيير كلمة السر فعليًا.")}
-              </div>
+              {!selStaff.has_login && (
+                <div className="ds-alert ds-alert-info" style={{marginBottom:"1rem",fontSize:12}}>
+                  {t("هذا الموظف بلا حساب دخول — أدخل اسم مستخدم وكلمة مرور لإنشائه الآن.")}
+                </div>
+              )}
               {pwErr&&<p style={{color:"var(--color-danger)",fontSize:13,marginBottom:"0.75rem"}}>{pwErr}</p>}
+              {!selStaff.has_login && (
+                <div className="field" style={{marginBottom:"0.65rem"}}>
+                  <label className="field-label">{t("اسم المستخدم")}</label>
+                  <input className="input" value={pwUser} onChange={e=>setPwUser(e.target.value)} autoComplete="off" />
+                </div>
+              )}
               <div className="field" style={{marginBottom:"0.65rem"}}>
                 <label className="field-label">{t("كلمة السر الجديدة")}</label>
-                <input className="input" type="password" value={pw1} onChange={e=>setPw1(e.target.value)} placeholder={t("6 أحرف على الأقل")} />
+                <input className="input" type="password" value={pw1} onChange={e=>setPw1(e.target.value)} placeholder={t("8 أحرف على الأقل")} autoComplete="new-password" />
               </div>
               <div className="field">
                 <label className="field-label">{t("تأكيد كلمة السر")}</label>
