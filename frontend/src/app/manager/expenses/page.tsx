@@ -115,6 +115,7 @@ export default function ExpensesPage() {
   const [fCategory,  setFCategory]  = useState<TCategory | "all">("all");
   const [fMonth,     setFMonth]     = useState<string>("all");
   const [deleteId,   setDeleteId]   = useState<string | null>(null);
+  const [voidReason, setVoidReason] = useState("");   // م6: سبب الإبطال
 
   // ── Load (من الـBackend — لا localStorage) ───────────────────────────────
   const loadExpenses = async () => {
@@ -123,7 +124,8 @@ export default function ExpensesPage() {
       const r = await fetch(apiUrl(`/expenses/?hotel=${hotelId}`), { headers: getAuthHeaders() });
       const data = await r.json();
       const list: Record<string, unknown>[] = Array.isArray(data) ? data : data.results ?? [];
-      setExpenses(list.map(mapExpense));
+      // م6: تُستثنى المصاريف الملغاة من القائمة/الإجماليات التشغيلية (محفوظة في الـBackend + سجلّ التدقيق)
+      setExpenses(list.filter(x => !x.voided).map(mapExpense));
     } catch { setExpenses([]); }
   };
 
@@ -226,14 +228,19 @@ export default function ExpensesPage() {
     } catch { setFormErr(t("تعذّر الحفظ، حاول مرة أخرى.")); }
   }
 
-  async function deleteExpense(id: string) {
+  // م6: لا حذف مالي — إبطال (void) موثَّق بسبب إلزامي
+  async function voidExpense(id: string) {
+    if (!voidReason.trim()) { showToast(t("سبب الإبطال مطلوب.")); return; }
     try {
-      const r = await fetch(apiUrl(`/expenses/${id}/`), { method: "DELETE", headers: getAuthHeaders() });
-      if (!r.ok && r.status !== 204) throw new Error();
-      setDeleteId(null);
-      showToast(t("تم حذف المصروف."));
+      const r = await fetch(apiUrl(`/expenses/${id}/void/`), {
+        method: "POST", headers: getAuthJsonHeaders(),
+        body: JSON.stringify({ reason: voidReason.trim() }),
+      });
+      if (!r.ok) throw new Error();
+      setDeleteId(null); setVoidReason("");
+      showToast(t("تم إبطال المصروف."));
       await loadExpenses();
-    } catch { setDeleteId(null); showToast(t("تعذّر الحذف.")); }
+    } catch { showToast(t("تعذّر الإبطال.")); }
   }
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -487,22 +494,26 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* ════ DELETE CONFIRM MODAL ════════════════════════════════════════════ */}
+      {/* ════ VOID (إبطال) MODAL — م6: لا حذف مالي ═══════════════════════════ */}
       {deleteId && (
-        <div className="ds-modal-backdrop" onClick={() => setDeleteId(null)}>
-          <div className="ds-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+        <div className="ds-modal-backdrop" onClick={() => { setDeleteId(null); setVoidReason(""); }}>
+          <div className="ds-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
             <div className="ds-modal-head">
-              <h2>{t("حذف المصروف")}</h2>
-              <button className="icon-btn" onClick={() => setDeleteId(null)}><X size={16} strokeWidth={2.5}/></button>
+              <h2>{t("إبطال المصروف")}</h2>
+              <button className="icon-btn" onClick={() => { setDeleteId(null); setVoidReason(""); }}><X size={16} strokeWidth={2.5}/></button>
             </div>
             <div className="ds-modal-body">
-              <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 8, padding: "0.75rem", fontSize: 13, color: "#991b1b", fontWeight: 700 }}>
-                {t("هل أنت متأكد من حذف هذا المصروف؟ لا يمكن التراجع عن هذا الإجراء.")}
+              <div style={{ background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 8, padding: "0.75rem", fontSize: 13, color: "#92400e", fontWeight: 700, marginBottom: "0.85rem" }}>
+                {t("لا يُحذف السجلّ المالي نهائيًا — يُعلَّم «ملغى» مع سبب، ويبقى للتدقيق.")}
+              </div>
+              <div className="field">
+                <label className="field-label">{t("سبب الإبطال")} *</label>
+                <input className="input" value={voidReason} onChange={e => setVoidReason(e.target.value)} placeholder={t("مثال: مصروف مكرّر / مبلغ خاطئ")} autoFocus />
               </div>
             </div>
             <div className="ds-modal-foot">
-              <button className="ds-btn ds-btn-neutral" onClick={() => setDeleteId(null)}>{t("إلغاء")}</button>
-              <button className="ds-btn ds-btn-danger" onClick={() => deleteExpense(deleteId)}>{t("نعم، حذف")}</button>
+              <button className="ds-btn ds-btn-neutral" onClick={() => { setDeleteId(null); setVoidReason(""); }}>{t("إلغاء")}</button>
+              <button className="ds-btn ds-btn-danger" onClick={() => voidExpense(deleteId)}>{t("تأكيد الإبطال")}</button>
             </div>
           </div>
         </div>

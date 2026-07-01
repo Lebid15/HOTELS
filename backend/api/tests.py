@@ -1086,6 +1086,65 @@ class DirectBookingAndGuestLookupTests(BaseAPITest):
         self.assertEqual(self.client.get('/api/reservations/guest_lookup/?q=ab').json(), [])
 
 
+# ── م6: حماية العمليات المالية (إبطال بدل حذف + تدقيق) ─────────────────────
+class FinancialVoidTests(BaseAPITest):
+    def _payment(self, amount=50):
+        from .models import Payment
+        from .views import _recompute_reservation_paid
+        p = Payment.objects.create(hotel=self.hotelA, reservation=self.resA, amount=amount,
+                                   currency='USD', method='cash', source='booking')
+        _recompute_reservation_paid(p.reservation)
+        return p
+
+    def test_payment_hard_delete_blocked(self):
+        p = self._payment()
+        self.as_(self.mgrA)
+        self.assertEqual(self.client.delete(f'/api/payments/{p.id}/').status_code, 405)  # لا حذف مالي
+
+    def test_void_payment_records_audit_and_recomputes(self):
+        from .models import AuditLog, Payment
+        self.resA.total = 100; self.resA.save()
+        p = self._payment(amount=60)
+        # المدفوع مشتقّ = 60
+        self.as_(self.mgrA)
+        self.assertEqual(float(self.client.get(f'/api/reservations/{self.resA.id}/').json()['paid']), 60)
+        r = self.client.post(f'/api/payments/{p.id}/void/', {'reason': 'دفعة خاطئة'}, format='json')
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()['voided'])
+        p.refresh_from_db()
+        self.assertTrue(p.voided and p.voided_by_id == self.mgrA.id)
+        self.assertTrue(AuditLog.objects.filter(action='payment.void', hotel=self.hotelA).exists())
+        # المدفوع أُعيد احتسابه صعودًا (تُستثنى الملغاة) → 0
+        self.assertEqual(float(self.client.get(f'/api/reservations/{self.resA.id}/').json()['paid']), 0)
+
+    def test_void_requires_reason(self):
+        p = self._payment()
+        self.as_(self.mgrA)
+        self.assertEqual(self.client.post(f'/api/payments/{p.id}/void/', {}, format='json').status_code, 400)
+
+    def test_void_twice_rejected(self):
+        p = self._payment()
+        self.as_(self.mgrA)
+        self.client.post(f'/api/payments/{p.id}/void/', {'reason': 'x'}, format='json')
+        self.assertEqual(self.client.post(f'/api/payments/{p.id}/void/', {'reason': 'y'}, format='json').status_code, 400)
+
+    def test_cannot_void_other_hotel_payment(self):
+        from .models import Payment, Reservation
+        resB = Reservation.objects.create(hotel=self.hotelB, guest_first_name='B')
+        pB = Payment.objects.create(hotel=self.hotelB, reservation=resB, amount=10, currency='USD', method='cash')
+        self.as_(self.mgrA)
+        self.assertEqual(self.client.post(f'/api/payments/{pB.id}/void/', {'reason': 'x'}, format='json').status_code, 404)
+
+    def test_expense_delete_blocked_but_void_works(self):
+        from .models import Expense
+        e = Expense.objects.create(hotel=self.hotelA, amount=20, currency='USD', description='e')
+        self.as_(self.mgrA)
+        self.assertEqual(self.client.delete(f'/api/expenses/{e.id}/').status_code, 405)
+        r = self.client.post(f'/api/expenses/{e.id}/void/', {'reason': 'مكرّر'}, format='json')
+        self.assertEqual(r.status_code, 200)
+        self.assertTrue(r.json()['voided'])
+
+
 # ── المرحلة 11: سجلّ التدقيق (AuditLog) ────────────────────────────────────
 class AuditLogTests(BaseAPITest):
     def test_check_in_records_audit(self):

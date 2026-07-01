@@ -369,12 +369,15 @@ class PaymentSerializer(serializers.ModelSerializer):
         model = Payment
         fields = [
             'id', 'hotel', 'reservation', 'amount', 'currency', 'method', 'source', 'note',
-            'receipt_no', 'created_by', 'created_by_name', 'guest_name', 'created_at',
+            'receipt_no', 'voided', 'voided_at', 'void_reason',
+            'created_by', 'created_by_name', 'guest_name', 'created_at',
         ]
         extra_kwargs = {
             'hotel': {'read_only': True},
             'receipt_no': {'read_only': True},
             'created_by': {'read_only': True},
+            'voided': {'read_only': True}, 'voided_at': {'read_only': True},
+            'void_reason': {'read_only': True},
         }
 
     def get_guest_name(self, obj):
@@ -389,9 +392,12 @@ class ExpenseSerializer(serializers.ModelSerializer):
         model = Expense
         fields = [
             'id', 'hotel', 'category', 'description', 'amount', 'currency',
-            'spent_on', 'paid_to', 'notes', 'created_by', 'created_by_name', 'created_at',
+            'spent_on', 'paid_to', 'notes', 'voided', 'voided_at', 'void_reason',
+            'created_by', 'created_by_name', 'created_at',
         ]
-        extra_kwargs = {'hotel': {'read_only': True}, 'created_by': {'read_only': True}}
+        extra_kwargs = {'hotel': {'read_only': True}, 'created_by': {'read_only': True},
+                        'voided': {'read_only': True}, 'voided_at': {'read_only': True},
+                        'void_reason': {'read_only': True}}
 
 
 class PlatformSettingsSerializer(serializers.ModelSerializer):

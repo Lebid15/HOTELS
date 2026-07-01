@@ -9,6 +9,16 @@ export const EN: Record<string, string> = {
   // ── Dev-notes Phase 7: day close ─────────────────────────────────────────────
   "تعذّر إغلاق اليوم على الخادم.": "Could not close the day on the server.",
 
+  // ── Closure Phase 6: financial void (no hard delete) ─────────────────────────
+  "إبطال المصروف": "Void expense",
+  "لا يُحذف السجلّ المالي نهائيًا — يُعلَّم «ملغى» مع سبب، ويبقى للتدقيق.": "Financial records are never hard-deleted — they are marked voided with a reason and kept for audit.",
+  "سبب الإبطال": "Void reason",
+  "مثال: مصروف مكرّر / مبلغ خاطئ": "e.g. duplicate expense / wrong amount",
+  "تأكيد الإبطال": "Confirm void",
+  "تم إبطال المصروف.": "Expense voided.",
+  "تعذّر الإبطال.": "Could not void.",
+  "سبب الإبطال مطلوب.": "Void reason is required.",
+
   // ── Dev-notes Phase 6: security / profile ────────────────────────────────────
   "الملف الشخصي": "My Profile",
   "تفعيل التحقق بخطوتين عند الدخول": "Enable two-factor authentication at sign-in",

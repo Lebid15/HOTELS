@@ -710,6 +710,11 @@ class Payment(models.Model):
     method      = models.CharField(max_length=20, choices=METHOD_CHOICES, default=METHOD_CASH)
     source      = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='booking')
     note        = models.CharField(max_length=300, blank=True)
+    # م6: الإبطال بدل الحذف (لا يختفي سجلّ مالي — يُعلَّم ملغى مع سبب وفاعل ووقت)
+    voided      = models.BooleanField(default=False)
+    voided_at   = models.DateTimeField(null=True, blank=True)
+    voided_by   = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='voided_payments')
+    void_reason = models.CharField(max_length=300, blank=True)
     receipt_no  = models.CharField(max_length=30, blank=True)
     created_by  = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
     created_at  = models.DateTimeField(auto_now_add=True)
@@ -738,6 +743,11 @@ class Expense(models.Model):
     spent_on    = models.DateField(null=True, blank=True)
     paid_to     = models.CharField(max_length=200, blank=True)
     notes       = models.CharField(max_length=500, blank=True)
+    # م6: الإبطال بدل الحذف
+    voided      = models.BooleanField(default=False)
+    voided_at   = models.DateTimeField(null=True, blank=True)
+    voided_by   = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='voided_expenses')
+    void_reason = models.CharField(max_length=300, blank=True)
     created_by  = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
     created_at  = models.DateTimeField(auto_now_add=True)
 

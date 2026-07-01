@@ -1292,7 +1292,7 @@ def _recompute_reservation_paid(reservation):
     """سلسلة المال: المبلغ المدفوع للحجز = مجموع دفعاته (قيمة مشتقّة تُحدَّث ذرّيًا)."""
     if reservation is None:
         return
-    total = reservation.payments.aggregate(s=Sum('amount'))['s'] or 0
+    total = reservation.payments.filter(voided=False).aggregate(s=Sum('amount'))['s'] or 0
     Reservation.objects.filter(pk=reservation.pk).update(paid=total)
 
 
@@ -1319,8 +1319,8 @@ def _compute_day_snapshot(hotel_id, day):
     unpaid_total = sum((_reservation_balance_due(r) for r in unpaid), Decimal('0'))
     rooms_cleaning = Room.objects.filter(hotel_id=hotel_id, status=Room.STATUS_CLEANING).count()
     rooms_maint = Room.objects.filter(hotel_id=hotel_id, status=Room.STATUS_MAINTENANCE).count()
-    # مدفوعات اليوم حسب الطريقة
-    pays = Payment.objects.filter(hotel_id=hotel_id, created_at__date=day)
+    # مدفوعات اليوم حسب الطريقة (م6: تُستثنى الملغاة)
+    pays = Payment.objects.filter(hotel_id=hotel_id, created_at__date=day, voided=False)
     by_method = {}
     for p in pays:
         by_method[p.method] = float(by_method.get(p.method, 0)) + float(p.amount or 0)
@@ -1423,6 +1423,7 @@ class PaymentViewSet(_HotelScopedViewSet):
     serializer_class = PaymentSerializer
     permission_classes = [PaymentPermission]
     queryset = Payment.objects.select_related('reservation', 'created_by')
+    http_method_names = ['get', 'post', 'head', 'options']   # م6: لا حذف/تعديل مالي مباشر
 
     def perform_create(self, serializer):
         hotel_id = self._resolve_hotel_id()
@@ -1435,19 +1436,56 @@ class PaymentViewSet(_HotelScopedViewSet):
                      entity_type='payment', entity_id=obj.pk,
                      summary=f'دفعة {obj.amount} {obj.currency} · {obj.method}')
 
-    def perform_destroy(self, instance):
-        res = instance.reservation
-        instance.delete()
-        _recompute_reservation_paid(res)
+    @action(detail=True, methods=['post'], url_path='void')
+    def void(self, request, pk=None):
+        """م6: إبطال الدفعة (بدل الحذف) — سبب إلزامي + تسجيل تدقيق + إعادة احتساب."""
+        from django.db import transaction
+        pay = self.get_object()
+        if pay.voided:
+            return Response({'error': 'الدفعة ملغاة بالفعل'}, status=400)
+        reason = (request.data.get('reason') or '').strip()
+        if not reason:
+            return Response({'error': 'سبب الإبطال مطلوب'}, status=400)
+        with transaction.atomic():
+            pay.voided = True
+            pay.voided_at = timezone.now()
+            pay.voided_by = request.user
+            pay.void_reason = reason
+            pay.save()
+            _recompute_reservation_paid(pay.reservation)
+        record_audit(request.user, hotel_id=pay.hotel_id, action='payment.void',
+                     entity_type='payment', entity_id=pay.pk,
+                     summary=f'إبطال دفعة {pay.amount} {pay.currency} · السبب: {reason}')
+        return Response(PaymentSerializer(pay).data)
 
 
 class ExpenseViewSet(_HotelScopedViewSet):
     serializer_class = ExpenseSerializer
     permission_classes = [ExpensePermission]
     queryset = Expense.objects.select_related('created_by')
+    http_method_names = ['get', 'post', 'put', 'patch', 'head', 'options']   # م6: لا حذف (يُستبدَل بإبطال)
 
     def perform_create(self, serializer):
         serializer.save(hotel_id=self._resolve_hotel_id(), created_by=self.request.user)
+
+    @action(detail=True, methods=['post'], url_path='void')
+    def void(self, request, pk=None):
+        """م6: إبطال مصروف (بدل الحذف) — سبب إلزامي + تسجيل تدقيق."""
+        exp = self.get_object()
+        if exp.voided:
+            return Response({'error': 'المصروف ملغى بالفعل'}, status=400)
+        reason = (request.data.get('reason') or '').strip()
+        if not reason:
+            return Response({'error': 'سبب الإبطال مطلوب'}, status=400)
+        exp.voided = True
+        exp.voided_at = timezone.now()
+        exp.voided_by = request.user
+        exp.void_reason = reason
+        exp.save()
+        record_audit(request.user, hotel_id=exp.hotel_id, action='expense.void',
+                     entity_type='expense', entity_id=exp.pk,
+                     summary=f'إبطال مصروف {exp.amount} {exp.currency} · السبب: {reason}')
+        return Response(ExpenseSerializer(exp).data)
 
 
 class LostFoundViewSet(_HotelScopedViewSet):
