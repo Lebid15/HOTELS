@@ -42,10 +42,23 @@ function tokenStore(): Storage | null {
   return null;
 }
 
+/** م4: معالجة انتهاء الجلسة موحّدة — لا فشل صامت. تمسح الجلسة، تُطلق حدثًا
+ *  عامًّا (لعرض تنبيه فوري)، وتوجّه إلى /login?expired=1 مرّة واحدة. */
+let sessionExpiredHandled = false;
+export function onSessionExpired(): void {
+  if (typeof window === "undefined") return;
+  clearTokens();
+  window.dispatchEvent(new CustomEvent("session-expired"));
+  if (!sessionExpiredHandled && !window.location.pathname.startsWith("/login")) {
+    sessionExpiredHandled = true;
+    window.location.href = "/login?expired=1";
+  }
+}
+
 // طلب تجديد واحد مشترك (single-flight) لتفادي "عاصفة التجديد" عند تزامن عدّة طلبات.
 let refreshing: Promise<string | null> | null = null;
 
-function refreshAccess(): Promise<string | null> {
+export function refreshAccess(): Promise<string | null> {
   const refresh = getRefreshToken();
   if (!refresh) return Promise.resolve(null);
   if (!refreshing) {
@@ -84,10 +97,7 @@ export async function authFetch(path: string, options: RequestInit = {}): Promis
   if (res.status !== 401) return res;
   const newAccess = await refreshAccess();
   if (newAccess) return fetch(url, build(newAccess));
-  clearTokens();
-  if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
-    window.location.href = "/login";
-  }
+  onSessionExpired();   // م4: معالجة موحّدة بدل التوجيه الصامت
   return res;
 }
 

@@ -57,6 +57,7 @@ const EN: Record<string, string> = {
   "كود التحقق":                                        "Verification code",
   "جارٍ التحقق...":                                    "Verifying...",
   "تأكيد الكود":                                       "Confirm code",
+  "انتهت جلستك، يرجى تسجيل الدخول من جديد.":           "Your session expired. Please sign in again.",
 };
 
 const FEATURES = [
@@ -137,6 +138,8 @@ export default function LoginPage() {
   const [loginLoad, setLoginLoad]   = useState(false);
   const [tfaTicket, setTfaTicket]   = useState<string|null>(null);   // د‑6: تحقّق بخطوتين
   const [tfaCode, setTfaCode]       = useState("");
+  const [expired]                   = useState(() =>                 // م4: انتهت الجلسة
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("expired") === "1");
   const [regHotel, setRegHotel]     = useState("");
   const [regUser, setRegUser]       = useState("");
   const [regEmail, setRegEmail]     = useState("");
@@ -155,6 +158,7 @@ export default function LoginPage() {
     document.documentElement.dir  = lang === "ar" ? "rtl" : "ltr";
     document.documentElement.lang = lang;
   }, [lang]);
+
 
   function toggleLang() {
     const next: Lang = lang === "ar" ? "en" : "ar";
@@ -295,6 +299,13 @@ export default function LoginPage() {
           {t("نظام إدارة الفنادق الاحترافي")}
         </p>
       </div>
+
+      {/* م4: شريط انتهاء الجلسة */}
+      {expired && mode === "login" && !tfaTicket && (
+        <div style={{ width: "100%", maxWidth: 400, marginBottom: 12, background: "#fffbeb", border: "1px solid #fcd34d", borderRadius: 10, padding: "10px 14px", fontSize: 13, color: "#92400e", fontWeight: 700, textAlign: "center" }}>
+          {t("انتهت جلستك، يرجى تسجيل الدخول من جديد.")}
+        </div>
+      )}
 
       {/* ── Card ─────────────────────────────────────────────── */}
       <div className="ds-card" style={{ width: "100%", maxWidth: mode === "register" ? 440 : 400, padding: 0 }}>

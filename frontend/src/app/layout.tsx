@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
+import SessionGuard from "@/components/SessionGuard";
 
 /* Tajawal — خط عربي محلّي (مرحلة 1: بلا اعتماد Google Fonts وقت البناء).
    ملفات woff2 مُضمَّنة في المستودع (src/app/fonts) → بناء معزول قابل للتكرار. */
@@ -25,7 +26,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ar" dir="rtl" className={`${tajawal.variable} h-full`}>
-      <body className="min-h-full">{children}</body>
+      <body className="min-h-full">
+        <SessionGuard />
+        {children}
+      </body>
     </html>
   );
 }
