@@ -6,6 +6,7 @@ import { Building2, Settings, BedDouble, Printer, FileText, Bell, Archive, Palet
 import { useLang } from "../LangContext";
 
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
+import HotelMap from "@/components/HotelMap";
 const LS_KEY = (hid: string) => `fandqi.settings.${hid}`;
 
 function loadLS(hid: string) {
@@ -19,7 +20,7 @@ function saveLS(hid: string, patch: object) {
 // ─── types ───────────────────────────────────────────────────────────────────
 type TTab = "identity" | "operations" | "rooms" | "printing" | "documents" | "notifications" | "backup" | "appearance";
 
-interface IIdentity { name: string; ownerName: string; city: string; address: string; phone: string; email: string; website: string; logo: string | null; }
+interface IIdentity { name: string; ownerName: string; city: string; address: string; phone: string; email: string; website: string; logo: string | null; coverImage: string | null; mapUrl: string; latitude: string; longitude: string; }
 interface IOps { currency: string; resPrefix: string; lastRes: string; resDigits: string; autoClean: boolean; blockCheckout: boolean; }
 interface IRooms { floors: string; roomTypes: string[]; defaultCapacity: string; }
 interface IPrinting { showLogo: boolean; showContact: boolean; resTitle: string; accountTitle: string; terms: string; footer: string; numLang: string; }
@@ -27,7 +28,7 @@ interface IDocs { docTypes: string[]; requireGuest: boolean; requireCompanion: b
 interface INotifs { arrivals: boolean; departures: boolean; balanceDue: boolean; cleaning: boolean; maintenance: boolean; roomAccount: boolean; balanceThreshold: string; showBell: boolean; }
 interface IAppearance { language: string; density: string; animations: boolean; }
 
-const DEFAULT_IDENTITY: IIdentity = { name: "", ownerName: "", city: "", address: "", phone: "", email: "", website: "", logo: null };
+const DEFAULT_IDENTITY: IIdentity = { name: "", ownerName: "", city: "", address: "", phone: "", email: "", website: "", logo: null, coverImage: null, mapUrl: "", latitude: "", longitude: "" };
 const DEFAULT_OPS: IOps = { currency: "USD", resPrefix: "RES", lastRes: "0", resDigits: "4", autoClean: true, blockCheckout: true };
 const DEFAULT_ROOMS: IRooms = { floors: "1", roomTypes: ["مفردة", "مزدوجة", "ثلاثية", "سويت", "عائلية", "جناح", "غرفة مميزة"], defaultCapacity: "2" };
 const DEFAULT_PRINTING: IPrinting = {
@@ -181,7 +182,18 @@ export default function SettingsPage() {
     fetch(`${API}/hotels/${hotelId}/`, { headers: apiH() })
       .then(r => r.ok ? r.json() : null).then(d => {
         if (!d) return;
-        setIdentity(prev => ({ ...prev, name: d.name ?? "", city: d.city ?? "", address: d.address ?? "", phone: d.phone ?? "", email: d.email ?? "" }));
+        setIdentity(prev => ({
+          ...prev,
+          name: d.name ?? "",
+          city: d.city ?? "",
+          address: d.address ?? "",
+          phone: d.phone ?? "",
+          email: d.email ?? "",
+          coverImage: d.cover_image ?? prev.coverImage,
+          mapUrl: d.map_url ?? "",
+          latitude: d.latitude != null ? String(d.latitude) : "",
+          longitude: d.longitude != null ? String(d.longitude) : "",
+        }));
         if (d.floors_count) setRooms(prev => ({ ...prev, floors: String(d.floors_count) }));
       }).catch(() => {});
     // fetch rooms to compute max floor
@@ -198,9 +210,22 @@ export default function SettingsPage() {
   async function doSaveIdentity() {
     if (!identity.name.trim()) { setError(t("اسم الفندق لا يجب أن يكون فارغًا.")); return; }
     if (identity.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identity.email)) { setError(t("البريد الإلكتروني غير صحيح.")); return; }
+    const lat = identity.latitude.trim();
+    const lng = identity.longitude.trim();
+    if ((lat && !lng) || (!lat && lng)) { setError(t("يجب تحديد خط العرض وخط الطول معًا.")); return; }
     setSaving(true); setError("");
     try {
-      const body = { name: identity.name, city: identity.city, address: identity.address, phone: identity.phone, email: identity.email };
+      const body: Record<string, unknown> = {
+        name: identity.name,
+        city: identity.city,
+        address: identity.address,
+        phone: identity.phone,
+        email: identity.email,
+        cover_image: identity.coverImage ?? "",
+        map_url: identity.mapUrl,
+        latitude: lat ? Number(lat) : null,
+        longitude: lng ? Number(lng) : null,
+      };
       await fetch(`${API}/hotels/${hotelId}/`, { method: "PATCH", headers: apiHJ(), body: JSON.stringify(body) });
     } catch { /* backend might not support PATCH — ok */ }
     saveLS(hotelId, { identity });
@@ -305,7 +330,27 @@ export default function SettingsPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = ev => setIdentity(prev => ({ ...prev, logo: ev.target?.result as string }));
+    reader.onload = ev => {
+      const dataUrl = ev.target?.result as string;
+      setIdentity(prev => {
+        const next = { ...prev, logo: dataUrl };
+        if (hotelId) saveLS(hotelId, { identity: next });
+        return next;
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // ── Cover image ────────────────────────────────────────────────────────────────
+  function handleCoverImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { setError(t("حجم الصورة كبير جدًا. الحد الأقصى 3 ميجابايت.")); return; }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const dataUrl = ev.target?.result as string;
+      setIdentity(prev => ({ ...prev, coverImage: dataUrl }));
+    };
     reader.readAsDataURL(file);
   }
 
@@ -388,7 +433,7 @@ export default function SettingsPage() {
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={() => fileRef.current?.click()}>{t("رفع شعار")}</button>
                 {identity.logo && (
-                  <button className="ds-btn ds-btn-danger ds-btn-sm" onClick={() => setIdentity(p => ({ ...p, logo: null }))}>{t("إزالة الشعار")}</button>
+                  <button className="ds-btn ds-btn-danger ds-btn-sm" onClick={() => setIdentity(p => { const next = { ...p, logo: null }; if (hotelId) saveLS(hotelId, { identity: next }); return next; })}>{t("إزالة الشعار")}</button>
                 )}
               </div>
               <input ref={fileRef} type="file" accept="image/*" style={{ display: "none" }} onChange={handleLogo} />
@@ -426,6 +471,86 @@ export default function SettingsPage() {
             </div>
             <div style={{ marginTop: "1rem" }}>
               <SaveBtn label={t("حفظ الهوية العامة")} saving={saving} saved={false} onClick={doSaveIdentity} />
+            </div>
+          </CardSection>
+
+          {/* صورة الغلاف ───────────────────────────────────────────────── */}
+          <CardSection title={t("صورة الغلاف العامة")} desc={t("تظهر للزبائن في صفحة الفندق العامة. يُفضّل صورة عريضة بدقة عالية.")}>
+            {identity.coverImage ? (
+              <div style={{ marginBottom: "0.75rem" }}>
+                {/* eslint-disable-next-line @next/next/no-img-element -- dynamic user-uploaded data URL */}
+                <img src={identity.coverImage} alt="cover" style={{ width: "100%", maxHeight: 260, objectFit: "cover", borderRadius: "0.5rem", border: "1px solid #e5e7eb" }} />
+              </div>
+            ) : (
+              <div style={{ width: "100%", height: 180, borderRadius: "0.5rem", background: "#f3f4f6", border: "1px dashed #d1d5db", display: "flex", alignItems: "center", justifyContent: "center", color: "#9ca3af", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
+                {t("لا توجد صورة غلاف محمّلة بعد.")}
+              </div>
+            )}
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <input id="cover-input" type="file" accept="image/*" style={{ display: "none" }} onChange={handleCoverImage} />
+              <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={() => document.getElementById("cover-input")?.click()}>{identity.coverImage ? t("تغيير الصورة") : t("رفع صورة")}</button>
+              {identity.coverImage && (
+                <button className="ds-btn ds-btn-danger ds-btn-sm" onClick={() => setIdentity(p => ({ ...p, coverImage: null }))}>{t("إزالة الصورة")}</button>
+              )}
+            </div>
+            <p style={{ fontSize: "0.72rem", color: "var(--color-muted)", marginTop: "0.5rem" }}>
+              {t("اضغط «حفظ الموقع والصورة» في الأسفل لحفظ التغييرات بشكل دائم.")}
+            </p>
+          </CardSection>
+
+          {/* الخريطة التفاعلية ─────────────────────────────────────────── */}
+          <CardSection title={t("موقع الفندق على الخريطة")} desc={t("اضغط على الخريطة لتحديد موقع الفندق. يمكن للزبائن استخدام هذا الموقع للوصول إليك مباشرةً.")}>
+            <div style={G3}>
+              <FLD label={t("خط العرض (Latitude)")} hint={t("مثال: 24.7136")}>
+                <input className="input" value={identity.latitude} onChange={e => setIdentity(p => ({ ...p, latitude: e.target.value }))} placeholder="24.7136" inputMode="decimal" />
+              </FLD>
+              <FLD label={t("خط الطول (Longitude)")} hint={t("مثال: 46.6753")}>
+                <input className="input" value={identity.longitude} onChange={e => setIdentity(p => ({ ...p, longitude: e.target.value }))} placeholder="46.6753" inputMode="decimal" />
+              </FLD>
+              <FLD label={t("رابط خرائط Google (اختياري)")} hint={t("رابط مساعد للزبائن للملاحة")}>
+                <input className="input" value={identity.mapUrl} onChange={e => setIdentity(p => ({ ...p, mapUrl: e.target.value }))} placeholder="https://maps.google.com/?q=..." />
+              </FLD>
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
+              <button
+                type="button"
+                className="ds-btn ds-btn-neutral ds-btn-sm"
+                onClick={() => {
+                  if (!navigator.geolocation) { setError(t("المتصفح لا يدعم تحديد الموقع.")); return; }
+                  navigator.geolocation.getCurrentPosition(
+                    pos => {
+                      setIdentity(p => ({
+                        ...p,
+                        latitude: pos.coords.latitude.toFixed(7),
+                        longitude: pos.coords.longitude.toFixed(7),
+                      }));
+                    },
+                    () => setError(t("تعذّر الحصول على موقعك الحالي.")),
+                    { enableHighAccuracy: true, timeout: 10000 }
+                  );
+                }}
+              >
+                {t("استخدم موقعي الحالي")}
+              </button>
+              {(identity.latitude || identity.longitude) && (
+                <button
+                  type="button"
+                  className="ds-btn ds-btn-danger ds-btn-sm"
+                  onClick={() => setIdentity(p => ({ ...p, latitude: "", longitude: "" }))}
+                >
+                  {t("مسح الموقع")}
+                </button>
+              )}
+            </div>
+            <HotelMap
+              lat={identity.latitude ? Number(identity.latitude) : null}
+              lng={identity.longitude ? Number(identity.longitude) : null}
+              editable
+              height={360}
+              onChange={(la, ln) => setIdentity(p => ({ ...p, latitude: String(la), longitude: String(ln) }))}
+            />
+            <div style={{ marginTop: "1rem" }}>
+              <SaveBtn label={t("حفظ الموقع والصورة")} saving={saving} saved={false} onClick={doSaveIdentity} />
             </div>
           </CardSection>
         </>

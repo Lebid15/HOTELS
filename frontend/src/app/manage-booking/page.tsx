@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import { Search, CheckCircle, XCircle, AlertCircle, Calendar, Building2, User, Phone, MessageCircle, Copy, Check } from "lucide-react";
 import { apiUrl } from "@/lib/api";
@@ -64,6 +64,7 @@ export default function ManageBookingPage() {
   const [cancelError,   setCancelError]   = useState("");
   const [cancelSuccess, setCancelSuccess] = useState(false);
   const [copied,        setCopied]        = useState(false);
+  const bookingRef = useRef<HTMLDivElement>(null);
 
   function buildSummary(b: BookingDetail) {
     return (
@@ -100,6 +101,10 @@ export default function ManageBookingPage() {
         if (!ok) { setError(data.error ?? "لم يتم العثور على الحجز"); setLoading(false); return; }
         setBooking(data);
         setLoading(false);
+        // تمرير سلس إلى بطاقة تفاصيل الحجز بعد رسمها
+        requestAnimationFrame(() => {
+          setTimeout(() => bookingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+        });
       })
       .catch(() => { setError("حدث خطأ في الاتصال"); setLoading(false); });
   }
@@ -199,7 +204,7 @@ export default function ManageBookingPage() {
 
           {/* Booking Details */}
           {booking && (
-            <div className="pub-booking-detail-card">
+            <div className="pub-booking-detail-card" ref={bookingRef}>
               {/* Status header */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
                 marginBottom: "1.5rem", paddingBottom: "1rem", borderBottom: "1px solid var(--color-border)" }}>

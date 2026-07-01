@@ -8,7 +8,7 @@ from .views import (
     MaintenanceTicketViewSet,
     PublicHotelListView, PublicHotelDetailView, PublicRoomAvailabilityView,
     PublicBookingCreateView, PublicBookingManageView, PublicBookingCancelView,
-    PublicPlatformInfoView,
+    PublicPlatformInfoView, PublicHotelRatingsView,
     PlatformEarningsView, PlatformHotelEarningsView, PlatformRevenueSettingsView,
     HotelCommissionSettingView, BookingCommissionActionView,
     PlatformWebBookingsView, PlatformNotificationsView,
@@ -46,5 +46,6 @@ urlpatterns = [
     path('public/bookings/', PublicBookingCreateView.as_view(), name='public-booking-create'),
     path('public/manage-booking/', PublicBookingManageView.as_view(), name='public-manage-booking'),
     path('public/bookings/<str:booking_no>/cancel/', PublicBookingCancelView.as_view(), name='public-booking-cancel'),
+    path('public/hotels/<str:slug>/ratings/', PublicHotelRatingsView.as_view(), name='public-hotel-ratings'),
     path('public/platform-info/', PublicPlatformInfoView.as_view(), name='public-platform-info'),
 ]

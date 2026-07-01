@@ -211,10 +211,52 @@ def send_whatsapp_confirmation(reservation):
 
 
 # ── المجمِّع ────────────────────────────────────────────────────────────────
+def send_hotel_email_notification(reservation):
+    """إشعار صاحب الفندق بحجز جديد من الموقع العام."""
+    r = reservation
+    hotel = r.hotel
+    to = (hotel.email or '').strip()
+    if not to:
+        return False
+    guest = f'{r.guest_first_name} {r.guest_last_name}'.strip()
+    body = '\n'.join([
+        f'تم استلام حجز جديد عبر موقع {_platform_name()} لفندق {hotel.name}.',
+        '',
+        f'رقم الحجز: {r.public_booking_no}',
+        f'الضيف: {guest}',
+        f'الهاتف: {r.guest_phone}',
+        f'البريد: {r.guest_email or "—"}',
+        f'نوع الغرفة: {r.room_type_label}' + (f' (غرفة رقم {r.room.number})' if r.room else ''),
+        f'تاريخ الوصول: {r.check_in_date}',
+        f'تاريخ المغادرة: {r.check_out_date}',
+        f'عدد الليالي: {r.nights_count}',
+        f'عدد الضيوف: {r.persons_count}',
+        f'الإجمالي: {r.total} {r.currency}',
+        'طريقة الدفع: الدفع عند الوصول',
+        '',
+        'يرجى الدخول إلى لوحة التحكم لمراجعة الحجز ومتابعته من قسم «حجوزات الموقع».',
+        f'— {_platform_name()}',
+    ])
+    try:
+        send_mail(
+            subject=f'حجز جديد من الموقع — {r.public_booking_no}',
+            message=body,
+            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
+            recipient_list=[to],
+            fail_silently=False,
+        )
+        logger.info('تم إرسال إشعار الفندق بالحجز %s', r.public_booking_no)
+        return True
+    except Exception as exc:
+        logger.warning('فشل إرسال إشعار الفندق بالحجز %s: %s', r.public_booking_no, exc)
+        return False
+
+
 def notify_booking_created(reservation):
     """يرسل كل الإشعارات المتاحة. best-effort — لا يرفع استثناء."""
     return {
         'email': send_email_confirmation(reservation),
         'sms': send_sms_confirmation(reservation),
         'whatsapp': send_whatsapp_confirmation(reservation),
+        'hotel_email': send_hotel_email_notification(reservation),
     }

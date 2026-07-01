@@ -40,7 +40,9 @@ class Hotel(models.Model):
     # ── Public listing fields ──────────────────────────────────────────────
     stars = models.PositiveSmallIntegerField(null=True, blank=True)
     hotel_type = models.CharField(max_length=30, blank=True, choices=HOTEL_TYPE_CHOICES)
-    cover_image = models.URLField(blank=True, max_length=1000)
+    cover_image = models.TextField(blank=True)
+    latitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
+    longitude = models.DecimalField(max_digits=10, decimal_places=7, null=True, blank=True)
     gallery_images = models.JSONField(default=list)
     amenities = models.JSONField(default=list)
     public_description_short = models.TextField(blank=True)
@@ -625,3 +627,22 @@ class BookingCommission(models.Model):
 
     def __str__(self):
         return f'{self.public_booking_no} — {self.commission_amount} {self.commission_currency} ({self.commission_status})'
+
+
+# ─── Hotel Ratings (تقييمات الفنادق من قِبَل الضيوف) ───────────────────────
+class HotelRating(models.Model):
+    hotel        = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='ratings')
+    reservation  = models.OneToOneField(Reservation, on_delete=models.SET_NULL,
+                                        null=True, blank=True, related_name='rating')
+    guest_name   = models.CharField(max_length=120, blank=True)
+    guest_phone  = models.CharField(max_length=30, blank=True)
+    rating       = models.PositiveSmallIntegerField()  # 1..5
+    comment      = models.TextField(blank=True)
+    is_approved  = models.BooleanField(default=True)
+    created_at   = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.hotel.name} — {self.rating}/5 — {self.guest_name or "—"}'

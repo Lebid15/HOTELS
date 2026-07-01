@@ -249,15 +249,41 @@ export default function ReportsPage(){
     Promise.all([
       fetch(`${API}/reservations/?hotel=${hotelId}`,{headers:apiH()}).then(r=>r.ok?r.json():[]).catch(()=>[]),
       fetch(`${API}/rooms/?hotel=${hotelId}`,        {headers:apiH()}).then(r=>r.ok?r.json():[]).catch(()=>[]),
-      fetch(`${API}/food-orders/?hotel=${hotelId}`,  {headers:apiH()}).then(r=>r.ok?r.json():[]).catch(()=>[]),
       fetch(`${API}/maintenance/?hotel=${hotelId}`,  {headers:apiH()}).then(r=>r.ok?r.json():[]).catch(()=>[]),
       fetch(`${API}/hotels/${hotelId}/`,             {headers:apiH()}).then(r=>r.ok?r.json():null).catch(()=>null),
-    ]).then(([rd,rmd,fd,td,hd])=>{
+    ]).then(([rd,rmd,td,hd])=>{
       setReservations(Array.isArray(rd) ?rd :rd?.results ??[]);
       setRooms(       Array.isArray(rmd)?rmd:rmd?.results??[]);
-      setFoodOrders(  Array.isArray(fd) ?fd :fd?.results ??[]);
       setTickets(     Array.isArray(td) ?td :td?.results ??[]);
       setHotel(hd);
+      // Food orders are stored only in localStorage; map camelCase → snake_case
+      type RawOrder = {
+        id?: string|number; amount?: number|string; currency?: string;
+        paymentMethod?: string; status?: string; createdAt?: string;
+        sourceType?: string; roomNumber?: string; tableNumber?: string;
+        guestName?: string; customerName?: string;
+        items?: OrderItem[]|string;
+      };
+      let foodList: FoodOrder[] = [];
+      try {
+        const raw = localStorage.getItem(`fandqi.foodOrders.${hotelId}`) ?? "[]";
+        const parsed: RawOrder[] = JSON.parse(raw);
+        foodList = (Array.isArray(parsed)?parsed:[]).map((o,idx): FoodOrder => ({
+          id:             typeof o.id === "number" ? o.id : idx+1,
+          hotel:          Number(hotelId),
+          guest_name:     o.guestName ?? o.customerName ?? null,
+          room_number:    o.roomNumber ?? null,
+          table_number:   o.tableNumber ?? null,
+          payment_method: o.paymentMethod ?? "cash",
+          status:         o.status ?? "delivered",
+          items:          o.items,
+          amount:         Number(o.amount ?? 0),
+          currency:       o.currency,
+          created_at:     o.createdAt ?? "",
+          source_type:    o.sourceType,
+        }));
+      } catch { /* ignore parse errors */ }
+      setFoodOrders(foodList);
       setLoading(false);
     }).catch(()=>setLoading(false));
   }

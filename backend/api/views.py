@@ -80,6 +80,7 @@ class CurrentUserView(APIView):
         user = request.user
         role = _get_user_role(user)
         hotel_id = _get_user_hotel_id(user)
+        hotel_name = Hotel.objects.filter(pk=hotel_id).values_list('name', flat=True).first() if hotel_id else None
         return Response({
             'id': user.id,
             'username': user.username,
@@ -88,6 +89,7 @@ class CurrentUserView(APIView):
             'last_name': user.last_name,
             'role': role,
             'hotel_id': hotel_id,
+            'hotel_name': hotel_name,
         })
 
     def patch(self, request):
@@ -104,6 +106,8 @@ class CurrentUserView(APIView):
         user.first_name = first_name
         user.last_name  = last_name
         user.save()
+        hotel_id = _get_user_hotel_id(user)
+        hotel_name = Hotel.objects.filter(pk=hotel_id).values_list('name', flat=True).first() if hotel_id else None
         return Response({
             'id': user.id,
             'username': user.username,
@@ -111,7 +115,8 @@ class CurrentUserView(APIView):
             'first_name': user.first_name,
             'last_name': user.last_name,
             'role': _get_user_role(user),
-            'hotel_id': _get_user_hotel_id(user),
+            'hotel_id': hotel_id,
+            'hotel_name': hotel_name,
         })
 
 
@@ -398,8 +403,23 @@ class HotelViewSet(viewsets.ModelViewSet):
         serializer.save()
 
     def perform_update(self, serializer):
-        _require_platform(self.request.user)
-        serializer.save()
+        # Platform owner can update everything. Manager may update only
+        # identity/public-facing fields on their own hotel.
+        role = _get_user_role(self.request.user)
+        if role == 'platform_owner':
+            serializer.save()
+            return
+        if role == 'manager':
+            user_hotel_id = _get_user_hotel_id(self.request.user)
+            if not user_hotel_id or str(user_hotel_id) != str(serializer.instance.id):
+                raise PermissionDenied('غير مسموح بتعديل بيانات هذا الفندق.')
+            allowed = {'name', 'country', 'city', 'address', 'phone', 'email',
+                       'floors_count', 'cover_image', 'map_url',
+                       'latitude', 'longitude'}
+            payload = {k: v for k, v in serializer.validated_data.items() if k in allowed}
+            serializer.save(**payload) if payload else serializer.save()
+            return
+        raise PermissionDenied('غير مسموح بهذه العملية.')
 
     def perform_destroy(self, instance):
         _require_platform(self.request.user)
@@ -1159,6 +1179,73 @@ class PublicPlatformInfoView(APIView):
 
     def get(self, request):
         return Response({'name': 'Fandqi', 'description': 'منصة فندقي للحجز الفندقي', 'default_country': 'سوريا'})
+
+
+class PublicHotelRatingsView(APIView):
+    """GET: قائمة تقييمات فندق + متوسط + توزيع النجوم.
+    POST: إضافة تقييم جديد (يتطلّب رقم حجز + هاتف يطابقان حجزاً صحيحاً)."""
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = []
+
+    def _get_hotel(self, slug):
+        qs = _public_hotels_qs()
+        try:
+            return qs.get(pk=int(slug)) if slug.isdigit() else qs.get(slug=slug)
+        except (Hotel.DoesNotExist, ValueError):
+            return None
+
+    def get(self, request, slug):
+        from django.db.models import Avg
+        from .models import HotelRating
+        from .serializers import PublicHotelRatingSerializer
+        hotel = self._get_hotel(slug)
+        if not hotel:
+            return Response({'error': 'الفندق غير متاح'}, status=404)
+        qs = HotelRating.objects.filter(hotel=hotel, is_approved=True).order_by('-created_at')
+        avg = qs.aggregate(a=Avg('rating'))['a']
+        distribution = {i: qs.filter(rating=i).count() for i in range(1, 6)}
+        return Response({
+            'avg': round(float(avg), 2) if avg is not None else None,
+            'count': qs.count(),
+            'distribution': distribution,
+            'items': PublicHotelRatingSerializer(qs[:50], many=True).data,
+        })
+
+    def post(self, request, slug):
+        from .models import HotelRating
+        hotel = self._get_hotel(slug)
+        if not hotel:
+            return Response({'error': 'الفندق غير متاح'}, status=404)
+        d = request.data
+        booking_no = (d.get('booking_no') or '').strip()
+        phone      = (d.get('phone') or '').strip()
+        try:
+            rating = int(d.get('rating') or 0)
+        except (TypeError, ValueError):
+            rating = 0
+        comment = (d.get('comment') or '').strip()
+        if not booking_no or not phone:
+            return Response({'error': 'يرجى إدخال رقم الحجز ورقم الهاتف'}, status=400)
+        if rating < 1 or rating > 5:
+            return Response({'error': 'التقييم يجب أن يكون بين 1 و 5'}, status=400)
+        try:
+            reservation = Reservation.objects.get(
+                hotel=hotel, public_booking_no=booking_no,
+                guest_phone=phone, public_booking=True,
+            )
+        except Reservation.DoesNotExist:
+            return Response({'error': 'لم يتم العثور على حجز مطابق لهذا الفندق'}, status=404)
+        if reservation.status == Reservation.STATUS_CANCELLED:
+            return Response({'error': 'لا يمكن تقييم حجز ملغى'}, status=400)
+        if HotelRating.objects.filter(reservation=reservation).exists():
+            return Response({'error': 'تم تقييم هذا الحجز مسبقاً'}, status=400)
+        guest_name = f'{reservation.guest_first_name} {reservation.guest_last_name}'.strip()
+        HotelRating.objects.create(
+            hotel=hotel, reservation=reservation,
+            guest_name=guest_name, guest_phone=phone,
+            rating=rating, comment=comment,
+        )
+        return Response({'message': 'تم استلام تقييمك، شكراً لك!'}, status=201)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

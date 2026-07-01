@@ -21,16 +21,9 @@ interface HotelCard {
   is_featured: boolean;
   min_price: number | null;
   min_currency: string;
+  avg_rating: number | null;
+  ratings_count: number;
 }
-
-const HOTEL_TYPES = [
-  { value: "", label: "كل الأنواع" },
-  { value: "hotel", label: "فندق" },
-  { value: "apart_hotel", label: "شقق فندقية" },
-  { value: "resort", label: "منتجع" },
-  { value: "guesthouse", label: "نزل" },
-  { value: "motel", label: "موتيل" },
-];
 
 const STARS_OPTS = [
   { value: "", label: "كل التقييمات" },
@@ -51,7 +44,6 @@ function HotelsPageInner() {
   const [filters, setFilters] = useState({
     city:       sp.get("city")       ?? "",
     stars:      sp.get("stars")      ?? "",
-    hotel_type: sp.get("hotel_type") ?? "",
   });
 
   function loadHotels(f = filters) {
@@ -59,7 +51,6 @@ function HotelsPageInner() {
     const params = new URLSearchParams();
     if (f.city)       params.set("city", f.city);
     if (f.stars)      params.set("stars", f.stars);
-    if (f.hotel_type) params.set("hotel_type", f.hotel_type);
     fetch(apiUrl(`/public/hotels/?${params}`))
       .then(r => r.ok ? r.json() : [])
       .then(data => { setHotels(Array.isArray(data) ? data : []); setLoading(false); })
@@ -76,7 +67,6 @@ function HotelsPageInner() {
     const params = new URLSearchParams();
     if (f.city)       params.set("city", f.city);
     if (f.stars)      params.set("stars", f.stars);
-    if (f.hotel_type) params.set("hotel_type", f.hotel_type);
     router.replace(`/hotels?${params}`, { scroll: false });
   }
 
@@ -115,20 +105,13 @@ function HotelsPageInner() {
         >
           {STARS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
-        <select
-          className="pub-filter-select"
-          value={filters.hotel_type}
-          onChange={e => setFilters(f => ({ ...f, hotel_type: e.target.value }))}
-        >
-          {HOTEL_TYPES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
         <button type="submit" className="ds-btn ds-btn-primary ds-btn-sm" style={{ gap: 6 }}>
           <Search size={15} /> بحث
         </button>
-        {(filters.city || filters.stars || filters.hotel_type) && (
+        {(filters.city || filters.stars) && (
           <button type="button" className="ds-btn ds-btn-neutral ds-btn-sm"
             onClick={() => {
-              const f = { city: "", stars: "", hotel_type: "" };
+              const f = { city: "", stars: "" };
               setCityInput("");
               setFilters(f);
               loadHotels(f);
@@ -178,6 +161,12 @@ function HotelsPageInner() {
                       )}
                       {h.stars != null && (
                         <div className="pub-stars">{"★".repeat(h.stars)}{"☆".repeat(Math.max(0, 5 - h.stars))}</div>
+                      )}
+                      {h.avg_rating != null && h.ratings_count > 0 && (
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--text-xs)", color: "#f59e0b", fontWeight: 700, marginBottom: ".3rem" }}>
+                          <span>★ {h.avg_rating.toFixed(1)}</span>
+                          <span style={{ color: "var(--color-muted)", fontWeight: 500 }}>({h.ratings_count} تقييم)</span>
+                        </div>
                       )}
                       <div className="pub-hotel-card-name">{h.name}</div>
                       <div className="pub-hotel-card-loc">

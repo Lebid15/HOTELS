@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
-import { Bell, LogIn, LogOut, CreditCard, Sparkles, Wrench, Receipt, ClipboardList, Clock, XCircle, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
+import { Bell, LogIn, LogOut, CreditCard, Sparkles, Wrench, Receipt, ClipboardList, Clock, XCircle, AlertTriangle, CheckCircle2, RefreshCw, Globe } from "lucide-react";
 import { useLang } from "../LangContext";
 
 import { BASE_URL as API, getAuthHeaders as apiH } from "@/lib/api";
@@ -13,7 +13,7 @@ const UNREAD_COUNT_KEY = "fandqi.notifications.unread.v1";
 type TNotifTone = "danger" | "warning" | "accent" | "success";
 type TNotifType =
   | "arrivals" | "departures" | "balance_due" | "cleaning"
-  | "maintenance_open" | "room_account"
+  | "maintenance_open" | "room_account" | "web_bookings"
   | "pending_subs" | "ending_soon" | "expired_subs" | "suspended_hotels";
 type TFilter = "all" | "unread" | "read" | "urgent";
 
@@ -35,6 +35,7 @@ const NOTIF_ICONS: Record<TNotifType, LucideIcon> = {
   cleaning:          Sparkles      as LucideIcon,
   maintenance_open:  Wrench        as LucideIcon,
   room_account:      Receipt       as LucideIcon,
+  web_bookings:      Globe         as LucideIcon,
   pending_subs:      ClipboardList as LucideIcon,
   ending_soon:       Clock         as LucideIcon,
   expired_subs:      XCircle       as LucideIcon,
@@ -48,6 +49,9 @@ interface Reservation {
   status: string;
   total: string | number;
   paid: string | number;
+  public_booking?: boolean;
+  public_booking_no?: string | null;
+  created_at?: string;
 }
 
 interface RoomItem {
@@ -196,6 +200,24 @@ function buildHotelNotifs(
       note: t("طلبات طعام مرحَّلة على الغرف، تأكد من تسويتها عند المغادرة."),
       date: today, count: roomAccOrders.length,
       targetUrl: "/manager/payments?method=room_account",
+    });
+  }
+
+  // حجوزات جديدة من الموقع العام خلال آخر 24 ساعة
+  const cutoff = Date.now() - 24 * 3600 * 1000;
+  const newWebBookings = reservations.filter(r => {
+    if (!r.public_booking || r.status === "cancelled") return false;
+    if (!r.created_at) return false;
+    return new Date(r.created_at).getTime() >= cutoff;
+  });
+  if (newWebBookings.length > 0) {
+    notifs.push({
+      id: `hotel:${hotelId}:web_bookings:${today}:${newWebBookings.length}`,
+      type: "web_bookings", tone: "success",
+      title: `${newWebBookings.length} ${t("حجز جديد من الموقع")}`,
+      note: t("تم استلام حجوزات جديدة عبر موقعك العام خلال آخر 24 ساعة."),
+      date: today, count: newWebBookings.length,
+      targetUrl: "/manager/web-bookings",
     });
   }
 

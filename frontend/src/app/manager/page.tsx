@@ -6,7 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   CalendarCheck, LogIn, LogOut, BedDouble, Banknote, Sparkles, Wrench,
   Bell, Users, KeyRound, Utensils, BarChart3, Calendar,
-  CheckCircle2, AlertTriangle, Building2,
+  CheckCircle2, AlertTriangle, Building2, Globe,
 } from "lucide-react";
 import { useLang } from "./LangContext";
 import { BASE_URL as API, getAuthHeaders as apiH } from "@/lib/api";
@@ -15,7 +15,7 @@ const SETTINGS_KEY = (h: string) => `fandqi.settings.${h}`;
 
 // ─── types ────────────────────────────────────────────────────────────────────
 interface Room         { id: number; number: string; floor: number; status: string; is_archived: boolean; }
-interface Reservation  { id: number; booking_number: string; guest_first_name: string; guest_last_name: string; room: number | null; check_in_date: string; check_out_date: string; status: string; total_amount: number; paid_amount: number; remaining_balance: number; }
+interface Reservation  { id: number; booking_number: string; guest_first_name: string; guest_last_name: string; room: number | null; check_in_date: string; check_out_date: string; status: string; total_amount: number; paid_amount: number; remaining_balance: number; public_booking?: boolean; public_booking_no?: string | null; created_at?: string; }
 interface Ticket       { id: number; status: string; priority: string; }
 interface StaffItem    { id: number; is_active: boolean; }
 interface Subscription { hotel: number; package_name: string; status: string; end_date: string; remaining_days: number | null; }
@@ -114,6 +114,14 @@ export default function ManagerDashboard() {
   const maintOpen       = useMemo(() => tickets.filter(t => ["open","in_progress"].includes(t.status)).length, [tickets]);
   const activeStaff     = useMemo(() => staff.filter(s => s.is_active !== false).length, [staff]);
 
+  // حجوزات الموقع (العام عبر Fandqi)
+  const webBookings       = useMemo(() => reservations.filter(r => r.public_booking && r.status !== "cancelled"), [reservations]);
+  const webBookingsCount  = webBookings.length;
+  const webBookingsNew24h = useMemo(() => {
+    const cutoff = Date.now() - 24 * 3600 * 1000;
+    return webBookings.filter(r => r.created_at && new Date(r.created_at).getTime() >= cutoff).length;
+  }, [webBookings]);
+
   const todayFoods      = useMemo(() => foodOrders.filter(o => o.createdAt.slice(0, 10) === today), [foodOrders, today]);
   const roomAccTotal    = useMemo(() => todayFoods.filter(o => o.paymentMethod === "room_account" && o.status !== "cancelled").reduce((s, o) => s + o.amount, 0), [todayFoods]);
   const foodRevenue     = useMemo(() => todayFoods.filter(o => o.status !== "cancelled").reduce((s, o) => s + o.amount, 0), [todayFoods]);
@@ -124,8 +132,7 @@ export default function ManagerDashboard() {
 
   // ─── alerts ───────────────────────────────────────────────────────────────
   type Tone = "warning" | "danger" | "info";
-  const alerts = [
-    arrivalsToday  > 0 ? { text: lang === "ar" ? `يوجد ${arrivalsToday} حجز بانتظار تسجيل الدخول.` : `${arrivalsToday} reservation(s) awaiting check-in.`,            href: "/manager/check-in-out", tone: "warning" as Tone } : null,
+  const alerts = [    webBookingsNew24h > 0 ? { text: lang === "ar" ? `يوجد ${webBookingsNew24h} حجز جديد من الموقع خلال آخر 24 ساعة.` : `${webBookingsNew24h} new web booking(s) in the last 24h.`, href: "/manager/web-bookings", tone: "info" as Tone } : null,    arrivalsToday  > 0 ? { text: lang === "ar" ? `يوجد ${arrivalsToday} حجز بانتظار تسجيل الدخول.` : `${arrivalsToday} reservation(s) awaiting check-in.`,            href: "/manager/check-in-out", tone: "warning" as Tone } : null,
     departuresToday > 0 ? { text: lang === "ar" ? `يوجد ${departuresToday} حجز يحتاج استكمال المغادرة.` : `${departuresToday} reservation(s) need checkout completion.`,  href: "/manager/check-in-out", tone: "danger"  as Tone } : null,
     balanceDue     > 0 ? { text: lang === "ar" ? `يوجد متبقي مالي بقيمة ${fmt(balanceDue)} ${currency}.` : `Outstanding balance of ${fmt(balanceDue)} ${currency}.`,     href: "/manager/payments",    tone: "danger"  as Tone } : null,
     cleaningRooms  > 0 ? { text: lang === "ar" ? `يوجد ${cleaningRooms} غرفة بانتظار التنظيف.` : `${cleaningRooms} room(s) awaiting cleaning.`,                          href: "/manager/housekeeping",tone: "info"    as Tone } : null,
@@ -142,6 +149,7 @@ export default function ManagerDashboard() {
   // ─── KPI cards ───────────────────────────────────────────────────────────
   const KPI = [
     { label:t("الحجوزات النشطة"),      sub:t("مؤكدة أو داخل الإقامة"),         val: activeRes,                 note: lang === "ar" ? `${reservations.length} إجمالي` : `${reservations.length} total`,                     Icon: CalendarCheck, color:"#4f46e5", bg:"#eef2ff", href:"/manager/reservations" },
+    { label:t("حجوزات من الموقع"),       sub:t("عبر منصة Fandqi"),       val: webBookingsCount,          note: lang === "ar" ? (webBookingsNew24h > 0 ? `${webBookingsNew24h} جديد خلال 24 ساعة` : "لا حجوزات جديدة اليوم") : (webBookingsNew24h > 0 ? `${webBookingsNew24h} new in last 24h` : "No new bookings today"), Icon: Globe, color:"#0891b2", bg:"#ecfeff", href:"/manager/web-bookings" },
     { label:t("وصول اليوم"),            sub:t("حجوزات جاهزة لتسجيل الدخول"),   val: arrivalsToday,             note: t("اضغط لعرض قائمة الوصول"),                            Icon: LogIn,         color:"#d97706", bg:"#fffbeb", href:"/manager/check-in-out" },
     { label:t("مغادرة اليوم"),          sub:t("نزلاء يجب متابعة خروجهم"),       val: departuresToday,           note: t("تحقق من السداد قبل الخروج"),                         Icon: LogOut,        color:"#dc2626", bg:"#fef2f2", href:"/manager/check-in-out" },
     { label:t("إشغال الغرف"),           sub:t("الغرف المشغولة من الإجمالي"),    val: `${occupancyRate}%`,       note: lang === "ar" ? `${occupiedRooms} / ${totalRooms} غرفة` : `${occupiedRooms} / ${totalRooms} rooms`,              Icon: BedDouble,     color:"#0369a1", bg:"#f0f9ff", href:"/manager/rooms" },

@@ -1,13 +1,15 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Building2, MapPin, Star, Wifi, Car, Utensils, Waves, Dumbbell,
   X, CheckCircle, AlertCircle, Calendar, Users, ChevronDown, ChevronUp,
+  MessageSquare, Send,
 } from "lucide-react";
 import { apiUrl } from "@/lib/api";
+import HotelMap from "@/components/HotelMap";
 
 interface HotelDetail {
   id: number;
@@ -20,6 +22,8 @@ interface HotelDetail {
   city: string;
   address: string;
   map_url: string;
+  latitude: number | null;
+  longitude: number | null;
   cover_image: string;
   gallery_images: string[];
   amenities: string[];
@@ -34,6 +38,8 @@ interface HotelDetail {
   phone: string;
   min_price: number | null;
   min_currency: string;
+  avg_rating: number | null;
+  ratings_count: number;
 }
 
 interface RoomType {
@@ -93,12 +99,55 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
   const [showFullDesc, setShowFullDesc] = useState(false);
   const [coverImg,     setCoverImg]     = useState("");
 
+  // ─── Ratings ────────────────────────────────────────────────────────────
+  interface RatingItem { id: number; guest_name: string; rating: number; comment: string; created_at: string; }
+  const [ratings, setRatings] = useState<{ avg: number | null; count: number; distribution: Record<number, number>; items: RatingItem[] }>({ avg: null, count: 0, distribution: {1:0,2:0,3:0,4:0,5:0}, items: [] });
+  const [showRateForm, setShowRateForm] = useState(false);
+  const [rateBookingNo, setRateBookingNo] = useState("");
+  const [ratePhone, setRatePhone] = useState("");
+  const [rateStars, setRateStars] = useState(0);
+  const [rateComment, setRateComment] = useState("");
+  const [rateLoading, setRateLoading] = useState(false);
+  const [rateError, setRateError] = useState("");
+  const [rateSuccess, setRateSuccess] = useState(false);
+
   useEffect(() => {
     fetch(apiUrl(`/public/hotels/${slug}/`))
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => { setHotel(data); setCoverImg(data.cover_image || ""); setLoading(false); })
       .catch(() => { setError("هذا الفندق غير متاح حاليًا"); setLoading(false); });
   }, [slug]);
+
+  const loadRatings = useCallback(() => {
+    fetch(apiUrl(`/public/hotels/${slug}/ratings/`))
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setRatings(d); })
+      .catch(() => {});
+  }, [slug]);
+
+  useEffect(() => { loadRatings(); }, [loadRatings]);
+
+  function submitRating(e: React.FormEvent) {
+    e.preventDefault();
+    if (!rateBookingNo.trim() || !ratePhone.trim()) { setRateError("يرجى إدخال رقم الحجز ورقم الهاتف"); return; }
+    if (rateStars < 1 || rateStars > 5) { setRateError("يرجى اختيار تقييم من 1 إلى 5 نجوم"); return; }
+    setRateLoading(true); setRateError("");
+    fetch(apiUrl(`/public/hotels/${slug}/ratings/`), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ booking_no: rateBookingNo.trim(), phone: ratePhone.trim(), rating: rateStars, comment: rateComment.trim() }),
+    })
+      .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
+      .then(({ ok, data }) => {
+        setRateLoading(false);
+        if (!ok) { setRateError(data.error ?? "تعذّر إرسال التقييم"); return; }
+        setRateSuccess(true);
+        setRateBookingNo(""); setRatePhone(""); setRateStars(0); setRateComment("");
+        loadRatings();
+        setTimeout(() => { setShowRateForm(false); setRateSuccess(false); }, 2500);
+      })
+      .catch(() => { setRateError("حدث خطأ في الاتصال"); setRateLoading(false); });
+  }
 
   function searchAvailability(e: React.FormEvent) {
     e.preventDefault();
@@ -229,6 +278,16 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
                 {"★".repeat(hotel.stars)}{"☆".repeat(Math.max(0, 5 - hotel.stars))}
               </div>
             )}
+            {ratings.avg != null && ratings.count > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: ".4rem", color: "#fff" }}>
+                <span style={{ background: "rgba(0,0,0,.35)", padding: ".25rem .6rem", borderRadius: "1rem", fontWeight: 700, fontSize: ".85rem" }}>
+                  ★ {ratings.avg.toFixed(1)} / 5
+                </span>
+                <span style={{ fontSize: ".8rem", color: "rgba(255,255,255,.9)" }}>
+                  ({ratings.count} تقييم من الضيوف)
+                </span>
+              </div>
+            )}
             <div style={{ display: "flex", alignItems: "center", gap: 6, color: "rgba(255,255,255,.85)", fontSize: "var(--text-sm)" }}>
               <MapPin size={14} />
               {[hotel.address, hotel.city, hotel.governorate, hotel.country].filter(Boolean).join("، ")}
@@ -331,17 +390,151 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
           )}
 
           {/* Map */}
-          {hotel.map_url && (
+          {(hotel.latitude != null && hotel.longitude != null) || hotel.map_url ? (
             <div style={{ marginBottom: "2rem" }}>
               <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--color-heading)", marginBottom: ".75rem" }}>
                 الموقع
               </h3>
-              <a href={hotel.map_url} target="_blank" rel="noopener noreferrer"
-                className="ds-btn ds-btn-neutral ds-btn-sm" style={{ gap: 6 }}>
-                <MapPin size={16} /> عرض على الخريطة
-              </a>
+              {hotel.latitude != null && hotel.longitude != null && (
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <HotelMap lat={Number(hotel.latitude)} lng={Number(hotel.longitude)} editable={false} height={320} />
+                </div>
+              )}
+              {hotel.map_url && (
+                <a href={hotel.map_url} target="_blank" rel="noopener noreferrer"
+                  className="ds-btn ds-btn-neutral ds-btn-sm" style={{ gap: 6 }}>
+                  <MapPin size={16} /> فتح في خرائط Google
+                </a>
+              )}
+              {hotel.latitude != null && hotel.longitude != null && !hotel.map_url && (
+                <a
+                  href={`https://www.openstreetmap.org/?mlat=${hotel.latitude}&mlon=${hotel.longitude}#map=16/${hotel.latitude}/${hotel.longitude}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="ds-btn ds-btn-neutral ds-btn-sm" style={{ gap: 6 }}>
+                  <MapPin size={16} /> فتح في خريطة أكبر
+                </a>
+              )}
             </div>
-          )}
+          ) : null}
+
+          {/* Guest Ratings ------------------------------------------------ */}
+          <div style={{ marginBottom: "2rem" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: ".75rem", flexWrap: "wrap", gap: 8 }}>
+              <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--color-heading)", margin: 0 }}>
+                تقييمات الضيوف
+                {ratings.count > 0 && (
+                  <span style={{ marginRight: 8, fontSize: "var(--text-sm)", color: "#f59e0b", fontWeight: 700 }}>
+                    ★ {ratings.avg?.toFixed(1)} ({ratings.count})
+                  </span>
+                )}
+              </h3>
+              <button onClick={() => setShowRateForm(v => !v)} className="ds-btn ds-btn-primary ds-btn-sm" style={{ gap: 6 }}>
+                <MessageSquare size={14} /> {showRateForm ? "إخفاء النموذج" : "أضف تقييمك"}
+              </button>
+            </div>
+
+            {/* Distribution ------------------------------------------ */}
+            {ratings.count > 0 && (
+              <div style={{ background: "var(--color-primary-soft)", borderRadius: 8, padding: "1rem", marginBottom: "1rem" }}>
+                {[5, 4, 3, 2, 1].map(star => {
+                  const c = ratings.distribution?.[star] ?? 0;
+                  const pct = ratings.count > 0 ? Math.round((c / ratings.count) * 100) : 0;
+                  return (
+                    <div key={star} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ minWidth: 44, fontSize: "var(--text-xs)", color: "#f59e0b", fontWeight: 700 }}>{star} ★</span>
+                      <div style={{ flex: 1, height: 8, borderRadius: 4, background: "#e5e7eb", overflow: "hidden" }}>
+                        <div style={{ width: `${pct}%`, height: "100%", background: "#f59e0b", transition: "width .4s" }} />
+                      </div>
+                      <span style={{ minWidth: 32, fontSize: "var(--text-xs)", color: "var(--color-muted)", textAlign: "left" }}>{c}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Rating form ------------------------------------------- */}
+            {showRateForm && (
+              <form onSubmit={submitRating} style={{ background: "#fff", border: "1.5px solid var(--color-border)", borderRadius: 12, padding: "1.25rem", marginBottom: "1rem" }}>
+                {rateSuccess ? (
+                  <div className="ds-alert ds-alert-success">
+                    <CheckCircle size={16} /> شكراً لك! تم استلام تقييمك.
+                  </div>
+                ) : (
+                  <>
+                    <p style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", marginBottom: ".75rem" }}>
+                      لإضافة تقييم، يجب أن يكون لديك حجز في هذا الفندق عبر منصة Fandqi.
+                    </p>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: ".75rem", marginBottom: ".75rem" }}>
+                      <div>
+                        <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: ".35rem" }}>رقم الحجز</label>
+                        <input className="pub-filter-input" style={{ width: "100%", boxSizing: "border-box", marginBottom: 0 }}
+                          placeholder="WEB-2026-00001" value={rateBookingNo}
+                          onChange={e => setRateBookingNo(e.target.value.toUpperCase())} />
+                      </div>
+                      <div>
+                        <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: ".35rem" }}>رقم الهاتف</label>
+                        <input className="pub-filter-input" style={{ width: "100%", boxSizing: "border-box", marginBottom: 0 }}
+                          type="tel" placeholder="+963..." value={ratePhone}
+                          onChange={e => setRatePhone(e.target.value)} />
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: ".75rem" }}>
+                      <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: ".35rem" }}>تقييمك</label>
+                      <div style={{ display: "flex", gap: 4, direction: "ltr", justifyContent: "flex-start" }}>
+                        {[1, 2, 3, 4, 5].map(n => (
+                          <button key={n} type="button" onClick={() => setRateStars(n)}
+                            style={{ background: "none", border: "none", cursor: "pointer", padding: 4, fontSize: "1.8rem", lineHeight: 1, color: n <= rateStars ? "#f59e0b" : "#d1d5db" }}
+                            aria-label={`${n} نجوم`}>
+                            ★
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: ".75rem" }}>
+                      <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: ".35rem" }}>تعليق (اختياري)</label>
+                      <textarea rows={3} value={rateComment} onChange={e => setRateComment(e.target.value)}
+                        placeholder="شاركنا تجربتك في الفندق..."
+                        style={{ width: "100%", padding: ".6rem .9rem", border: "1.5px solid var(--color-border)", borderRadius: 8, fontSize: "var(--text-sm)", fontFamily: "var(--font-main)", outline: "none", boxSizing: "border-box", resize: "vertical" }} />
+                    </div>
+                    {rateError && <div className="ds-alert ds-alert-danger" style={{ marginBottom: ".75rem" }}><AlertCircle size={16} /> {rateError}</div>}
+                    <button type="submit" disabled={rateLoading} className="ds-btn ds-btn-primary" style={{ gap: 6 }}>
+                      <Send size={14} /> {rateLoading ? "جارٍ الإرسال..." : "إرسال التقييم"}
+                    </button>
+                  </>
+                )}
+              </form>
+            )}
+
+            {/* List of ratings -------------------------------------- */}
+            {ratings.items.length === 0 ? (
+              <p style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", textAlign: "center", padding: "1rem" }}>
+                لا توجد تقييمات بعد. كن أول من يقيّم هذا الفندق!
+              </p>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: ".75rem" }}>
+                {ratings.items.slice(0, 10).map(r => (
+                  <div key={r.id} style={{ border: "1px solid var(--color-border)", borderRadius: 8, padding: ".9rem 1rem", background: "#fff" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: ".35rem", flexWrap: "wrap", gap: 8 }}>
+                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <span style={{ fontWeight: 700, color: "var(--color-heading)", fontSize: "var(--text-sm)" }}>
+                          {r.guest_name || "ضيف"}
+                        </span>
+                        <span style={{ color: "#f59e0b", fontSize: ".9rem" }} dir="ltr">
+                          {"★".repeat(r.rating)}{"☆".repeat(Math.max(0, 5 - r.rating))}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
+                        {new Date(r.created_at).toLocaleDateString("ar-SY", { year: "numeric", month: "long", day: "numeric" })}
+                      </span>
+                    </div>
+                    {r.comment && (
+                      <p style={{ fontSize: "var(--text-sm)", color: "var(--color-text)", lineHeight: "1.6", margin: 0 }}>{r.comment}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* RIGHT: availability + booking */}

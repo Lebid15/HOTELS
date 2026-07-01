@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Hotel, Package, Subscription, SubscriptionRequest, Room, Staff, Reservation, MaintenanceTicket
+from .models import Hotel, Package, Subscription, SubscriptionRequest, Room, Staff, Reservation, MaintenanceTicket, HotelRating
 
 
 class HotelSerializer(serializers.ModelSerializer):
@@ -11,7 +11,9 @@ class HotelSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'country', 'city', 'address', 'phone', 'email',
             'status', 'floors_count', 'manager_name', 'manager_email',
-            'manager_username', 'subscription_status', 'created_at', 'updated_at',
+            'manager_username', 'subscription_status',
+            'cover_image', 'map_url', 'latitude', 'longitude',
+            'created_at', 'updated_at',
         ]
 
     def get_subscription_status(self, obj):
@@ -112,6 +114,8 @@ class ReservationSerializer(serializers.ModelSerializer):
 class PublicHotelCardSerializer(serializers.ModelSerializer):
     min_price = serializers.SerializerMethodField()
     min_currency = serializers.SerializerMethodField()
+    avg_rating = serializers.SerializerMethodField()
+    ratings_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Hotel
@@ -119,6 +123,7 @@ class PublicHotelCardSerializer(serializers.ModelSerializer):
             'id', 'slug', 'name', 'stars', 'hotel_type', 'country', 'governorate', 'city',
             'cover_image', 'amenities', 'public_description_short',
             'is_featured', 'min_price', 'min_currency',
+            'avg_rating', 'ratings_count',
         ]
 
     def get_min_price(self, obj):
@@ -129,21 +134,33 @@ class PublicHotelCardSerializer(serializers.ModelSerializer):
         room = obj.rooms.filter(show_in_public=True, price__gt=0).order_by('price').first()
         return room.currency if room else 'USD'
 
+    def get_avg_rating(self, obj):
+        from django.db.models import Avg
+        v = obj.ratings.filter(is_approved=True).aggregate(a=Avg('rating'))['a']
+        return round(float(v), 2) if v is not None else None
+
+    def get_ratings_count(self, obj):
+        return obj.ratings.filter(is_approved=True).count()
+
 
 class PublicHotelDetailSerializer(serializers.ModelSerializer):
     min_price = serializers.SerializerMethodField()
     min_currency = serializers.SerializerMethodField()
+    avg_rating = serializers.SerializerMethodField()
+    ratings_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Hotel
         fields = [
-            'id', 'slug', 'name', 'stars', 'hotel_type', 'country', 'governorate', 'city', 'address', 'map_url',
+            'id', 'slug', 'name', 'stars', 'hotel_type', 'country', 'governorate', 'city', 'address',
+            'map_url', 'latitude', 'longitude',
             'cover_image', 'gallery_images', 'amenities',
             'public_description_short', 'public_description_full',
             'is_featured', 'check_in_policy', 'check_out_policy',
             'cancellation_policy', 'payment_policy',
             'show_contact_info', 'phone',
             'min_price', 'min_currency',
+            'avg_rating', 'ratings_count',
         ]
 
     def get_min_price(self, obj):
@@ -153,6 +170,20 @@ class PublicHotelDetailSerializer(serializers.ModelSerializer):
     def get_min_currency(self, obj):
         room = obj.rooms.filter(show_in_public=True, price__gt=0).order_by('price').first()
         return room.currency if room else 'USD'
+
+    def get_avg_rating(self, obj):
+        from django.db.models import Avg
+        v = obj.ratings.filter(is_approved=True).aggregate(a=Avg('rating'))['a']
+        return round(float(v), 2) if v is not None else None
+
+    def get_ratings_count(self, obj):
+        return obj.ratings.filter(is_approved=True).count()
+
+
+class PublicHotelRatingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = HotelRating
+        fields = ['id', 'guest_name', 'rating', 'comment', 'created_at']
 
 
 class PublicBookingDetailSerializer(serializers.ModelSerializer):
