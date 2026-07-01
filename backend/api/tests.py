@@ -739,6 +739,76 @@ class EndToEndScenarioTests(BaseAPITest):
         self.assertEqual(dc.status_code, 201)
         self.assertGreater(dc.json()['snapshot']['payments_total'], 0)
 
+    def test_public_website_journey_end_to_end(self):
+        """م12: الرحلة العابرة للأدوار — مالك يؤهّل فندقًا → نزيل يحجز من الموقع
+        (رقم WEB + رمز إدارة + عمولة) → المدير يرى الحجز كمصدر «website» →
+        دخول → منع الخروج بالدين → تسوية وخروج → بقاء العمولة → إغلاق اليوم."""
+        from .models import (Package, Subscription, BookingCommission,
+                             Reservation, AuditLog)
+        from datetime import date, timedelta
+
+        # 1) مالك المنصّة يؤهّل الفندق للحجز العام (نشط + اشتراك + باقة تسمح + إظهار)
+        pkg = Package.objects.create(name='PubJourney', allow_public_booking=True,
+                                     allow_public_listing=True)
+        Subscription.objects.create(hotel=self.hotelA, package=pkg,
+                                    status=Subscription.STATUS_ACTIVE)
+        self.hotelA.city = 'Damascus'
+        self.hotelA.public_booking_enabled = True
+        self.hotelA.public_listing_enabled = True
+        self.hotelA.save()
+        self.roomA.show_in_public = True
+        self.roomA.price = 100
+        self.roomA.save()
+
+        ci = (date.today() + timedelta(days=4)).isoformat()
+        co = (date.today() + timedelta(days=6)).isoformat()
+
+        # 2) الفندق يظهر عامًّا (بلا مصادقة)
+        pub = APIClient()
+        listing = pub.get('/api/public/hotels/')
+        self.assertEqual(listing.status_code, 200)
+        self.assertIn(self.hotelA.id, [h['id'] for h in listing.json()])
+
+        # 3) النزيل يحجز من الموقع → رقم WEB + رمز إدارة آمن
+        book = pub.post('/api/public/bookings/', {
+            'hotel_id': self.hotelA.id, 'room_type': 'single',
+            'check_in_date': ci, 'check_out_date': co, 'guests_count': 1,
+            'guest_first_name': 'ويب', 'guest_last_name': 'نزيل',
+            'guest_phone': '0999888777', 'guest_email': 'web@example.com',
+        }, format='json')
+        self.assertEqual(book.status_code, 201)
+        res_id = book.json()['id']
+        self.assertTrue(book.json()['public_booking_no'].startswith('WEB-'))
+        self.assertTrue(book.json().get('manage_token'))
+
+        # 4) العمولة أُنشئت لحظة الحجز (لقطة مشتقّة لمالك المنصّة)
+        self.assertTrue(BookingCommission.objects.filter(reservation_id=res_id).exists())
+
+        # 5) المدير يرى الحجز ضمن فندقه بمصدر «website»
+        self.as_(self.mgrA)
+        seen = self.client.get(f'/api/reservations/{res_id}/')
+        self.assertEqual(seen.status_code, 200)
+        self.assertEqual(seen.json().get('source'), 'public_website')
+
+        # 6) دخول → دفع جزئي → منع الخروج بالدين → تسوية وخروج
+        self.assertEqual(self.client.post(f'/api/reservations/{res_id}/check_in/', {}, format='json').status_code, 200)
+        self.client.post('/api/payments/', {'reservation': res_id, 'amount': 50,
+                         'currency': 'USD', 'method': 'cash', 'source': 'booking'}, format='json')
+        self.assertEqual(self.client.post(f'/api/reservations/{res_id}/check_out/', {}, format='json').status_code, 402)
+        settle = self.client.post(f'/api/reservations/{res_id}/settle_and_checkout/', {'method': 'cash'}, format='json')
+        self.assertEqual(settle.status_code, 200)
+        self.assertEqual(float(settle.json()['balance_due']), 0)
+
+        # 7) العمولة تبقى بعد الخروج (لا تُحذف) + سجلّ التدقيق يعكس السلسلة
+        self.assertTrue(BookingCommission.objects.filter(reservation_id=res_id).exists())
+        actions = set(AuditLog.objects.filter(hotel=self.hotelA).values_list('action', flat=True))
+        self.assertIn('reservation.settle_checkout', actions)
+
+        # 8) إغلاق اليوم يعكس مدفوعات الرحلة
+        dc = self.client.post('/api/day-close/', {'date': str(date.today())}, format='json')
+        self.assertEqual(dc.status_code, 201)
+        self.assertGreater(dc.json()['snapshot']['payments_total'], 0)
+
 
 # ── د‑8: اتفاقية تفعيل حجوزات الموقع ───────────────────────────────────────
 class WebBookingAgreementTests(BaseAPITest):
