@@ -366,6 +366,9 @@ export default function ReservationsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- comp.list/docs.companion_docs excluded to avoid infinite loop
   },[comp.adults_count,comp.has_companions]);
 
+  /* ── عدد الأشخاص = النزيل الأساسي (1) + المرافقون البالغون + الأطفال (مُشتقّ لا مُخزَّن) ── */
+  const personsCount = 1 + (comp.has_companions ? (Number(comp.adults_count)||0) + (Number(comp.children_count)||0) : 0);
+
   /* ── Room price auto-calc ─────────────────────────────── */
   useEffect(()=>{
     const calc = async () => {
@@ -577,7 +580,7 @@ export default function ReservationsPage() {
       family_doc_type:docs.family_doc_type, family_doc_image:docs.family_doc_image,
       companion_docs:docs.companion_docs,
       check_in_date:booking.check_in||null, check_out_date:booking.check_out||null,
-      nights_count:Number(booking.nights), persons_count:Number(booking.persons_count),
+      nights_count:Number(booking.nights), persons_count:personsCount,
       room_price:booking.room_price, total:booking.total,
       paid:Number(booking.paid), currency:booking.currency,
       payment_method:booking.payment_method,
@@ -1257,7 +1260,7 @@ export default function ReservationsPage() {
                       room:room?.id??null, room_number:room?.number??"", room_floor:room?.floor??0,
                       room_price:booking.room_price,
                       check_in_date:booking.check_in, check_out_date:booking.check_out,
-                      nights_count:Number(booking.nights), persons_count:Number(booking.persons_count),
+                      nights_count:Number(booking.nights), persons_count:personsCount,
                       has_companions:comp.has_companions, companion_type:comp.type,
                       companion_adults_count:comp.adults_count, companion_children_count:comp.children_count,
                       companion_children_relation:comp.children_relation, companions:comp.list,
@@ -1565,7 +1568,8 @@ export default function ReservationsPage() {
                           {fErr("room_id", t("يجب اختيار الغرفة."))}
                         </div>
                         <div className="field"><label className="field-label"><FL Icon={Users} label={t("عدد الأشخاص")} /></label>
-                          <input className="input" type="number" min="1" value={booking.persons_count} onChange={e=>setBooking(p=>({...p,persons_count:Number(e.target.value)}))} />
+                          <input className="input" type="number" value={personsCount} readOnly title={t("يُحسَب تلقائيًا: النزيل + المرافقون البالغون + الأطفال المُسجَّلون")} style={{background:"#f1f5f9",cursor:"not-allowed"}} />
+                          <span style={{fontSize:"0.68rem",color:"var(--color-muted)",marginTop:2}}>{t("يُحسَب تلقائيًا من المرافقين المُسجَّلين")}</span>
                         </div>
                         <div className="field"><label className="field-label"><FL Icon={Calendar} label={t("تاريخ الدخول")} /></label>
                           <input className="input" style={errBorder("check_in")} type="date" value={booking.check_in} onChange={e=>setBooking(p=>({...p,check_in:e.target.value}))} />
