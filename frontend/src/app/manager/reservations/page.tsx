@@ -673,12 +673,10 @@ export default function ReservationsPage() {
   /* ── Stats ─────────────────────────────────────────── */
   const cnt:Record<string,number>={};
   for(const r of reservations) cnt[r.status]=(cnt[r.status]??0)+1;
-  const totalValue      = reservations.reduce((s,r)=>s+Number(r.total),0);
-  const mainCur         = reservations[0]?.currency??"SAR";
   const todayStr        = new Date().toISOString().slice(0,10);
   const arrivalsToday   = reservations.filter(r=>r.check_in_date===todayStr&&!["cancelled","no_show","checked_out"].includes(r.status)).length;
   const departuresToday = reservations.filter(r=>r.check_out_date===todayStr&&["checked_in","checked_out"].includes(r.status)).length;
-  const totalRemaining  = reservations.filter(r=>!["cancelled","no_show"].includes(r.status)).reduce((s,r)=>s+Math.max(0,resBalance(r)),0);
+  // م3: أُزيلت مؤشرات «قيمة الحجوزات»/«مبالغ معلقة» من الصفحة التشغيلية (مكانها التقارير/المالية)
 
   /* ── Filter ────────────────────────────────────────── */
   const uniqueRooms = [...new Set(reservations.filter(r=>r.room_number).map(r=>r.room_number))];
@@ -789,8 +787,8 @@ export default function ReservationsPage() {
           </div>
         ))}
       </div>
-      {/* Row 2 — date/financial KPI cards */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:"0.75rem",marginBottom:"1.5rem"}}>
+      {/* Row 2 — operational KPI cards (م3: أُزيلت المؤشرات المالية «قيمة الحجوزات»/«مبالغ معلقة» — مكانها التقارير/المالية) */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:"0.75rem",marginBottom:"1.5rem"}}>
         {([
           {
             label:t("وصول اليوم"), value:String(arrivalsToday),
@@ -805,20 +803,6 @@ export default function ReservationsPage() {
             Icon:Moon as LucideIcon, grad:"linear-gradient(135deg,#7c3aed,#6d28d9)",
             active:fDay==="departures", clickable:true,
             onClick:()=>{setFStatus("all");setFDay("departures");setFBalance(false);},
-          },
-          {
-            label:t("قيمة الحجوزات"), value:`${mainCur} ${totalValue.toLocaleString("en-US")}`,
-            sub:t("إجمالي قيمة كل الحجوزات"),
-            Icon:Banknote as LucideIcon, grad:"linear-gradient(135deg,#a855f7,#7c3aed)",
-            active:false, clickable:false,
-            onClick:()=>{},
-          },
-          {
-            label:t("مبالغ معلقة"), value:`${mainCur} ${totalRemaining.toLocaleString("en-US")}`,
-            sub:t("أرصدة غير مسددة — اضغط للعرض"),
-            Icon:Radio as LucideIcon, grad:"linear-gradient(135deg,#dc2626,#b91c1c)",
-            active:fBalance, clickable:true,
-            onClick:()=>{setFStatus("all");setFDay("all");setFBalance(true);},
           },
         ] as {label:string;value:string;sub:string;Icon:LucideIcon;grad:string;active:boolean;clickable:boolean;onClick:()=>void}[]).map(s=>(
           <div

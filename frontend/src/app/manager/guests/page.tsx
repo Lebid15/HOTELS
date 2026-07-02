@@ -8,7 +8,7 @@ import {
   Users, Star, ShieldOff, Search, Eye, Pencil, RefreshCw,
   Crown, Ban, Phone, Mail, Hash, Calendar, Moon, Banknote,
   FileText, UserPlus, CheckCircle2, Clock, Home, Globe,
-  X, TrendingUp, Activity,
+  X, Activity,
 } from "lucide-react";
 
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
@@ -371,9 +371,7 @@ export default function GuestsPage() {
   const blacklistCount = guests.filter((g) => g.flag === "blacklist").length;
   const checkedInResIds= new Set(rawRes.filter(r => r.status === "checked_in").map(r => r.id));
   const currentlyIn    = guests.filter(g => g.reservationIds.some(id => checkedInResIds.has(id))).length;
-  const totalSpentAll  = guests.reduce((s, g) => s + g.totalSpent, 0);
-  const avgSpend       = totalGuests > 0 ? Math.round(totalSpentAll / totalGuests) : 0;
-  const spendCurrency  = guests[0]?.currency ?? "USD";
+  // م3: أُزيلت حسابات «متوسط الإنفاق» — المؤشر المالي يخص التقارير/المالية لا صفحة النزلاء التشغيلية
 
   /* ── Filter ── */
   const q = search.trim().toLowerCase();
@@ -540,12 +538,7 @@ export default function GuestsPage() {
             active:fFlag==="blacklist"&&!fActive&&!fReturning,
             onClick:()=>{setFFlag("blacklist");setFActive(false);setFReturning(false);},
           },
-          {
-            label:t("متوسط الإنفاق"), value:`${avgSpend.toLocaleString("en-US")} ${spendCurrency}`,
-            sub:lang==="ar"?`إجمالي الإنفاق / ${totalGuests} نزيل`:`Total spend / ${totalGuests} guests`,
-            Icon:TrendingUp as LucideIcon, grad:"linear-gradient(135deg,#1e293b,#0f172a)",
-            active:false, onClick:()=>{},
-          },
+          // م3: أُزيل مؤشر «متوسط الإنفاق» من صفحة النزلاء التشغيلية (مكانه التقارير/المالية)
         ] as {label:string;value:string;sub:string;Icon:LucideIcon;grad:string;active:boolean;onClick:()=>void}[]).map(s=>(
           <div key={s.label} className="ds-kpi-card" onClick={s.onClick}
             title={s.label!==t("متوسط الإنفاق")?lang==="ar"?"اضغط للتصفية":"Click to filter":""}

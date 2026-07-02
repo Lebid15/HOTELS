@@ -164,13 +164,11 @@ export default function RoomsPage() {
       bookedCount:      activeRooms.filter(r=>r.displayStatus==="booked").length,
       arrivalsToday:    reservations.filter(r=>r.check_in_date===todayStr&&["confirmed","pending"].includes(r.status)).length,
       departuresToday:  reservations.filter(r=>r.check_out_date===todayStr&&r.status==="checked_in").length,
-      potentialRevenue: availRooms.reduce((s,r)=>s+Number(r.price??0),0),
-      revCurrency:      availRooms[0]?.currency ?? defCurrency,
     };
-  }, [roomsWithStatus, reservations, todayStr, defCurrency]);
+  }, [roomsWithStatus, reservations, todayStr]);
 
   const { activeRooms, needAttention, occupiedCount, availableCount, bookedCount,
-          arrivalsToday, departuresToday, potentialRevenue, revCurrency } = kpi;
+          arrivalsToday, departuresToday } = kpi;
 
   const usedFloors   = useMemo(()=>[...new Set(rooms.map(r=>r.floor))].sort((a,b)=>a-b), [rooms]);
   const maxUsedFloor = usedFloors.length ? Math.max(...usedFloors) : 0;
@@ -396,13 +394,7 @@ export default function RoomsPage() {
             active:false, filterable:true,
             onClick:()=>navToReservations({day:"departures"}),
           },
-          {
-            label:t("إيراد محتمل"), value:`${potentialRevenue.toLocaleString("en-US")} ${revCurrency}`,
-            sub:lang==="ar"?`من ${availableCount} غرفة متاحة × السعر/الليلة`:`from ${availableCount} available rooms × price/night`,
-            Icon:Banknote as LucideIcon, grad:"linear-gradient(135deg,#1e293b,#0f172a)",
-            active:false, filterable:false,
-            onClick:()=>{},
-          },
+          // م3: أُزيل مؤشر «إيراد محتمل» من صفحة الغرف التشغيلية (مكانه التقارير/المالية)
         ] as {label:string;value:string;sub:string;Icon:LucideIcon;grad:string;active:boolean;filterable?:boolean;onClick:()=>void}[]).map(s=>{
           const clickable = s.active || s.filterable !== false;
           return (

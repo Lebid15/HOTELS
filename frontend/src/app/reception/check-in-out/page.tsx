@@ -70,6 +70,10 @@ export default function CheckInOutPage() {
   const [guests, setGuests] = useState<GuestRow[]>([]);
   const [loadingGuests, setLoadingGuests] = useState(false);
   const [checkoutSuccess, setCheckoutSuccess] = useState<number | null>(null);
+  // م3: نافذة تسوية الرصيد عند منع الخروج بالدين (402) بدل خطأ عام
+  const [settleFor, setSettleFor] = useState<{ id: number; guestName: string; room: string; balance: number; currency: string } | null>(null);
+  const [settleMethod, setSettleMethod] = useState("cash");
+  const [settleBusy, setSettleBusy] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -171,12 +175,46 @@ export default function CheckInOutPage() {
         method: "POST",
         headers: getAuthJsonHeaders(),
       });
+      if (r.status === 402) {
+        // م3: دين مستحق — افتح نافذة تسوية بدل رسالة خطأ عامة
+        const data = await r.json().catch(() => ({}));
+        const g = guests.find((x) => x.id === guestId);
+        setSettleFor({
+          id: guestId,
+          guestName: g?.guestName ?? "",
+          room: g?.room ?? "",
+          balance: Number(data.balance_due ?? 0),
+          currency: data.currency ?? "",
+        });
+        return;
+      }
       if (!r.ok) throw new Error();
       setCheckoutSuccess(guestId);
       setGuests((prev) => prev.filter((g) => g.id !== guestId));
       setTimeout(() => setCheckoutSuccess(null), 3000);
     } catch {
       setCheckInError(t("تعذّر تسجيل المغادرة، حاول مرة أخرى."));
+    }
+  }
+
+  async function handleSettleAndCheckout() {
+    if (!settleFor) return;
+    setSettleBusy(true);
+    try {
+      const r = await fetch(apiUrl(`/reservations/${settleFor.id}/settle_and_checkout/`), {
+        method: "POST", headers: getAuthJsonHeaders(),
+        body: JSON.stringify({ method: settleMethod }),
+      });
+      if (!r.ok) throw new Error();
+      const id = settleFor.id;
+      setSettleFor(null);
+      setCheckoutSuccess(id);
+      setGuests((prev) => prev.filter((g) => g.id !== id));
+      setTimeout(() => setCheckoutSuccess(null), 3000);
+    } catch {
+      setCheckInError(t("تعذّر إتمام الدفع والخروج، حاول مرة أخرى."));
+    } finally {
+      setSettleBusy(false);
     }
   }
 
@@ -188,6 +226,39 @@ export default function CheckInOutPage() {
 
   return (
     <div className="ds-page">
+      {/* م3: نافذة تسوية الرصيد قبل الخروج (بدل منع الاستقبال بخطأ عام) */}
+      {settleFor && (
+        <div className="ds-modal-overlay" onClick={e => { if (e.target === e.currentTarget && !settleBusy) setSettleFor(null); }}>
+          <div className="ds-modal" style={{ maxWidth: 440 }}>
+            <div className="ds-modal-header">
+              <h3>{t("تسوية الحساب قبل الخروج")}</h3>
+              <button className="ds-modal-close" onClick={() => !settleBusy && setSettleFor(null)}>✕</button>
+            </div>
+            <div className="ds-modal-body">
+              <p style={{ fontSize: "0.85rem", color: "var(--color-muted)", marginBottom: "0.75rem" }}>
+                {t("لا يمكن تسجيل الخروج قبل تسوية الرصيد المستحق.")}
+              </p>
+              <div style={{ display: "grid", gap: "0.4rem", fontSize: "0.9rem", marginBottom: "1rem" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--color-muted)" }}>{t("النزيل")}</span><strong>{settleFor.guestName}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--color-muted)" }}>{t("الغرفة")}</span><strong>{settleFor.room}</strong></div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--color-muted)" }}>{t("المتبقي")}</span><strong style={{ color: "var(--color-danger)", fontSize: "1.05rem" }}>{settleFor.currency} {settleFor.balance.toLocaleString("en-US")}</strong></div>
+              </div>
+              <label className="field-label">{t("طريقة الدفع")}</label>
+              <select className="select" value={settleMethod} onChange={e => setSettleMethod(e.target.value)} style={{ marginBottom: "1rem" }}>
+                <option value="cash">{t("نقدي")}</option>
+                <option value="electronic">{t("إلكتروني")}</option>
+                <option value="card">{t("كرت / بطاقة بنكية")}</option>
+              </select>
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button className="ds-btn ds-btn-success" disabled={settleBusy} onClick={handleSettleAndCheckout} style={{ flex: 1, justifyContent: "center" }}>
+                  {settleBusy ? t("جارٍ المعالجة...") : t("دفع وإغلاق الحساب")}
+                </button>
+                <button className="ds-btn ds-btn-neutral" disabled={settleBusy} onClick={() => setSettleFor(null)}>{t("إلغاء")}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Page Header */}
       <div className="page-header">
         <div>
