@@ -120,6 +120,18 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
   const router   = useRouter();
   const pathname = usePathname();
 
+  // تحديث فوريّ لشعار/اسم الفندق في التوب بار عند حفظه في صفحة الإعدادات (بلا إعادة تحميل)
+  useEffect(() => {
+    const onIdentity = (e: Event) => {
+      const d = (e as CustomEvent).detail ?? {};
+      if ("logo" in d) setHotelLogo(d.logo || null);
+      if (d.name) setHotelName(d.name);
+      if ("ownerName" in d) setOwnerName(d.ownerName || "");
+    };
+    window.addEventListener("hotel-identity-updated", onIdentity);
+    return () => window.removeEventListener("hotel-identity-updated", onIdentity);
+  }, []);
+
   // ── Auth + hotel identity ────────────────────────────────────────────────
   useEffect(() => {
     const token = getToken();

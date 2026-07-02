@@ -279,9 +279,6 @@ export default function SettingsPage() {
   async function doSaveIdentity() {
     if (!identity.name.trim()) { setError(t("اسم الفندق لا يجب أن يكون فارغًا.")); return; }
     if (identity.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identity.email)) { setError(t("البريد الإلكتروني غير صحيح.")); return; }
-    const lat = identity.latitude.trim();
-    const lng = identity.longitude.trim();
-    if ((lat && !lng) || (!lat && lng)) { setError(t("يجب تحديد خط العرض وخط الطول معًا.")); return; }
     setSaving(true); setError("");
     try {
       const body: Record<string, unknown> = {
@@ -293,12 +290,12 @@ export default function SettingsPage() {
         owner_name: identity.ownerName ?? "",
         logo: identity.logo ?? "",
         website: identity.website ?? "",
-        cover_image: identity.coverImage ?? "",
-        map_url: identity.mapUrl,
-        latitude: lat ? Number(lat) : null,
-        longitude: lng ? Number(lng) : null,
       };
       await fetch(`${API}/hotels/${hotelId}/`, { method: "PATCH", headers: apiHJ(), body: JSON.stringify(body) });
+      // تحديث شريط العنوان (التوب بار) فورًا بالشعار/الاسم الجديد دون إعادة تحميل
+      window.dispatchEvent(new CustomEvent("hotel-identity-updated", {
+        detail: { logo: identity.logo ?? null, name: identity.name, ownerName: identity.ownerName ?? "" },
+      }));
     } catch { /* backend might not support PATCH — ok */ }
     saveLS(hotelId, { identity });
     setSaving(false);
@@ -353,6 +350,9 @@ export default function SettingsPage() {
   async function doSavePublish() {
     const st = pub.stars.trim();
     if (st && (isNaN(Number(st)) || Number(st) < 1 || Number(st) > 5)) { setError(t("التصنيف يجب أن يكون بين 1 و5 نجوم.")); return; }
+    const lat = identity.latitude.trim();
+    const lng = identity.longitude.trim();
+    if ((lat && !lng) || (!lat && lng)) { setError(t("يجب تحديد خط العرض وخط الطول معًا.")); return; }
     setSaving(true); setError("");
     try {
       await fetch(`${API}/hotels/${hotelId}/`, { method: "PATCH", headers: apiHJ(), body: JSON.stringify({
@@ -370,6 +370,11 @@ export default function SettingsPage() {
         check_out_policy: pub.checkOutPolicy,
         payment_policy: pub.paymentPolicy,
         show_contact_info: pub.showContact,
+        // الغلاف والموقع على الخريطة: منقولان إلى تبويب «العرض على موقع الحجز»
+        cover_image: identity.coverImage ?? "",
+        map_url: identity.mapUrl,
+        latitude: lat ? Number(lat) : null,
+        longitude: lng ? Number(lng) : null,
       }) });
     } catch { /* ok */ }
     setSaving(false);
@@ -581,7 +586,12 @@ export default function SettingsPage() {
               <SaveBtn label={t("حفظ الهوية العامة")} saving={saving} saved={false} onClick={doSaveIdentity} />
             </div>
           </CardSection>
+        </>
+      )}
 
+      {/* الغلاف والموقع على الخريطة = بيانات عامّة للزوّار → ضمن «العرض على موقع الحجز» */}
+      {tab === "publish" && (
+        <>
           {/* صورة الغلاف ───────────────────────────────────────────────── */}
           <CardSection title={t("صورة الغلاف العامة")} desc={t("تظهر للزبائن في صفحة الفندق العامة. يُفضّل صورة عريضة بدقة عالية.")}>
             {identity.coverImage ? (
@@ -602,7 +612,7 @@ export default function SettingsPage() {
               )}
             </div>
             <p style={{ fontSize: "0.72rem", color: "var(--color-muted)", marginTop: "0.5rem" }}>
-              {t("اضغط «حفظ الموقع والصورة» في الأسفل لحفظ التغييرات بشكل دائم.")}
+              {t("اضغط «حفظ الغلاف والموقع» في الأسفل لحفظ التغييرات بشكل دائم.")}
             </p>
           </CardSection>
 
@@ -658,7 +668,7 @@ export default function SettingsPage() {
               onChange={(la, ln) => setIdentity(p => ({ ...p, latitude: String(la), longitude: String(ln) }))}
             />
             <div style={{ marginTop: "1rem" }}>
-              <SaveBtn label={t("حفظ الموقع والصورة")} saving={saving} saved={false} onClick={doSaveIdentity} />
+              <SaveBtn label={t("حفظ الغلاف والموقع")} saving={saving} saved={false} onClick={doSavePublish} />
             </div>
           </CardSection>
         </>
