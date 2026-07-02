@@ -1191,6 +1191,7 @@ a { text-decoration: none; color: inherit; }
   width: 26px;
   height: 26px;
   border-radius: 50%;
+  overflow: hidden;            /* يقصّ الصورة الشخصية داخل الدائرة */
   background: linear-gradient(135deg, #4f46e5 0%, #06b6d4 100%);
   color: #ffffff;
   font-size: 11px;

@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { ShieldCheck, KeyRound, RefreshCw, User } from "lucide-react";
+import { ShieldCheck, KeyRound, RefreshCw, User, Camera, Mail, Clock } from "lucide-react";
 import { useLang } from "../LangContext";
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ, authFetch } from "@/lib/api";
 
-interface Me { username:string; email:string; role:string; two_factor_enabled?:boolean; phone?:string; avatar?:string; last_login?:string|null; }
+interface Me { username:string; email:string; first_name?:string; last_name?:string; role:string; two_factor_enabled?:boolean; phone?:string; avatar?:string; last_login?:string|null; }
 interface PendingCode { username:string; code:string; created_at:string; }
 
 export default function ManagerProfilePage() {
@@ -22,6 +22,7 @@ export default function ManagerProfilePage() {
   const [tfa, setTfa] = useState(false);
   const [pending, setPending] = useState<PendingCode[]>([]);
   // م(عابر): بيانات البروفايل الشخصية
+  const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [avatar, setAvatar] = useState("");
   const [profSaving, setProfSaving] = useState(false);
@@ -31,7 +32,10 @@ export default function ManagerProfilePage() {
   useEffect(() => {
     let alive = true;
     authFetch("/current-user/").then(r=>r.ok?r.json():null).then((d:Me)=>{
-      if(alive && d){ setMe(d); setTfa(!!d.two_factor_enabled); setPhone(d.phone??""); setAvatar(d.avatar??""); }
+      if(alive && d){
+        setMe(d); setTfa(!!d.two_factor_enabled); setPhone(d.phone??""); setAvatar(d.avatar??"");
+        setFullName([d.first_name, d.last_name].filter(Boolean).join(" ").trim());
+      }
     }).catch(()=>{});
     return () => { alive = false; };
   }, []);
@@ -68,10 +72,18 @@ export default function ManagerProfilePage() {
 
   async function saveProfile() {
     setProfSaving(true);
+    // الاسم الكامل → أول كلمة = الاسم الأول، والباقي = اسم العائلة (تخزين الباك‑إند منفصل)
+    const parts = fullName.trim().split(/\s+/).filter(Boolean);
+    const first_name = parts.shift() ?? "";
+    const last_name  = parts.join(" ");
     try {
-      const r = await fetch(`${API}/current-user/`, { method: "PATCH", headers: apiHJ(), body: JSON.stringify({ phone, avatar }) });
+      const r = await fetch(`${API}/current-user/`, { method: "PATCH", headers: apiHJ(),
+        body: JSON.stringify({ first_name, last_name, phone, avatar }) });
       if (!r.ok) throw new Error();
-      const d = await r.json(); setMe(m => m ? { ...m, phone: d.phone, avatar: d.avatar } : m);
+      const d = await r.json();
+      setMe(m => m ? { ...m, first_name: d.first_name, last_name: d.last_name, phone: d.phone, avatar: d.avatar } : m);
+      // تحديث فوريّ للصورة والاسم في الشريط العلوي (بلا إعادة تحميل)
+      window.dispatchEvent(new CustomEvent("user-profile-updated", { detail: { name: fullName.trim(), avatar } }));
       showToast(t("تم حفظ الملف الشخصي."));
     } catch { showToast(t("خطأ في الاتصال")); }
     finally { setProfSaving(false); }
@@ -110,29 +122,48 @@ export default function ManagerProfilePage() {
         </div>
       </div>
 
-      {/* م(عابر): المعلومات الشخصية (صورة/هاتف/آخر دخول) */}
+      {/* بطاقة الهوية الشخصية: الصورة + الاسم + الدور + آخر دخول */}
+      <div className="ds-card-p" style={{marginBottom:"1rem",display:"flex",gap:"1.25rem",alignItems:"center",flexWrap:"wrap"}}>
+        {avatar
+          /* eslint-disable-next-line @next/next/no-img-element -- صورة شخصية data-url */
+          ? <img src={avatar} alt="avatar" style={{width:88,height:88,borderRadius:"50%",objectFit:"cover",border:"3px solid #fff",boxShadow:"0 2px 12px rgba(0,0,0,.12)",flexShrink:0}}/>
+          : <div style={{width:88,height:88,borderRadius:"50%",background:"var(--btn-luxury-bg)",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:34,fontWeight:900,flexShrink:0}}>{(fullName||me?.username||"م").charAt(0).toUpperCase()}</div>}
+        <div style={{flex:1,minWidth:200}}>
+          <h2 style={{margin:0,fontSize:20,color:"var(--color-heading)"}}>{fullName || me?.username || "—"}</h2>
+          <div style={{display:"flex",gap:8,alignItems:"center",marginTop:6,flexWrap:"wrap"}}>
+            <span className="ds-badge ds-badge-info">{t("مدير الفندق")}</span>
+            {me?.username && <span className="text-muted" style={{fontSize:13,fontWeight:700}}>@{me.username}</span>}
+          </div>
+          <div className="text-muted" style={{fontSize:12,marginTop:10,display:"flex",gap:18,flexWrap:"wrap"}}>
+            {me?.email && <span style={{display:"flex",alignItems:"center",gap:5}}><Mail size={13}/> {me.email}</span>}
+            <span style={{display:"flex",alignItems:"center",gap:5}}><Clock size={13}/> {t("آخر تسجيل دخول")}: {me?.last_login ? new Date(me.last_login).toLocaleString(lang==="ar"?"ar":"en-US") : t("—")}</span>
+          </div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <input id="avatar-input" type="file" accept="image/*" style={{display:"none"}} onChange={onAvatar}/>
+          <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={()=>document.getElementById("avatar-input")?.click()}><Camera size={14}/> {t("تغيير الصورة")}</button>
+          {avatar && <button className="ds-btn ds-btn-danger ds-btn-sm" onClick={()=>setAvatar("")}>{t("إزالة الصورة")}</button>}
+        </div>
+      </div>
+
+      {/* المعلومات الشخصية القابلة للتعديل */}
       <div className="ds-card-p" style={{marginBottom:"1rem"}}>
         <h3 style={{display:"flex",alignItems:"center",gap:6,marginTop:0}}><User size={16}/> {t("المعلومات الشخصية")}</h3>
-        <div style={{display:"flex",gap:"1rem",alignItems:"center",flexWrap:"wrap"}}>
-          {avatar
-            /* eslint-disable-next-line @next/next/no-img-element -- صورة شخصية data-url */
-            ? <img src={avatar} alt="avatar" style={{width:64,height:64,borderRadius:"50%",objectFit:"cover",border:"1px solid #e5e7eb"}}/>
-            : <div style={{width:64,height:64,borderRadius:"50%",background:"#eef2ff",display:"flex",alignItems:"center",justifyContent:"center"}}><User size={28} color="#6366f1"/></div>}
-          <div style={{display:"flex",gap:"0.5rem"}}>
-            <input id="avatar-input" type="file" accept="image/*" style={{display:"none"}} onChange={onAvatar}/>
-            <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={()=>document.getElementById("avatar-input")?.click()}>{t("تغيير الصورة")}</button>
-            {avatar && <button className="ds-btn ds-btn-danger ds-btn-sm" onClick={()=>setAvatar("")}>{t("إزالة")}</button>}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.75rem"}}>
+          <div className="field" style={{margin:0}}>
+            <label className="field-label">{t("الاسم الكامل")}</label>
+            <input className="input" value={fullName} onChange={e=>setFullName(e.target.value)} placeholder={t("مثال: أحمد المنصور")}/>
           </div>
-          <div className="field" style={{margin:0,minWidth:200}}>
+          <div className="field" style={{margin:0}}>
             <label className="field-label">{t("رقم الهاتف")}</label>
             <input className="input" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+9665XXXXXXXX"/>
           </div>
         </div>
-        <p className="text-muted" style={{fontSize:12,marginTop:"0.6rem"}}>
-          {t("آخر تسجيل دخول")}: {me?.last_login ? new Date(me.last_login).toLocaleString() : t("—")}
+        <p className="text-muted" style={{fontSize:12,marginTop:"0.7rem"}}>
+          {t("الاسم والصورة يظهران في الشريط العلوي وبجانب عملياتك في سجلّ التدقيق.")}
         </p>
-        <div style={{marginTop:"0.6rem"}}>
-          <button className="ds-btn ds-btn-primary ds-btn-sm" disabled={profSaving} onClick={saveProfile}>{profSaving?t("جارٍ الحفظ..."):t("حفظ الملف الشخصي")}</button>
+        <div style={{marginTop:"0.75rem"}}>
+          <button className="ds-btn ds-btn-primary ds-btn-sm" disabled={profSaving} onClick={saveProfile}>{profSaving?t("جارٍ الحفظ..."):t("حفظ التغييرات")}</button>
         </div>
       </div>
 
