@@ -76,6 +76,7 @@ class Hotel(models.Model):
     cleaning_mode = models.CharField(max_length=10, choices=CLEANING_MODE_CHOICES, default=CLEANING_MANUAL)
     cleaning_duration_minutes = models.PositiveIntegerField(default=60)          # مدة التنظيف قبل الرجوع التلقائي (auto)
     web_booking_needs_confirmation = models.BooleanField(default=True)           # هل حجوزات الموقع تحتاج تأكيدًا؟
+    enforce_shift_login = models.BooleanField(default=False)                     # م5: منع دخول الموظف خارج ورديته
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -463,6 +464,9 @@ class Staff(models.Model):
     phone = models.CharField(max_length=50, blank=True)
     email = models.EmailField(blank=True)
     shift = models.CharField(max_length=20, choices=SHIFT_CHOICES, default=SHIFT_MORNING)
+    # م5: نافذة الوردية الزمنية (لمنع الدخول خارجها عند تفعيل الفندق للميزة)
+    shift_start = models.TimeField(null=True, blank=True)
+    shift_end   = models.TimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
     permissions = models.JSONField(default=list)
     notes = models.TextField(blank=True)

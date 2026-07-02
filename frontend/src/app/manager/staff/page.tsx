@@ -14,6 +14,7 @@ type ModalType   = "add"|"edit"|"view"|"password"|"shift"|"permissions"|null;
 interface Staff {
   id:number; hotel:number; full_name:string; role:StaffRole;
   phone:string; email:string; shift:StaffShift; status:StaffStatus;
+  shift_start?:string|null; shift_end?:string|null;   // م5: نافذة الوردية
   permissions:string[]; notes:string; created_at:string; updated_at:string;
   username?:string|null; has_login?:boolean;   // د‑5: حساب الدخول
 }
@@ -87,6 +88,8 @@ export default function StaffPage() {
   const [fPhone,  setFPhone]  = useState("");
   const [fEmail,  setFEmail]  = useState("");
   const [fShift2, setFShift2] = useState<StaffShift>("morning");
+  const [fShiftStart, setFShiftStart] = useState("");   // م5
+  const [fShiftEnd,   setFShiftEnd]   = useState("");
   const [fNotes,  setFNotes]  = useState("");
   const [fPerms,  setFPerms]  = useState<string[]>([]);
   const [fUsername, setFUsername] = useState("");   // د‑5: حساب دخول الموظف
@@ -142,13 +145,13 @@ export default function StaffPage() {
   /* ── Open modals ── */
   function openAdd(){
     setFName("");setFRole2("receptionist");setFPhone("");setFEmail("");
-    setFShift2("morning");setFNotes("");setFPerms(DEFAULT_PERMS.receptionist??[]);
+    setFShift2("morning");setFShiftStart("");setFShiftEnd("");setFNotes("");setFPerms(DEFAULT_PERMS.receptionist??[]);
     setFUsername("");setFPassword("");
     setFormErr("");setSelStaff(null);setModal("add");
   }
   function openEdit(s:Staff){
     setFName(s.full_name);setFRole2(s.role);setFPhone(s.phone);setFEmail(s.email);
-    setFShift2(s.shift);setFNotes(s.notes??"");setFPerms(Array.isArray(s.permissions)?s.permissions:[]);
+    setFShift2(s.shift);setFShiftStart(s.shift_start?String(s.shift_start).slice(0,5):"");setFShiftEnd(s.shift_end?String(s.shift_end).slice(0,5):"");setFNotes(s.notes??"");setFPerms(Array.isArray(s.permissions)?s.permissions:[]);
     setFormErr("");setSelStaff(s);setModal("edit");
   }
   function openView(s:Staff){setSelStaff(s);setModal("view");}
@@ -166,7 +169,9 @@ export default function StaffPage() {
     if(modal==="add"&&fUsername.trim()&&fPassword.length<8){setFormErr(t("كلمة المرور 8 أحرف على الأقل لإنشاء حساب الدخول."));return;}
     setSaving(true);setFormErr("");
     const payload:Record<string,unknown>={hotel:Number(hotelId),full_name:fName.trim(),role:fRole2,
-      phone:fPhone.trim(),email:fEmail.trim(),shift:fShift2,notes:fNotes.trim(),permissions:fPerms};
+      phone:fPhone.trim(),email:fEmail.trim(),shift:fShift2,
+      shift_start:fShiftStart||null,shift_end:fShiftEnd||null,
+      notes:fNotes.trim(),permissions:fPerms};
     if(modal==="add"&&fUsername.trim()){payload.username=fUsername.trim();payload.password=fPassword;}
     try{
       if(modal==="edit"&&selStaff){
@@ -421,6 +426,15 @@ export default function StaffPage() {
                   <select className="select" value={fShift2} onChange={e=>setFShift2(e.target.value as StaffShift)}>
                     {Object.entries(SHIFT_LABELS).map(([v,l])=><option key={v} value={v}>{SHIFT_ICONS[v]} {l}</option>)}
                   </select>
+                </div>
+                {/* م5: نافذة الوردية (تُستخدم لمنع الدخول خارجها عند تفعيل الفندق للميزة) */}
+                <div className="field">
+                  <label className="field-label">{t("بداية الوردية")}</label>
+                  <input className="input" type="time" value={fShiftStart} onChange={e=>setFShiftStart(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label className="field-label">{t("نهاية الوردية")}</label>
+                  <input className="input" type="time" value={fShiftEnd} onChange={e=>setFShiftEnd(e.target.value)} />
                 </div>
                 <div className="field">
                   <label className="field-label">{t("رقم الهاتف")}</label>

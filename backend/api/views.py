@@ -103,6 +103,28 @@ def _log_security(action, username='', hotel_id=None, actor=None):
         pass
 
 
+def _shift_login_blocked(user):
+    """م5: هل يُمنع دخول هذا المستخدم لأنه خارج نافذة ورديته؟
+    المدير/المالك مُستثنيان دائمًا. لا منع ما لم يُفعّل الفندق الميزة وللموظف
+    نافذة وردية محدّدة. تدعم الوردية العابرة لمنتصف الليل."""
+    role = _get_user_role(user)
+    if role in ('platform_owner', 'manager'):
+        return False
+    hid = _get_user_hotel_id(user)
+    if not hid:
+        return False
+    from .models import Staff
+    if not Hotel.objects.filter(id=hid, enforce_shift_login=True).exists():
+        return False
+    staff = Staff.objects.filter(user=user).only('shift_start', 'shift_end').first()
+    if not staff or not staff.shift_start or not staff.shift_end:
+        return False   # بلا نافذة محدّدة → لا منع
+    now_t = timezone.localtime().time()
+    s, e = staff.shift_start, staff.shift_end
+    within = (s <= now_t <= e) if s <= e else (now_t >= s or now_t <= e)
+    return not within
+
+
 class TokenObtainPairView(_BaseTokenObtainPairView):
     """JWT login مع: حدّ معدّل + قفل بعد محاولات فاشلة + تسجيل أمني + تحقّق بخطوتين اختياري (د‑6)."""
     throttle_classes = [LoginRateThrottle]
@@ -129,6 +151,11 @@ class TokenObtainPairView(_BaseTokenObtainPairView):
         cache.delete(fail_key)
         user = serializer.user
         hotel_id = _get_user_hotel_id(user)
+        # م5: منع الدخول خارج نافذة الوردية (إن فعّلها الفندق) — المدير مُستثنى
+        if _shift_login_blocked(user):
+            _log_security('auth.shift_blocked', username, hotel_id)
+            return Response({'detail': 'لا يمكنك تسجيل الدخول، أنت خارج وقت ورديتك المحددة.'},
+                            status=status.HTTP_403_FORBIDDEN)
         # التحقق بخطوتين (اختياري لكل مستخدم)
         if getattr(getattr(user, 'profile', None), 'two_factor_enabled', False):
             LoginChallenge.objects.filter(user=user, consumed=False).update(consumed=True)
@@ -636,7 +663,8 @@ class HotelViewSet(viewsets.ModelViewSet):
                        'payment_policy', 'show_contact_info',
                        # م1: الحقول التشغيلية المركزية
                        'check_in_time', 'check_out_time',
-                       'cleaning_mode', 'cleaning_duration_minutes'}
+                       'cleaning_mode', 'cleaning_duration_minutes',
+                       'enforce_shift_login'}   # م5
             payload = {k: v for k, v in serializer.validated_data.items() if k in allowed}
             # د‑8: لا يُفعَّل حضور الموقع/الحجوزات إلا بعد قبول اتفاقية المنصّة
             enabling = payload.get('public_booking_enabled') or payload.get('public_listing_enabled')

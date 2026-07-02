@@ -25,6 +25,7 @@ class HotelSerializer(serializers.ModelSerializer):
             # م1: الحقول التشغيلية المركزية المُلزَمة خادميًّا
             'code', 'check_in_time', 'check_out_time',
             'cleaning_mode', 'cleaning_duration_minutes',
+            'enforce_shift_login',   # م5
             'created_at', 'updated_at',
         ]
         read_only_fields = ['code']
@@ -337,7 +338,7 @@ class StaffSerializer(serializers.ModelSerializer):
         model = Staff
         fields = [
             'id', 'hotel', 'full_name', 'role', 'phone', 'email',
-            'shift', 'status', 'permissions', 'notes',
+            'shift', 'shift_start', 'shift_end', 'status', 'permissions', 'notes',
             'username', 'has_login', 'created_at', 'updated_at',
         ]
         extra_kwargs = {'hotel': {'read_only': True}}  # B‑7

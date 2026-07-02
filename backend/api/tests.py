@@ -1442,3 +1442,42 @@ class Stage3MixedPaymentTests(BaseAPITest):
         self.assertEqual(p.method, 'mixed')
         self.assertEqual(float(p.amount_cash), 60)
         self.assertEqual(float(p.amount_card), 40)
+
+
+# ── م5‑أ: منع دخول الموظف خارج ورديته ──────────────────────────────────────
+class Stage5ShiftLoginTests(BaseAPITest):
+    def _staff(self, user, start, end):
+        Staff.objects.create(hotel=self.hotelA, user=user, full_name='موظف', role='receptionist',
+                             shift_start=start, shift_end=end)
+
+    def _login(self, username):
+        return APIClient().post('/api/token/', {'username': username, 'password': PWD}, format='json')
+
+    def test_blocked_outside_shift(self):
+        from django.utils import timezone
+        now = timezone.localtime()
+        self._staff(self.recA, (now + timedelta(hours=2)).time(), (now + timedelta(hours=3)).time())
+        self.hotelA.enforce_shift_login = True; self.hotelA.save()
+        self.assertEqual(self._login('recA').status_code, 403)
+
+    def test_allowed_within_shift(self):
+        from django.utils import timezone
+        now = timezone.localtime()
+        self._staff(self.recA, (now - timedelta(hours=1)).time(), (now + timedelta(hours=1)).time())
+        self.hotelA.enforce_shift_login = True; self.hotelA.save()
+        self.assertEqual(self._login('recA').status_code, 200)
+
+    def test_manager_exempt(self):
+        self.hotelA.enforce_shift_login = True; self.hotelA.save()
+        self.assertEqual(self._login('mgrA').status_code, 200)   # المدير مُستثنى دائمًا
+
+    def test_no_enforcement_allows(self):
+        from django.utils import timezone
+        now = timezone.localtime()
+        self._staff(self.recA, (now + timedelta(hours=2)).time(), (now + timedelta(hours=3)).time())
+        self.assertEqual(self._login('recA').status_code, 200)   # الميزة مطفأة → لا منع
+
+    def test_no_shift_window_not_blocked(self):
+        self._staff(self.recA, None, None)
+        self.hotelA.enforce_shift_login = True; self.hotelA.save()
+        self.assertEqual(self._login('recA').status_code, 200)   # بلا نافذة محدّدة → لا منع
