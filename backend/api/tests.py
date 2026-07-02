@@ -276,10 +276,11 @@ class PublicBookingTests(TestCase):
     def setUp(self):
         cache.clear()
         self.client = APIClient()
+        # م2: الحجز العام يتطلّب أيضًا كل شروط الظهور (public_listing_enabled + باقة تسمح بالظهور)
         self.hotel = Hotel.objects.create(name='Pub', city='Damascus', status=Hotel.STATUS_ACTIVE,
-                                          public_booking_enabled=True)
-        # م3: الحجز العام يتطلّب اشتراكًا صالحًا تسمح باقته بالحجز
-        pkg = Package.objects.create(name='Pub', allow_public_booking=True)
+                                          public_listing_enabled=True, public_booking_enabled=True)
+        # م3: الحجز العام يتطلّب اشتراكًا صالحًا تسمح باقته بالظهور والحجز
+        pkg = Package.objects.create(name='Pub', allow_public_listing=True, allow_public_booking=True)
         Subscription.objects.create(hotel=self.hotel, package=pkg, status=Subscription.STATUS_ACTIVE)
         self.room = Room.objects.create(hotel=self.hotel, number='1', type='single', price=100, show_in_public=True)
         self.ci = (date.today() + timedelta(days=5)).isoformat()
@@ -361,9 +362,9 @@ class CommissionTests(TestCase):
         cache.clear()
         self.client = APIClient()
         self.hotel = Hotel.objects.create(name='Comm', city='Damascus', status=Hotel.STATUS_ACTIVE,
-                                          public_booking_enabled=True)
-        # م3: الحجز العام يتطلّب اشتراكًا صالحًا تسمح باقته بالحجز
-        _pkg = Package.objects.create(name='Comm', allow_public_booking=True)
+                                          public_listing_enabled=True, public_booking_enabled=True)
+        # م2/م3: الحجز العام يتطلّب كل شروط الظهور + اشتراكًا صالحًا تسمح باقته بالظهور والحجز
+        _pkg = Package.objects.create(name='Comm', allow_public_listing=True, allow_public_booking=True)
         Subscription.objects.create(hotel=self.hotel, package=_pkg, status=Subscription.STATUS_ACTIVE)
         Room.objects.create(hotel=self.hotel, number='1', type='single', price=100, show_in_public=True)
 

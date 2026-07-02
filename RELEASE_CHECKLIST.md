@@ -12,15 +12,15 @@
 - [ ] لا أسرار داخل الكود أو في Git.
 - [ ] إعدادات الإنتاج جاهزة (م9 — `check --deploy` = 0 issues بإعدادات إنتاجية).
 
-## ب) الاختبارات (المرحلة 11)
-- [ ] `cd backend && python manage.py test api` — كل الاختبارات خضراء. **العدد يُثبَّت هنا** (آخر رقم موثَّق ~152 من مراحل الإغلاق التجاري، **يجب تأكيده** + إضافة اختبارات سلسلة التحصين 1–8 المذكورة في `TESTING.md §ب`).
-- [ ] `python manage.py check` — 0 مشاكل.
-- [ ] `python manage.py makemigrations --check --dry-run` — لا معلّقات.
-- [ ] `python manage.py check --deploy` — نظيف **بمتغيّرات بيئة الإنتاج الحقيقية** (0 issues).
-- [ ] `cd frontend && npm run lint` — exit 0.
-- [ ] `npm run typecheck` — نظيف.
-- [ ] `npm run build` — ناجح (خط محلّي عبر `next/font/local`).
-- [ ] `npm audit` — لا ثغرات عالية/حرجة (المتوسطة موثّقة/مقبولة).
+## ب) الاختبارات (المرحلة 11 — ✅ مُجتازة 2026‑07‑02)
+- [x] `cd backend && python manage.py test api` — **208 اختبارًا خضراء** (152 قائم + 56 تحصين؛ 0 فشل/خطأ).
+- [x] `python manage.py check` — 0 مشاكل.
+- [x] `python manage.py makemigrations --check --dry-run` — لا معلّقات (أحدث 0038).
+- [x] `python manage.py check --deploy` — نظيف **بمتغيّرات بيئة الإنتاج الحقيقية** (0 issues).
+- [x] `cd frontend && npm run lint` — exit 0.
+- [x] `npm run typecheck` — نظيف.
+- [x] `npm run build` — ناجح (46/46 صفحة؛ خط محلّي عبر `next/font/local`).
+- [x] `npm audit` — لا ثغرات عالية/حرجة؛ **ثغرتان متوسّطتان (postcss/Next) مؤجّلتان** (الإصلاح يكسر Next).
 - [ ] **سيناريو E2E تشغيليّ شامل (المرحلة 12)** — منفَّذ وموثَّق.
 
 ## ج) قبل النشر (على الإنتاج)
