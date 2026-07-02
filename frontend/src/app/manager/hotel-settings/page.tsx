@@ -2,10 +2,11 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Building2, Settings, BedDouble, Printer, FileText, Bell, Check, X } from "lucide-react";
+import { Building2, Settings, BedDouble, Printer, FileText, Bell, Globe, Check, X } from "lucide-react";
 import { useLang } from "../LangContext";
 
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
+import { fetchOpSettings, patchOpSettings } from "@/lib/settings";
 import HotelMap from "@/components/HotelMap";
 const LS_KEY = (hid: string) => `fandqi.settings.${hid}`;
 
@@ -18,17 +19,21 @@ function saveLS(hid: string, patch: object) {
 }
 
 // ─── types ───────────────────────────────────────────────────────────────────
-type TTab = "identity" | "operations" | "rooms" | "printing" | "documents" | "notifications";
+type TTab = "identity" | "publish" | "operations" | "rooms" | "printing" | "documents" | "notifications";
 
 interface IIdentity { name: string; ownerName: string; city: string; address: string; phone: string; email: string; website: string; logo: string | null; coverImage: string | null; mapUrl: string; latitude: string; longitude: string; }
-interface IOps { currency: string; autoClean: boolean; blockCheckout: boolean; }
+// م1: أوقات الدخول/الخروج ووضع/مدة التنظيف حقول تشغيلية مركزية مُلزَمة خادميًّا
+interface IOps { currency: string; blockCheckout: boolean; checkInTime: string; checkOutTime: string; cleaningMode: string; cleaningDuration: string; }
+// م1: قسم «العرض على موقع الحجز» — يُحفَظ على الفندق (يغذّي الموقع العام)
+interface IPublish { listingEnabled: boolean; bookingEnabled: boolean; needsConfirmation: boolean; descShort: string; descFull: string; amenities: string; stars: string; hotelType: string; galleryImages: string[]; cancellation: string; checkInPolicy: string; checkOutPolicy: string; paymentPolicy: string; showContact: boolean; }
 interface IRooms { floors: string; roomTypes: string[]; defaultCapacity: string; }
 interface IPrinting { showLogo: boolean; showContact: boolean; resTitle: string; accountTitle: string; terms: string; footer: string; numLang: string; }
 interface IDocs { docTypes: string[]; requireGuest: boolean; requireCompanion: boolean; requireRelation: boolean; scannerUrl: string; scannerEnabled: boolean; scannerError: string; }
 interface INotifs { arrivals: boolean; departures: boolean; balanceDue: boolean; cleaning: boolean; maintenance: boolean; roomAccount: boolean; balanceThreshold: string; showBell: boolean; }
 
 const DEFAULT_IDENTITY: IIdentity = { name: "", ownerName: "", city: "", address: "", phone: "", email: "", website: "", logo: null, coverImage: null, mapUrl: "", latitude: "", longitude: "" };
-const DEFAULT_OPS: IOps = { currency: "USD", autoClean: true, blockCheckout: true };
+const DEFAULT_OPS: IOps = { currency: "USD", blockCheckout: true, checkInTime: "", checkOutTime: "", cleaningMode: "manual", cleaningDuration: "60" };
+const DEFAULT_PUBLISH: IPublish = { listingEnabled: false, bookingEnabled: false, needsConfirmation: true, descShort: "", descFull: "", amenities: "", stars: "", hotelType: "hotel", galleryImages: [], cancellation: "", checkInPolicy: "", checkOutPolicy: "", paymentPolicy: "", showContact: false };
 const DEFAULT_ROOMS: IRooms = { floors: "1", roomTypes: ["مفردة", "مزدوجة", "ثلاثية", "سويت", "عائلية", "جناح", "غرفة مميزة"], defaultCapacity: "2" };
 const DEFAULT_PRINTING: IPrinting = {
   showLogo: true, showContact: true,
@@ -128,6 +133,7 @@ export default function SettingsPage() {
 
   const TABS: { key: TTab; label: string; Icon: LucideIcon }[] = [
     { key: "identity",      label: t("الهوية العامة"),        Icon: Building2 },
+    { key: "publish",       label: t("العرض على موقع الحجز"),  Icon: Globe },
     { key: "operations",    label: t("التشغيل والحجوزات"),    Icon: Settings },
     { key: "rooms",         label: t("الغرف والطوابق"),       Icon: BedDouble },
     { key: "printing",      label: t("الطباعة والفواتير"),    Icon: Printer },
@@ -150,6 +156,8 @@ export default function SettingsPage() {
   // State per section
   const [identity,  setIdentity]  = useState<IIdentity>(DEFAULT_IDENTITY);
   const [ops,       setOps]       = useState<IOps>(DEFAULT_OPS);
+  const [pub,       setPub]       = useState<IPublish>(DEFAULT_PUBLISH);
+  const [hotelCode, setHotelCode] = useState("");
   const [rooms,     setRooms]     = useState<IRooms>(DEFAULT_ROOMS);
   const [printing,  setPrinting]  = useState<IPrinting>(DEFAULT_PRINTING);
   const [docs,      setDocs]      = useState<IDocs>(DEFAULT_DOCS);
@@ -191,8 +199,41 @@ export default function SettingsPage() {
           longitude: d.longitude != null ? String(d.longitude) : "",
         }));
         if (d.currency) setOps(prev => ({ ...prev, currency: d.currency }));
+        setOps(prev => ({
+          ...prev,
+          checkInTime: d.check_in_time ? String(d.check_in_time).slice(0, 5) : prev.checkInTime,
+          checkOutTime: d.check_out_time ? String(d.check_out_time).slice(0, 5) : prev.checkOutTime,
+          cleaningMode: d.cleaning_mode || prev.cleaningMode,
+          cleaningDuration: d.cleaning_duration_minutes != null ? String(d.cleaning_duration_minutes) : prev.cleaningDuration,
+        }));
+        if (d.code) setHotelCode(d.code);
+        // م1: قسم «العرض على موقع الحجز»
+        setPub(prev => ({
+          ...prev,
+          listingEnabled: !!d.public_listing_enabled,
+          bookingEnabled: !!d.public_booking_enabled,
+          needsConfirmation: d.web_booking_needs_confirmation !== false,
+          descShort: d.public_description_short ?? prev.descShort,
+          descFull: d.public_description_full ?? prev.descFull,
+          amenities: Array.isArray(d.amenities) ? d.amenities.join("، ") : prev.amenities,
+          stars: d.stars != null ? String(d.stars) : prev.stars,
+          hotelType: d.hotel_type || prev.hotelType,
+          galleryImages: Array.isArray(d.gallery_images) ? d.gallery_images : prev.galleryImages,
+          cancellation: d.cancellation_policy ?? prev.cancellation,
+          checkInPolicy: d.check_in_policy ?? prev.checkInPolicy,
+          checkOutPolicy: d.check_out_policy ?? prev.checkOutPolicy,
+          paymentPolicy: d.payment_policy ?? prev.paymentPolicy,
+          showContact: !!d.show_contact_info,
+        }));
         if (d.floors_count) setRooms(prev => ({ ...prev, floors: String(d.floors_count) }));
       }).catch(() => {});
+    // م1: جلب حِزم إعدادات التشغيل من الخادم (المصدر) — تتقدّم على المخبّأ المحلّي
+    fetchOpSettings().then(s => {
+      if (!s) return;
+      if (Object.keys(s.printing).length)      setPrinting(prev => ({ ...prev, ...(s.printing as Partial<IPrinting>) }));
+      if (Object.keys(s.documents).length)     setDocs(prev => ({ ...prev, ...(s.documents as Partial<IDocs>) }));
+      if (Object.keys(s.notifications).length) setNotifs(prev => ({ ...prev, ...(s.notifications as Partial<INotifs>) }));
+    });
     // fetch rooms to compute max floor
     fetch(`${API}/rooms/?hotel=${hotelId}`, { headers: apiH() })
       .then(r => r.ok ? r.json() : []).then((rs: { floor?: number }[]) => {
@@ -235,12 +276,50 @@ export default function SettingsPage() {
 
   async function doSaveOps() {
     // د‑1: أُزيلت إعدادات توليد رقم الحجز (بادئة/آخر رقم/خانات) — الرقم يتولّد ذرّيًا من الخادم.
-    // currency is money-chain critical → persist to backend (source of truth)
+    // م1: العملة + الأوقات + وضع/مدة التنظيف = حقول تشغيلية مركزية تُلزَم خادميًّا (المصدر).
+    const dur = parseInt(ops.cleaningDuration, 10);
+    if (ops.cleaningMode === "auto" && (isNaN(dur) || dur < 1)) {
+      setError(t("مدة التنظيف يجب أن تكون دقيقة واحدة على الأقل عند التنظيف التلقائي.")); return;
+    }
+    setSaving(true); setError("");
     try {
-      await fetch(`${API}/hotels/${hotelId}/`, { method: "PATCH", headers: apiHJ(), body: JSON.stringify({ currency: ops.currency }) });
+      await fetch(`${API}/hotels/${hotelId}/`, { method: "PATCH", headers: apiHJ(), body: JSON.stringify({
+        currency: ops.currency,
+        check_in_time: ops.checkInTime || null,
+        check_out_time: ops.checkOutTime || null,
+        cleaning_mode: ops.cleaningMode,
+        cleaning_duration_minutes: isNaN(dur) ? 60 : dur,
+      }) });
     } catch { /* ok */ }
     saveLS(hotelId, { ops });
+    setSaving(false);
     showToast(t("تم حفظ إعدادات التشغيل والحجوزات بنجاح."));
+  }
+
+  async function doSavePublish() {
+    const st = pub.stars.trim();
+    if (st && (isNaN(Number(st)) || Number(st) < 1 || Number(st) > 5)) { setError(t("التصنيف يجب أن يكون بين 1 و5 نجوم.")); return; }
+    setSaving(true); setError("");
+    try {
+      await fetch(`${API}/hotels/${hotelId}/`, { method: "PATCH", headers: apiHJ(), body: JSON.stringify({
+        public_listing_enabled: pub.listingEnabled,
+        public_booking_enabled: pub.bookingEnabled,
+        web_booking_needs_confirmation: pub.needsConfirmation,
+        public_description_short: pub.descShort,
+        public_description_full: pub.descFull,
+        amenities: pub.amenities.split(/[،,]/).map(s => s.trim()).filter(Boolean),
+        gallery_images: pub.galleryImages,
+        stars: st ? Number(st) : null,
+        hotel_type: pub.hotelType,
+        cancellation_policy: pub.cancellation,
+        check_in_policy: pub.checkInPolicy,
+        check_out_policy: pub.checkOutPolicy,
+        payment_policy: pub.paymentPolicy,
+        show_contact_info: pub.showContact,
+      }) });
+    } catch { /* ok */ }
+    setSaving(false);
+    showToast(t("تم حفظ إعدادات العرض على موقع الحجز بنجاح."));
   }
 
   async function doSaveRooms() {
@@ -256,19 +335,28 @@ export default function SettingsPage() {
   }
 
   async function doSavePrinting() {
+    setSaving(true);
+    await patchOpSettings({ printing: printing as unknown as Record<string, unknown> });   // م1: مصدر خادمي
     saveLS(hotelId, { printing });
+    setSaving(false);
     showToast(t("تم حفظ إعدادات الطباعة والفواتير بنجاح."));
   }
 
   async function doSaveDocs() {
     if (docs.docTypes.length === 0) { setError(t("يجب أن تحتوي أنواع الوثائق على نوع واحد على الأقل.")); return; }
     if (docs.scannerEnabled && !docs.scannerUrl.trim()) { setError(t("عنوان خدمة الماسح مطلوب عند تفعيله.")); return; }
+    setSaving(true);
+    await patchOpSettings({ documents: docs as unknown as Record<string, unknown> });
     saveLS(hotelId, { docs });
+    setSaving(false);
     showToast(t("تم حفظ إعدادات الوثائق والماسح بنجاح."));
   }
 
   async function doSaveNotifs() {
+    setSaving(true);
+    await patchOpSettings({ notifications: notifs as unknown as Record<string, unknown> });
     saveLS(hotelId, { notifs });
+    setSaving(false);
     window.dispatchEvent(new Event("fandqi:settings-update"));
     showToast(t("تم حفظ إعدادات التنبيهات بنجاح."));
   }
@@ -302,6 +390,22 @@ export default function SettingsPage() {
       setIdentity(prev => ({ ...prev, coverImage: dataUrl }));
     };
     reader.readAsDataURL(file);
+  }
+
+  // ── Gallery images (م1: العرض على موقع الحجز) ───────────────────────────────
+  function handleGallery(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    files.forEach(file => {
+      if (file.size > 3 * 1024 * 1024) { setError(t("حجم الصورة كبير جدًا. الحد الأقصى 3 ميجابايت.")); return; }
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const dataUrl = ev.target?.result as string;
+        setPub(prev => ({ ...prev, galleryImages: [...prev.galleryImages, dataUrl] }));
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = "";
   }
 
   // ─── room type helpers ────────────────────────────────────────────────────
@@ -341,7 +445,7 @@ export default function SettingsPage() {
           </p>
           <h1 style={{ margin: 0, fontSize: "1.6rem", fontWeight: 700 }}>{t("الإعدادات")}</h1>
           <p style={{ margin: 0, fontSize: "0.85rem", color: "#6b7280", marginTop: "0.2rem" }}>
-            {t("إدارة بيانات الفندق، التشغيل، الطباعة، الوثائق، التنبيهات، والنسخ الاحتياطي من مكان واحد.")}
+            {t("إدارة بيانات الفندق، العرض على موقع الحجز، التشغيل، الطباعة، الوثائق، والتنبيهات من مكان واحد.")}
           </p>
         </div>
       </div>
@@ -510,31 +614,118 @@ export default function SettingsPage() {
            TAB 2: التشغيل والحجوزات
          ════════════════════════════════════════════════════════════════════ */}
       {tab === "operations" && (
-        <CardSection title={t("التشغيل والحجوزات")} desc={t("العملة الافتراضية وسياسات التشغيل الأساسية.")}>
+        <CardSection title={t("التشغيل والحجوزات")} desc={t("العملة الافتراضية وأوقات الدخول/الخروج وسياسة التنظيف.")}>
           <div style={G3}>
             <FLD label={t("العملة الافتراضية")}>
               <select className="select" value={ops.currency} onChange={e => setOps(p => ({ ...p, currency: e.target.value }))}>
                 {["USD", "EUR", "TRY", "SAR", "AED", "SYP"].map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </FLD>
+            <FLD label={t("وقت الدخول الافتراضي")} hint={t("يظهر في ملخص الحجز والموقع العام")}>
+              <input className="input" type="time" value={ops.checkInTime} onChange={e => setOps(p => ({ ...p, checkInTime: e.target.value }))} />
+            </FLD>
+            <FLD label={t("وقت المغادرة الافتراضي")}>
+              <input className="input" type="time" value={ops.checkOutTime} onChange={e => setOps(p => ({ ...p, checkOutTime: e.target.value }))} />
+            </FLD>
+          </div>
+          <div style={G3}>
+            <FLD label={t("طريقة رجوع الغرفة بعد التنظيف")} hint={t("تلقائي: تعود متاحة بعد المدة · يدوي: بزر «تم التنظيف»")}>
+              <select className="select" value={ops.cleaningMode} onChange={e => setOps(p => ({ ...p, cleaningMode: e.target.value }))}>
+                <option value="manual">{t("يدوي")}</option>
+                <option value="auto">{t("تلقائي")}</option>
+              </select>
+            </FLD>
+            {ops.cleaningMode === "auto" && (
+              <FLD label={t("مدة التنظيف (دقائق)")} hint={t("بعدها تعود الغرفة متاحة تلقائيًا")}>
+                <input className="input" type="number" min={1} value={ops.cleaningDuration} onChange={e => setOps(p => ({ ...p, cleaningDuration: e.target.value }))} />
+              </FLD>
+            )}
           </div>
           <div className="ds-alert ds-alert-info" style={{ marginTop: "0.75rem", fontSize: "0.85rem" }}>
             {t("رقم الحجز يتولّد تلقائيًا من النظام لكل فندق (بلا تضارب) — لا حاجة لضبط بادئة أو خانات.")}
           </div>
-          {hotelId && (
+          {hotelCode && (
             <div style={{ marginTop: "0.5rem", fontSize: "0.85rem", color: "#6b7280" }}>
-              {t("كود الفندق الداخلي")}: <strong style={{ color: "#4f46e5", letterSpacing: "0.05em" }}>{`FND-${String(hotelId).padStart(4, "0")}`}</strong>
+              {t("كود الفندق الداخلي")}: <strong style={{ color: "#4f46e5", letterSpacing: "0.05em" }}>{hotelCode}</strong>
               <span style={{ marginInlineStart: 8, fontSize: "0.78rem" }}>({t("للعرض فقط — لا يُعدَّل")})</span>
             </div>
           )}
           <div style={{ marginTop: "0.5rem" }}>
-            <SW label={t("تحويل الغرفة للتنظيف بعد تسجيل الخروج")} checked={ops.autoClean} onChange={v => setOps(p => ({ ...p, autoClean: v }))} hint={t("بعد الخروج تصبح الغرفة في حالة تنظيف تلقائيًا")} />
-            <SW label={t("منع تسجيل الخروج عند وجود متبقي مالي")} checked={ops.blockCheckout} onChange={v => setOps(p => ({ ...p, blockCheckout: v }))} hint={t("يمنع إتمام الخروج حتى يُسوَّى الرصيد المستحق")} />
+            <SW label={t("منع تسجيل الخروج عند وجود متبقي مالي")} checked={ops.blockCheckout} onChange={v => setOps(p => ({ ...p, blockCheckout: v }))} hint={t("يمنع إتمام الخروج حتى يُسوَّى الرصيد المستحق (مُلزَم خادميًّا)")} />
           </div>
           <div style={{ marginTop: "1rem" }}>
             <SaveBtn label={t("حفظ إعدادات التشغيل")} saving={saving} saved={false} onClick={doSaveOps} />
           </div>
         </CardSection>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+           TAB: العرض على موقع الحجز
+         ════════════════════════════════════════════════════════════════════ */}
+      {tab === "publish" && (
+        <>
+          <CardSection title={t("الظهور على موقع الحجز")} desc={t("تحكّم بظهور فندقك واستقبال حجوزات الموقع. يتطلب التفعيل قبول اتفاقية المنصّة.")}>
+            <SW label={t("إظهار الفندق في موقع الحجز العام")} checked={pub.listingEnabled} onChange={v => setPub(p => ({ ...p, listingEnabled: v }))} />
+            <SW label={t("استقبال حجوزات من الموقع العام")} checked={pub.bookingEnabled} onChange={v => setPub(p => ({ ...p, bookingEnabled: v }))} />
+            <SW label={t("حجوزات الموقع تحتاج تأكيدًا يدويًا")} checked={pub.needsConfirmation} onChange={v => setPub(p => ({ ...p, needsConfirmation: v }))} hint={t("عند الإطفاء تُؤكَّد حجوزات الموقع تلقائيًا")} />
+            <SW label={t("إظهار معلومات التواصل للزوّار")} checked={pub.showContact} onChange={v => setPub(p => ({ ...p, showContact: v }))} />
+          </CardSection>
+
+          <CardSection title={t("وصف الفندق والمميزات")} desc={t("تظهر في صفحة الفندق العامة.")}>
+            <div style={G2}>
+              <FLD label={t("التصنيف (نجوم 1–5)")}>
+                <input className="input" type="number" min={1} max={5} value={pub.stars} onChange={e => setPub(p => ({ ...p, stars: e.target.value }))} placeholder="4" />
+              </FLD>
+              <FLD label={t("نوع المنشأة")}>
+                <select className="select" value={pub.hotelType} onChange={e => setPub(p => ({ ...p, hotelType: e.target.value }))}>
+                  <option value="hotel">{t("فندق")}</option>
+                  <option value="apart_hotel">{t("شقق فندقية")}</option>
+                  <option value="resort">{t("منتجع")}</option>
+                  <option value="guesthouse">{t("نزل")}</option>
+                  <option value="motel">{t("موتيل")}</option>
+                </select>
+              </FLD>
+            </div>
+            <FLD label={t("وصف مختصر")}>
+              <input className="input" value={pub.descShort} onChange={e => setPub(p => ({ ...p, descShort: e.target.value }))} placeholder={t("سطر تعريفي قصير عن الفندق")} />
+            </FLD>
+            <FLD label={t("وصف تفصيلي")}>
+              <textarea className="input" rows={3} value={pub.descFull} onChange={e => setPub(p => ({ ...p, descFull: e.target.value }))} />
+            </FLD>
+            <FLD label={t("المرافق والخدمات")} hint={t("افصل بينها بفاصلة: واي فاي، موقف سيارات، مطعم…")}>
+              <input className="input" value={pub.amenities} onChange={e => setPub(p => ({ ...p, amenities: e.target.value }))} placeholder={t("واي فاي، موقف سيارات، مطعم، مسبح")} />
+            </FLD>
+          </CardSection>
+
+          <CardSection title={t("صور معرض الفندق")} desc={t("صور إضافية تظهر في صفحة الفندق العامة.")}>
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "0.75rem" }}>
+              {pub.galleryImages.map((img, i) => (
+                <div key={i} style={{ position: "relative" }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element -- dynamic data URL */}
+                  <img src={img} alt={`gallery-${i}`} style={{ width: 96, height: 72, objectFit: "cover", borderRadius: "0.4rem", border: "1px solid #e5e7eb" }} />
+                  <button onClick={() => setPub(p => ({ ...p, galleryImages: p.galleryImages.filter((_, j) => j !== i) }))}
+                    style={{ position: "absolute", top: -6, insetInlineEnd: -6, background: "#dc2626", color: "#fff", border: "none", borderRadius: "50%", width: 20, height: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
+                </div>
+              ))}
+            </div>
+            <input id="gallery-input" type="file" accept="image/*" multiple style={{ display: "none" }} onChange={handleGallery} />
+            <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={() => document.getElementById("gallery-input")?.click()}>{t("إضافة صور")}</button>
+          </CardSection>
+
+          <CardSection title={t("السياسات")} desc={t("تظهر للزوّار قبل الحجز.")}>
+            <div style={G2}>
+              <FLD label={t("سياسة الدخول")}><textarea className="input" rows={2} value={pub.checkInPolicy} onChange={e => setPub(p => ({ ...p, checkInPolicy: e.target.value }))} /></FLD>
+              <FLD label={t("سياسة المغادرة")}><textarea className="input" rows={2} value={pub.checkOutPolicy} onChange={e => setPub(p => ({ ...p, checkOutPolicy: e.target.value }))} /></FLD>
+            </div>
+            <div style={G2}>
+              <FLD label={t("سياسة الإلغاء")}><textarea className="input" rows={2} value={pub.cancellation} onChange={e => setPub(p => ({ ...p, cancellation: e.target.value }))} /></FLD>
+              <FLD label={t("سياسة الدفع")}><textarea className="input" rows={2} value={pub.paymentPolicy} onChange={e => setPub(p => ({ ...p, paymentPolicy: e.target.value }))} /></FLD>
+            </div>
+            <div style={{ marginTop: "1rem" }}>
+              <SaveBtn label={t("حفظ إعدادات العرض على موقع الحجز")} saving={saving} saved={false} onClick={doSavePublish} />
+            </div>
+          </CardSection>
+        </>
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
