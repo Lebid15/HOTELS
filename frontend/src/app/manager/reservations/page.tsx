@@ -7,6 +7,7 @@ import { ClipboardList, Clock, CheckCircle2, Home, Banknote, Search, Calendar, U
 import { useLang } from "../LangContext";
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
 import { cachedOpSettings } from "@/lib/settings";
+import DocumentModal from "@/components/DocumentModal";
 import { escapeHtml as esc } from "@/lib/print";
 
 /* ─── Types ──────────────────────────────────────────────── */
@@ -96,11 +97,6 @@ function addDays(date:string, n:number) {
 }
 function toB64(f:File):Promise<string> {
   return new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target?.result as string);r.onerror=rej;r.readAsDataURL(f);});
-}
-function viewImg(b64:string) {
-  if(!b64)return;
-  const w=window.open();
-  if(w){w.document.write(`<img src="${esc(b64)}" style="max-width:100%;max-height:100vh;display:block;margin:auto">`);}
 }
 function badgeStyle(s:string):React.CSSProperties {
   return {padding:"3px 11px",borderRadius:20,fontSize:12,fontWeight:700,...(STATUS_STYLE[s]??STATUS_STYLE.cancelled)};
@@ -290,6 +286,8 @@ export default function ReservationsPage() {
   const [invalidFields, setInvalidFields] = useState<string[]>([]);   // م2: تلوين الحقول الناقصة بالأحمر
   const [canEditPrice, setCanEditPrice] = useState(false);            // م5: صلاحية تعديل السعر يدويًّا
   const [priceManual,  setPriceManual]  = useState(false);            // هل عُدِّل السعر يدويًّا لهذا الحجز؟
+  const [docView,      setDocView]      = useState<string|null>(null); // عابر: عرض الوثيقة في Modal (لا تبويب)
+  const viewImg = (b64:string) => { if(b64) setDocView(b64); };
 
   /* view modal */
   const [viewRes, setViewRes] = useState<Res|null>(null);
@@ -725,6 +723,8 @@ export default function ReservationsPage() {
   /* ─────────────────────────────────────────────────────────── */
   return (
     <div className="ds-page">
+      {/* عابر: عرض الوثيقة داخل نافذة منبثقة (لا تبويب جديد) */}
+      <DocumentModal src={docView} onClose={() => setDocView(null)} info={{ label: t("وثيقة الحجز") }} />
 
       {/* ── Header ── */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"1.25rem"}}>
