@@ -1439,7 +1439,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
                     Payment.objects.create(hotel_id=res.hotel_id, reservation=res, amount=room_bal,
                                            currency=res.currency, method=method, source='booking',
                                            created_by=request.user)
-            res.folio_charges.filter(settled=False).update(settled=True)
+            res.folio_charges.filter(settled=False, voided=False).update(settled=True)   # م1: لا تمسّ المبطلة
             # د‑4: تسوية جزء حساب الغرفة لطلبات الطعام (بدل تعديل وسيلة الدفع)
             res.food_orders.exclude(status=FoodOrder.STATUS_CANCELLED).filter(
                 room_settled=False).update(room_settled=True)
@@ -1593,7 +1593,7 @@ def _reservation_balance_due(res):
     نفس منطق المشتقّ في الـSerializer — يُستخدم لإلزام منع الخروج بالدين خادمًا."""
     from decimal import Decimal
     from .serializers import ReservationSerializer
-    folio_out = sum((c.amount for c in res.folio_charges.all() if not c.settled), Decimal('0'))
+    folio_out = sum((c.amount for c in res.folio_charges.all() if not c.settled and not c.voided), Decimal('0'))
     food_out = sum((ReservationSerializer._food_room_charge(o) for o in res.food_orders.all()), Decimal('0'))
     room_bal = (res.total or Decimal('0')) - (res.paid or Decimal('0'))
     return room_bal + folio_out + food_out
@@ -1832,10 +1832,37 @@ class FoodOrderViewSet(_HotelScopedViewSet):
 class FolioChargeViewSet(_HotelScopedViewSet):
     serializer_class = FolioChargeSerializer
     permission_classes = [FolioPermission]
-    queryset = FolioCharge.objects.select_related('created_by')
+    queryset = FolioCharge.objects.select_related('created_by', 'voided_by')
+    http_method_names = ['get', 'post', 'put', 'patch', 'head', 'options']   # م1: لا حذف نهائي (يُستبدَل بإبطال)
 
     def perform_create(self, serializer):
         serializer.save(hotel_id=self._resolve_hotel_id(), created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        # م1: لا يُعدَّل رسمٌ مبطل
+        if serializer.instance.voided:
+            raise ValidationError({'detail': 'لا يمكن تعديل رسم مبطل.'})
+        serializer.save()
+
+    @action(detail=True, methods=['post'], url_path='void')
+    def void(self, request, pk=None):
+        """م1: إبطال رسم الفوليو (بدل الحذف) — سبب إلزامي + تسجيل تدقيق.
+        يُستثنى المبطل من حساب الرصيد المستحق ولا يُحذف من النظام."""
+        charge = self.get_object()   # get_queryset مُقيَّد بفندق المستخدم (عزل المستأجرين)
+        if charge.voided:
+            return Response({'error': 'الرسم ملغى بالفعل'}, status=400)
+        reason = (request.data.get('reason') or '').strip()
+        if not reason:
+            return Response({'error': 'سبب الإبطال مطلوب'}, status=400)
+        charge.voided = True
+        charge.voided_at = timezone.now()
+        charge.voided_by = request.user
+        charge.void_reason = reason
+        charge.save()
+        record_audit(request.user, hotel_id=charge.hotel_id, action='folio_charge.void',
+                     entity_type='folio_charge', entity_id=charge.pk,
+                     summary=f'إبطال رسم فوليو {charge.amount} {charge.currency} · حجز {charge.booking_number or "—"} · السبب: {reason}')
+        return Response(FolioChargeSerializer(charge).data)
 
 
 class GuestProfileViewSet(_HotelScopedViewSet):

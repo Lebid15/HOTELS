@@ -1007,6 +1007,11 @@ class FolioCharge(models.Model):
     description    = models.CharField(max_length=300, blank=True)
     charge_date    = models.DateField(null=True, blank=True)
     settled        = models.BooleanField(default=False)
+    # م1 (سلامة المال): الإبطال بدل الحذف — لا يُحذف سجلّ مالي نهائيًّا (كنمط Payment/Expense)
+    voided      = models.BooleanField(default=False)
+    voided_at   = models.DateTimeField(null=True, blank=True)
+    voided_by   = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='voided_folio_charges')
+    void_reason = models.TextField(blank=True)
     created_by     = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
     created_at     = models.DateTimeField(auto_now_add=True)
 

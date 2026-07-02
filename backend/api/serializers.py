@@ -149,11 +149,13 @@ class ReservationSerializer(serializers.ModelSerializer):
     # لتفادي N+1. كل رقم مشتقّ من مصدره الوحيد ولا يُكرَّر عدّه.
     @staticmethod
     def _folio_sum(obj):
-        return sum((c.amount for c in obj.folio_charges.all()), Decimal('0'))
+        # م1: الرسوم المبطلة لا تدخل في الإجمالي المالي
+        return sum((c.amount for c in obj.folio_charges.all() if not c.voided), Decimal('0'))
 
     @staticmethod
     def _folio_outstanding(obj):
-        return sum((c.amount for c in obj.folio_charges.all() if not c.settled), Decimal('0'))
+        # م1: تُستثنى الرسوم المبطلة (لا تدخل في الرصيد المستحق)
+        return sum((c.amount for c in obj.folio_charges.all() if not c.settled and not c.voided), Decimal('0'))
 
     @staticmethod
     def _food_sum(obj):
@@ -487,15 +489,22 @@ class FoodOrderSerializer(serializers.ModelSerializer):
 
 class FolioChargeSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+    voided_by_name  = serializers.CharField(source='voided_by.username', read_only=True, allow_null=True)
 
     class Meta:
         model = FolioCharge
         fields = [
             'id', 'hotel', 'reservation', 'guest_name', 'room_number', 'booking_number',
             'charge_type', 'amount', 'currency', 'description', 'charge_date', 'settled',
+            # م1: حقول الإبطال (للقراءة فقط — الإبطال عبر endpoint المخصّص، لا من الإنشاء/التعديل)
+            'voided', 'voided_at', 'voided_by', 'voided_by_name', 'void_reason',
             'created_by', 'created_by_name', 'created_at',
         ]
-        extra_kwargs = {'hotel': {'read_only': True}, 'created_by': {'read_only': True}}
+        extra_kwargs = {
+            'hotel': {'read_only': True}, 'created_by': {'read_only': True},
+            'voided': {'read_only': True}, 'voided_at': {'read_only': True},
+            'voided_by': {'read_only': True}, 'void_reason': {'read_only': True},
+        }
 
 
 class GuestProfileSerializer(serializers.ModelSerializer):

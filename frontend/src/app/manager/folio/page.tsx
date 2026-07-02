@@ -33,6 +33,8 @@ interface FolioCharge {
   createdAt: string;
   createdBy: string;
   settled: boolean;
+  voided: boolean;        // م1
+  voidReason: string;
 }
 
 interface ActiveReservation {
@@ -101,6 +103,8 @@ function mapCharge(x: Record<string, unknown>): FolioCharge {
     createdAt: String(x.created_at ?? ""),
     createdBy: String(x.created_by_name ?? ""),
     settled: Boolean(x.settled),
+    voided: Boolean(x.voided),
+    voidReason: String(x.void_reason ?? ""),
   };
 }
 
@@ -149,7 +153,8 @@ function printFolio(
   currency: string,
 ) {
   const res = reservations.find(r => String(r.id) === String(resId));
-  const myCharges = charges.filter(c => String(c.reservationId) === String(resId));
+  // م1: لا تُطبَع الرسوم المبطلة ولا تدخل في إجمالي كشف الحساب
+  const myCharges = charges.filter(c => String(c.reservationId) === String(resId) && !c.voided);
   if (myCharges.length === 0) return;
 
   // Group by type
@@ -234,7 +239,10 @@ export default function FolioPage() {
   const [currency,     setCurrency]     = useState("USD");
   const [hotel,        setHotel]        = useState<HotelInfo | null>(null);
   const [toast,        setToast]        = useState("");
-  const [deleteId,     setDeleteId]     = useState<string | null>(null);
+  // م1: إبطال بدل الحذف — سبب إلزامي
+  const [voidId,       setVoidId]       = useState<string | null>(null);
+  const [voidReason,   setVoidReason]   = useState("");
+  const [voidBusy,     setVoidBusy]     = useState(false);
   const [printResId,   setPrintResId]   = useState<string>("");
 
   /* Filters */
@@ -302,9 +310,10 @@ export default function FolioPage() {
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 3000); }
 
   /* ── KPIs ── */
-  const totalAll      = useMemo(() => charges.reduce((s, c) => s + c.amount, 0), [charges]);
-  const totalUnsettled= useMemo(() => charges.filter(c => !c.settled).reduce((s, c) => s + c.amount, 0), [charges]);
-  const totalSettled  = useMemo(() => charges.filter(c => c.settled).reduce((s, c) => s + c.amount, 0), [charges]);
+  // م1: الرسوم المبطلة لا تدخل في أي إجمالي مالي
+  const totalAll      = useMemo(() => charges.filter(c => !c.voided).reduce((s, c) => s + c.amount, 0), [charges]);
+  const totalUnsettled= useMemo(() => charges.filter(c => !c.settled && !c.voided).reduce((s, c) => s + c.amount, 0), [charges]);
+  const totalSettled  = useMemo(() => charges.filter(c => c.settled && !c.voided).reduce((s, c) => s + c.amount, 0), [charges]);
   const roomsWithCharges = useMemo(() => new Set(charges.map(c => c.roomNumber)).size, [charges]);
 
   /* ── Filtered & grouped ── */
@@ -377,14 +386,20 @@ export default function FolioPage() {
     } catch { showToast(t("تعذّرت التسوية.")); }
   }
 
-  async function deleteCharge(id: string) {
+  async function voidCharge() {
+    if (!voidId) return;
+    if (!voidReason.trim()) return;   // السبب إلزامي
+    setVoidBusy(true);
     try {
-      const r = await fetch(`${API}/folio-charges/${id}/`, { method: "DELETE", headers: apiH() });
-      if (!r.ok && r.status !== 204) throw new Error();
-      setDeleteId(null);
-      showToast(t("تم حذف الرسمة."));
+      const r = await fetch(`${API}/folio-charges/${voidId}/void/`, {
+        method: "POST", headers: apiHJ(), body: JSON.stringify({ reason: voidReason.trim() }),
+      });
+      if (!r.ok) throw new Error();
+      setVoidId(null); setVoidReason("");
+      showToast(t("تم إبطال الرسم."));
       await loadCharges();
-    } catch { setDeleteId(null); showToast(t("تعذّر الحذف.")); }
+    } catch { showToast(t("تعذّر الإبطال.")); }
+    finally { setVoidBusy(false); }
   }
 
   /* ─────────────────────────────────────────────────────────────────────── */
@@ -632,9 +647,10 @@ export default function FolioPage() {
             const guestName   = res?.guestName   ?? resCharges[0]?.guestName   ?? t("نزيل");
             const roomNumber  = res?.roomNumber   ?? resCharges[0]?.roomNumber  ?? "—";
             const bookingNum  = res?.bookingNumber?? resCharges[0]?.bookingNumber ?? "—";
-            const subtotal    = resCharges.reduce((s, c) => s + c.amount, 0);
-            const unsettled   = resCharges.filter(c => !c.settled).reduce((s, c) => s + c.amount, 0);
-            const allSettled  = resCharges.every(c => c.settled);
+            // م1: المبطلة تظهر في القائمة لكن لا تدخل في المجاميع
+            const subtotal    = resCharges.filter(c => !c.voided).reduce((s, c) => s + c.amount, 0);
+            const unsettled   = resCharges.filter(c => !c.settled && !c.voided).reduce((s, c) => s + c.amount, 0);
+            const allSettled  = resCharges.filter(c => !c.voided).every(c => c.settled);
 
             return (
               <div key={resId} style={{
@@ -727,13 +743,22 @@ export default function FolioPage() {
                             }}>
                               {TYPE_LABELS[charge.type]}
                             </span>
-                            {charge.settled && (
+                            {charge.settled && !charge.voided && (
                               <span style={{
                                 display: "inline-flex", alignItems: "center", gap: 3,
                                 padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700,
                                 background: "#dcfce7", color: "#15803d", border: "1px solid #bbf7d0",
                               }}>
                                 <CheckCircle2 size={11} /> {t("مسدد")}
+                              </span>
+                            )}
+                            {charge.voided && (
+                              <span title={charge.voidReason} style={{
+                                display: "inline-flex", alignItems: "center", gap: 3,
+                                padding: "2px 8px", borderRadius: 20, fontSize: 11, fontWeight: 700,
+                                background: "#fee2e2", color: "#b91c1c", border: "1px solid #fecaca",
+                              }}>
+                                {t("مبطل")}{charge.voidReason ? ` · ${charge.voidReason}` : ""}
                               </span>
                             )}
                           </div>
@@ -752,9 +777,9 @@ export default function FolioPage() {
                           <p style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700 }}>{charge.currency || currency}</p>
                         </div>
 
-                        {/* Actions */}
+                        {/* Actions (م1: إبطال بدل الحذف؛ لا إجراءات على رسم مبطل) */}
                         <div style={{ display: "flex", gap: "0.35rem", flexShrink: 0 }}>
-                          {!charge.settled && (
+                          {!charge.voided && !charge.settled && (
                             <button
                               onClick={() => settleCharge(charge.id)}
                               title={t("تسوية")}
@@ -767,17 +792,19 @@ export default function FolioPage() {
                               <CheckCircle2 size={13} strokeWidth={2} /> {t("تسوية")}
                             </button>
                           )}
-                          <button
-                            onClick={() => setDeleteId(charge.id)}
-                            title={t("حذف")}
-                            style={{
-                              background: "#dc2626", color: "#fff", border: "none",
-                              borderRadius: 8, padding: "0.38rem 0.6rem",
-                              fontSize: 12, fontWeight: 700, cursor: "pointer",
-                              display: "flex", alignItems: "center", gap: 4,
-                            }}>
-                            <Trash2 size={13} strokeWidth={2} /> {t("حذف")}
-                          </button>
+                          {!charge.voided && (
+                            <button
+                              onClick={() => { setVoidId(charge.id); setVoidReason(""); }}
+                              title={t("إبطال الرسم")}
+                              style={{
+                                background: "#dc2626", color: "#fff", border: "none",
+                                borderRadius: 8, padding: "0.38rem 0.6rem",
+                                fontSize: 12, fontWeight: 700, cursor: "pointer",
+                                display: "flex", alignItems: "center", gap: 4,
+                              }}>
+                              <Trash2 size={13} strokeWidth={2} /> {t("إبطال")}
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -810,37 +837,43 @@ export default function FolioPage() {
         </div>
       )}
 
-      {/* ════ DELETE CONFIRM MODAL ════════════════════════════════════════════ */}
-      {deleteId && (
-        <div className="ds-modal-backdrop" onClick={() => setDeleteId(null)}>
-          <div className="ds-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 420 }}>
+      {/* ════ VOID MODAL (م1: إبطال بسبب إلزامي — لا حذف نهائي) ══════════════ */}
+      {voidId && (
+        <div className="ds-modal-backdrop" onClick={() => !voidBusy && setVoidId(null)}>
+          <div className="ds-modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 440 }}>
             <div className="ds-modal-head">
               <div>
                 <p style={{ fontSize: 11, color: "#dc2626", fontWeight: 700, marginBottom: 2 }}>
-                  {t("تأكيد الحذف")}
+                  {t("إبطال رسم الفوليو")}
                 </p>
-                <h2>{t("حذف الرسمة")}</h2>
+                <h2>{t("إبطال الرسم")}</h2>
               </div>
-              <button className="icon-btn" onClick={() => setDeleteId(null)}><X size={16} strokeWidth={2.5}/></button>
+              <button className="icon-btn" onClick={() => !voidBusy && setVoidId(null)}><X size={16} strokeWidth={2.5}/></button>
             </div>
             <div className="ds-modal-body">
               <div style={{
                 background: "#fef2f2", border: "1px solid #fecaca",
-                borderRadius: 8, padding: "0.75rem", fontSize: 13, color: "#991b1b", fontWeight: 700,
+                borderRadius: 8, padding: "0.75rem", fontSize: 12.5, color: "#991b1b", fontWeight: 700, marginBottom: "0.75rem",
               }}>
-                {t("هل أنت متأكد من حذف هذه الرسمة؟ لا يمكن التراجع عن هذا الإجراء.")}
+                {t("لا يُحذف الرسم نهائيًا — يُعلَّم «مبطل» مع سبب، ويبقى للتدقيق ولا يدخل في الرصيد.")}
               </div>
+              <label className="field-label">{t("سبب الإبطال")} *</label>
+              <textarea className="input" rows={3} value={voidReason}
+                onChange={e => setVoidReason(e.target.value)}
+                placeholder={t("مثال: تم إدخال الخدمة بالخطأ")}
+                style={{ resize: "vertical" }} />
             </div>
             <div className="ds-modal-foot">
-              <button className="ds-btn ds-btn-neutral" onClick={() => setDeleteId(null)}>{t("إلغاء")}</button>
+              <button className="ds-btn ds-btn-neutral" disabled={voidBusy} onClick={() => setVoidId(null)}>{t("إلغاء")}</button>
               <button
-                onClick={() => deleteCharge(deleteId)}
+                disabled={voidBusy || !voidReason.trim()}
+                onClick={voidCharge}
                 style={{
-                  background: "#dc2626", color: "#fff", border: "none",
+                  background: (voidBusy || !voidReason.trim()) ? "#fca5a5" : "#dc2626", color: "#fff", border: "none",
                   borderRadius: 9, padding: "0.5rem 1.25rem",
-                  fontSize: 13, fontWeight: 700, cursor: "pointer",
+                  fontSize: 13, fontWeight: 700, cursor: (voidBusy || !voidReason.trim()) ? "not-allowed" : "pointer",
                 }}>
-                {t("نعم، حذف الرسمة")}
+                {voidBusy ? t("جارٍ الإبطال...") : t("تأكيد الإبطال")}
               </button>
             </div>
           </div>
