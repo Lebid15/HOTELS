@@ -337,11 +337,11 @@ class StaffSerializer(serializers.ModelSerializer):
     class Meta:
         model = Staff
         fields = [
-            'id', 'hotel', 'full_name', 'role', 'phone', 'email',
+            'id', 'hotel', 'user', 'full_name', 'role', 'phone', 'email',
             'shift', 'shift_start', 'shift_end', 'status', 'permissions', 'notes',
             'username', 'has_login', 'created_at', 'updated_at',
         ]
-        extra_kwargs = {'hotel': {'read_only': True}}  # B‑7
+        extra_kwargs = {'hotel': {'read_only': True}, 'user': {'read_only': True}}  # B‑7 / م5
 
     def get_has_login(self, obj):
         return obj.user_id is not None

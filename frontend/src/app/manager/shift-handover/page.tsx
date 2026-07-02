@@ -117,6 +117,13 @@ export default function ShiftHandoverPage() {
   const [editId,    setEditId]    = useState<string | null>(null);
   const [viewNote,  setViewNote]  = useState<HandoverNote | null>(null);
   const [deleteId,  setDeleteId]  = useState<string | null>(null);
+  // م5: تقرير الوردية (تجميع نشاط موظّف ليوم)
+  interface ShiftReport { username: string; date: string; reservations_created: number; check_ins: number; check_outs: number; payments: { count: number; total: string; cash: string; electronic: string; card: string }; food_orders: { count: number; total: string }; }
+  const [staffList, setStaffList] = useState<{ id: number; user: number | null; full_name: string; has_login?: boolean }[]>([]);
+  const [repUser,   setRepUser]   = useState("");
+  const [repDate,   setRepDate]   = useState(() => new Date().toISOString().slice(0, 10));
+  const [report,    setReport]    = useState<ShiftReport | null>(null);
+  const [repLoading, setRepLoading] = useState(false);
 
   /* ── Load (من الـBackend) ── */
   const loadNotes = async () => {
@@ -141,6 +148,24 @@ export default function ShiftHandoverPage() {
       .then(u => { if (u?.username) setCurrentUser(u.username); })
       .catch(() => {});
   }, []);
+
+  /* ── م5: قائمة الموظفين لتقرير الوردية ── */
+  useEffect(() => {
+    if (!hotelId) return;
+    fetch(`${API}/staff/?hotel=${hotelId}`, { headers: apiH() })
+      .then(r => r.ok ? r.json() : [])
+      .then(d => setStaffList((Array.isArray(d) ? d : (d.results ?? [])).filter((s: { user: number | null }) => s.user)))
+      .catch(() => {});
+  }, [hotelId]);
+
+  async function loadReport() {
+    if (!repUser) return;
+    setRepLoading(true);
+    try {
+      const r = await fetch(`${API}/shift-report/?user=${repUser}&date=${repDate}`, { headers: apiH() });
+      setReport(r.ok ? await r.json() : null);
+    } catch { setReport(null); } finally { setRepLoading(false); }
+  }
 
   /* ── KPIs ── */
   const total       = notes.length;
@@ -265,6 +290,47 @@ export default function ShiftHandoverPage() {
             <Plus size={16} strokeWidth={2.5} /> {t("تسليم وردية جديد")}
           </button>
         </div>
+      </div>
+
+      {/* ── م5: تقرير الوردية (نشاط موظّف ليوم) ── */}
+      <div className="ds-card-p" style={{ marginBottom: "1.5rem" }}>
+        <p style={{ fontWeight: 800, color: "var(--color-heading)", marginBottom: "0.75rem" }}>{t("تقرير الوردية")}</p>
+        <div style={{ display: "flex", gap: "0.6rem", flexWrap: "wrap", alignItems: "flex-end", marginBottom: report ? "1rem" : 0 }}>
+          <div className="field" style={{ margin: 0, minWidth: 200 }}>
+            <label className="field-label">{t("الموظف")}</label>
+            <select className="select" value={repUser} onChange={e => setRepUser(e.target.value)}>
+              <option value="">{t("— اختر موظفًا —")}</option>
+              {staffList.map(s => <option key={s.id} value={String(s.user)}>{s.full_name}</option>)}
+            </select>
+          </div>
+          <div className="field" style={{ margin: 0 }}>
+            <label className="field-label">{t("التاريخ")}</label>
+            <input className="input" type="date" value={repDate} onChange={e => setRepDate(e.target.value)} />
+          </div>
+          <button className="ds-btn ds-btn-primary" disabled={!repUser || repLoading} onClick={loadReport}>
+            {repLoading ? t("جارٍ التحميل...") : t("عرض التقرير")}
+          </button>
+        </div>
+        {report && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: "0.6rem" }}>
+            {([
+              [t("حجوزات أنشأها"), String(report.reservations_created)],
+              [t("تسجيلات دخول"), String(report.check_ins)],
+              [t("تسجيلات خروج"), String(report.check_outs)],
+              [t("عدد الدفعات"), String(report.payments.count)],
+              [t("إجمالي المقبوض"), report.payments.total],
+              [t("نقدي"), report.payments.cash],
+              [t("إلكتروني"), report.payments.electronic],
+              [t("كرت"), report.payments.card],
+              [t("طلبات المطعم"), `${report.food_orders.count} · ${report.food_orders.total}`],
+            ] as [string, string][]).map(([lbl, val]) => (
+              <div key={lbl} style={{ border: "1px solid var(--color-border)", borderRadius: 10, padding: "0.6rem 0.8rem" }}>
+                <p style={{ fontSize: "0.72rem", color: "var(--color-muted)", marginBottom: 3 }}>{lbl}</p>
+                <p style={{ fontSize: "1.05rem", fontWeight: 800, color: "var(--color-heading)" }}>{val}</p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── KPI cards ── */}
