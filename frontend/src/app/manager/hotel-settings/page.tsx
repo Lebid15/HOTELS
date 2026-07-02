@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Building2, Settings, BedDouble, Printer, FileText, Bell, Globe, Check, X } from "lucide-react";
+import { Building2, Settings, BedDouble, Printer, FileText, Bell, Globe, Utensils, Check, X } from "lucide-react";
 import { useLang } from "../LangContext";
 
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
@@ -19,7 +19,7 @@ function saveLS(hid: string, patch: object) {
 }
 
 // ─── types ───────────────────────────────────────────────────────────────────
-type TTab = "identity" | "publish" | "operations" | "rooms" | "printing" | "documents" | "notifications";
+type TTab = "identity" | "publish" | "operations" | "rooms" | "restaurant" | "printing" | "documents" | "notifications";
 
 interface IIdentity { name: string; ownerName: string; city: string; address: string; phone: string; email: string; website: string; logo: string | null; coverImage: string | null; mapUrl: string; latitude: string; longitude: string; }
 // م1: أوقات الدخول/الخروج ووضع/مدة التنظيف حقول تشغيلية مركزية مُلزَمة خادميًّا
@@ -30,6 +30,8 @@ interface IRooms { floors: string; roomTypes: string[]; defaultCapacity: string;
 interface IPrinting { showLogo: boolean; showContact: boolean; resTitle: string; accountTitle: string; terms: string; footer: string; numLang: string; }
 interface IDocs { docTypes: string[]; requireGuest: boolean; requireCompanion: boolean; requireRelation: boolean; scannerUrl: string; scannerEnabled: boolean; scannerError: string; }
 interface INotifs { arrivals: boolean; departures: boolean; balanceDue: boolean; cleaning: boolean; maintenance: boolean; roomAccount: boolean; balanceThreshold: string; showBell: boolean; }
+// م4: إعدادات المطعم/الكافتريا (مصدر Backend: Hotel.food_settings)
+interface IFood { restaurant_enabled: boolean; cafeteria_enabled: boolean; dedicated_staff: boolean; allow_cash: boolean; allow_electronic: boolean; allow_card: boolean; allow_room_account: boolean; print_receipt: boolean; }
 
 const DEFAULT_IDENTITY: IIdentity = { name: "", ownerName: "", city: "", address: "", phone: "", email: "", website: "", logo: null, coverImage: null, mapUrl: "", latitude: "", longitude: "" };
 const DEFAULT_OPS: IOps = { currency: "USD", blockCheckout: true, checkInTime: "", checkOutTime: "", cleaningMode: "manual", cleaningDuration: "60" };
@@ -48,6 +50,7 @@ const DEFAULT_DOCS: IDocs = {
   scannerError: "تعذر الاتصال بخدمة الماسح الضوئي. تأكد من تشغيل خدمة الماسح المحلي ثم حاول مرة أخرى.",
 };
 const DEFAULT_NOTIFS: INotifs = { arrivals: true, departures: true, balanceDue: true, cleaning: true, maintenance: true, roomAccount: true, balanceThreshold: "0", showBell: true };
+const DEFAULT_FOOD: IFood = { restaurant_enabled: true, cafeteria_enabled: true, dedicated_staff: false, allow_cash: true, allow_electronic: true, allow_card: true, allow_room_account: true, print_receipt: true };
 
 
 // ─── shared sub-components ───────────────────────────────────────────────────
@@ -136,6 +139,7 @@ export default function SettingsPage() {
     { key: "publish",       label: t("العرض على موقع الحجز"),  Icon: Globe },
     { key: "operations",    label: t("التشغيل والحجوزات"),    Icon: Settings },
     { key: "rooms",         label: t("الغرف والطوابق"),       Icon: BedDouble },
+    { key: "restaurant",    label: t("المطعم والكافتريا"),    Icon: Utensils },
     { key: "printing",      label: t("الطباعة والفواتير"),    Icon: Printer },
     { key: "documents",     label: t("الوثائق والماسح"),      Icon: FileText },
     { key: "notifications", label: t("التنبيهات"),             Icon: Bell },
@@ -157,6 +161,7 @@ export default function SettingsPage() {
   const [identity,  setIdentity]  = useState<IIdentity>(DEFAULT_IDENTITY);
   const [ops,       setOps]       = useState<IOps>(DEFAULT_OPS);
   const [pub,       setPub]       = useState<IPublish>(DEFAULT_PUBLISH);
+  const [food,      setFood]      = useState<IFood>(DEFAULT_FOOD);
   const [hotelCode, setHotelCode] = useState("");
   const [rooms,     setRooms]     = useState<IRooms>(DEFAULT_ROOMS);
   const [printing,  setPrinting]  = useState<IPrinting>(DEFAULT_PRINTING);
@@ -207,6 +212,7 @@ export default function SettingsPage() {
           cleaningDuration: d.cleaning_duration_minutes != null ? String(d.cleaning_duration_minutes) : prev.cleaningDuration,
         }));
         if (d.code) setHotelCode(d.code);
+        if (d.food_settings && typeof d.food_settings === "object") setFood(prev => ({ ...prev, ...d.food_settings }));
         // م1: قسم «العرض على موقع الحجز»
         setPub(prev => ({
           ...prev,
@@ -294,6 +300,17 @@ export default function SettingsPage() {
     saveLS(hotelId, { ops });
     setSaving(false);
     showToast(t("تم حفظ إعدادات التشغيل والحجوزات بنجاح."));
+  }
+
+  async function doSaveFood() {
+    setSaving(true); setError("");
+    try {
+      await fetch(`${API}/hotels/${hotelId}/`, { method: "PATCH", headers: apiHJ(), body: JSON.stringify({ food_settings: food }) });
+    } catch { /* ok */ }
+    // مزامنة المخبّأ لصفحة الخدمات (تفعيل/تعطيل الأقسام)
+    saveLS(hotelId, { rest: { hasRestaurant: food.restaurant_enabled, hasCafeteria: food.cafeteria_enabled, hasRoomService: true } });
+    setSaving(false);
+    showToast(t("تم حفظ إعدادات المطعم والكافتريا بنجاح."));
   }
 
   async function doSavePublish() {
@@ -765,6 +782,32 @@ export default function SettingsPage() {
             <SaveBtn label={t("حفظ إعدادات الغرف")} saving={saving} saved={false} onClick={doSaveRooms} />
           </div>
         </CardSection>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+           TAB: المطعم والكافتريا (م4)
+         ════════════════════════════════════════════════════════════════════ */}
+      {tab === "restaurant" && (
+        <>
+          <CardSection title={t("تفعيل الخدمات")} desc={t("تحكّم بتشغيل المطعم والكافتريا وطريقة إدارة الطلبات.")}>
+            <SW label={t("تفعيل المطعم")} checked={food.restaurant_enabled} onChange={v => setFood(p => ({ ...p, restaurant_enabled: v }))} />
+            <SW label={t("تفعيل الكافتريا")} checked={food.cafeteria_enabled} onChange={v => setFood(p => ({ ...p, cafeteria_enabled: v }))} />
+            <SW label={t("يوجد موظف/قسم مطعم مستقل")} checked={food.dedicated_staff} onChange={v => setFood(p => ({ ...p, dedicated_staff: v }))} hint={t("عند التفعيل: يمرّ الطلب بمراحل (جديد/تجهيز/جاهز/تسليم). عند الإطفاء: الاستقبال ينشئ الطلب مكتملًا مباشرة.")} />
+          </CardSection>
+          <CardSection title={t("طرق الدفع المسموحة")} desc={t("طرق قبض ثمن طلبات المطعم/الكافتريا.")}>
+            <SW label={t("السماح بالدفع النقدي")} checked={food.allow_cash} onChange={v => setFood(p => ({ ...p, allow_cash: v }))} />
+            <SW label={t("السماح بالدفع الإلكتروني")} checked={food.allow_electronic} onChange={v => setFood(p => ({ ...p, allow_electronic: v }))} />
+            <SW label={t("السماح بالدفع بالكرت")} checked={food.allow_card} onChange={v => setFood(p => ({ ...p, allow_card: v }))} />
+            <SW label={t("السماح بالإضافة على حساب الغرفة")} checked={food.allow_room_account} onChange={v => setFood(p => ({ ...p, allow_room_account: v }))} hint={t("يدخل ضمن فوليو الغرفة ويمنع الخروج حتى الدفع")} />
+            <SW label={t("طباعة إيصال الطلب")} checked={food.print_receipt} onChange={v => setFood(p => ({ ...p, print_receipt: v }))} />
+            <div style={{ marginTop: "1rem" }}>
+              <SaveBtn label={t("حفظ إعدادات المطعم والكافتريا")} saving={saving} saved={false} onClick={doSaveFood} />
+            </div>
+          </CardSection>
+          <div className="ds-alert ds-alert-info" style={{ fontSize: "0.85rem" }}>
+            {t("إدارة الأصناف والأسعار تتم من صفحة «خدمات المطعم».")}
+          </div>
+        </>
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
