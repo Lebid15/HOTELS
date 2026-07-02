@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth import get_user_model
 
+from .phone import normalize_phone   # م5: تطبيع الهاتف (مصدر مركزي، بلا اعتماد دائريّ)
+
 User = get_user_model()
 
 
@@ -345,6 +347,8 @@ class Reservation(models.Model):
     guest_mother_name= models.CharField(max_length=100, blank=True)
     guest_dob        = models.DateField(null=True, blank=True)
     guest_phone      = models.CharField(max_length=50,  blank=True)
+    # م5: صيغة مطبّعة (أرقام فقط، دولية) للبحث/الإدارة المتّسقة — لا تُعرَض في Public APIs
+    guest_phone_normalized = models.CharField(max_length=32, blank=True, default='', db_index=True)
     guest_email      = models.EmailField(blank=True)
 
     # Companions
@@ -405,6 +409,8 @@ class Reservation(models.Model):
     def save(self, *args, **kwargs):
         if self.public_booking and not self.public_booking_no:
             self.public_booking_no = self._generate_public_booking_no()
+        # م5: مزامنة الصيغة المطبّعة للهاتف عند كل حفظ (يغطّي كل مسارات الإنشاء/التعديل)
+        self.guest_phone_normalized = normalize_phone(self.guest_phone) if self.guest_phone else ''
         super().save(*args, **kwargs)
         # H‑2: رقم حجز داخلي ذرّي مبني على المفتاح الأساسي (بلا سباق count()).
         if not self.booking_number:

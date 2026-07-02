@@ -1927,6 +1927,7 @@ from .serializers import (
     PublicBookingLookupSerializer, PublicBookingCreateResponseSerializer,
 )
 from . import eligibility as _elig
+from .phone import normalize_phone   # م5: تطبيع الهاتف للبحث/الإدارة العامّة
 
 
 def _public_hotels_qs():
@@ -2146,7 +2147,17 @@ def _resolve_public_reservation(booking_no, token='', phone='', extra_select=())
     if token:
         return qs.filter(manage_token=token).first()
     if phone:
-        return qs.filter(guest_phone=phone).first()
+        # م5: مقارنة مطبّعة (لا حرفية) — الحقل المفهرس أولًا، ثم fallback مطبّع
+        # بايثونيّ (رقم الحجز فريد → صفّ واحد) يغطّي أيّ سجلّ لم يُطبَّع بعد.
+        norm = normalize_phone(phone)
+        if not norm:
+            return None
+        res = qs.filter(guest_phone_normalized=norm).first()
+        if res is None:
+            res = qs.first()
+            if res is not None and normalize_phone(res.guest_phone) != norm:
+                res = None
+        return res
     return None
 
 
@@ -2331,12 +2342,11 @@ class PublicHotelRatingsView(APIView):
             return Response({'error': 'يرجى إدخال رقم الحجز ورقم الهاتف'}, status=400)
         if rating < 1 or rating > 5:
             return Response({'error': 'التقييم يجب أن يكون بين 1 و 5'}, status=400)
-        try:
-            reservation = Reservation.objects.get(
-                hotel=hotel, public_booking_no=booking_no,
-                guest_phone=phone, public_booking=True,
-            )
-        except Reservation.DoesNotExist:
+        # م5: مطابقة الهاتف مطبّعةً (لا حرفية) — رقم الحجز فريد فنطابق التطبيع بأمان
+        reservation = Reservation.objects.filter(
+            hotel=hotel, public_booking_no=booking_no, public_booking=True,
+        ).first()
+        if reservation is None or normalize_phone(reservation.guest_phone) != normalize_phone(phone):
             return Response({'error': 'لم يتم العثور على حجز مطابق لهذا الفندق'}, status=404)
         if reservation.status == Reservation.STATUS_CANCELLED:
             return Response({'error': 'لا يمكن تقييم حجز ملغى'}, status=400)

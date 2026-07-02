@@ -53,16 +53,9 @@ def build_sms_text(reservation):
     )
 
 
-def normalize_phone(phone, default_cc='963'):
-    """تحويل الهاتف إلى صيغة دولية بأرقام فقط (بلا + أو مسافات) كما تتطلّب واجهات الإرسال."""
-    digits = ''.join(ch for ch in (phone or '') if ch.isdigit())
-    if not digits:
-        return ''
-    if digits.startswith('00'):
-        digits = digits[2:]
-    elif digits.startswith('0'):
-        digits = default_cc + digits[1:]
-    return digits
+# م5: التطبيع صار في مصدر مركزي (api/phone.py) — يُعاد تصديره هنا للتوافق الخلفيّ
+# مع الاستيرادات القائمة (from .notifications import normalize_phone).
+from .phone import normalize_phone  # noqa: F401 (re-export)
 
 
 # ── البريد الإلكتروني ───────────────────────────────────────────────────────
