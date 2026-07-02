@@ -688,6 +688,40 @@ class ShiftReportView(APIView):
         })
 
 
+class HotelDuesView(APIView):
+    """م8: مستحقات المنصّة كما يراها مدير الفندق (للقراءة فقط — لا يعدّل النسبة).
+    يجمع عمولات حجوزات الموقع: العدد/القيمة/العمولة/المدفوع/المتبقي + توزيع الحالة."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        role = _get_user_role(request.user)
+        if role not in ('platform_owner', 'manager'):
+            return Response({'detail': 'متاح لمدير الفندق فقط.'}, status=status.HTTP_403_FORBIDDEN)
+        hid = _get_user_hotel_id(request.user) if role == 'manager' else request.query_params.get('hotel')
+        if not hid:
+            return Response({'detail': 'غير مرتبط بأي فندق.'}, status=status.HTTP_404_NOT_FOUND)
+        from django.db.models import Sum, Count
+        from .models import BookingCommission
+        active = BookingCommission.objects.filter(hotel_id=hid).exclude(
+            commission_status__in=[BookingCommission.STATUS_CANCELLED, BookingCommission.STATUS_WAIVED])
+        agg = active.aggregate(count=Count('id'), value=Sum('calculation_base_amount'),
+                               commission=Sum('commission_amount'), paid=Sum('paid_amount'))
+        commission = agg['commission'] or 0
+        paid = agg['paid'] or 0
+        by_status = {row['commission_status']: row['n'] for row in
+                     BookingCommission.objects.filter(hotel_id=hid).values('commission_status').annotate(n=Count('id'))}
+        cur = BookingCommission.objects.filter(hotel_id=hid).values_list('commission_currency', flat=True).first() or ''
+        return Response({
+            'bookings_count': agg['count'] or 0,
+            'bookings_value': str(agg['value'] or 0),
+            'commission_total': str(commission),
+            'paid_total': str(paid),
+            'remaining': str(commission - paid),
+            'currency': cur,
+            'by_status': by_status,
+        })
+
+
 class HotelViewSet(viewsets.ModelViewSet):
     serializer_class = HotelSerializer
     permission_classes = [permissions.IsAuthenticated]

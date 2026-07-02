@@ -59,6 +59,8 @@ export default function WebBookingsPage() {
   const [search,  setSearch]  = useState("");
   const [acting,  setActing]  = useState<number | null>(null);
   const [toast,   setToast]   = useState("");
+  // م8: مستحقات المنصّة (للقراءة)
+  const [dues, setDues] = useState<{ bookings_count: number; commission_total: string; paid_total: string; remaining: string; currency: string } | null>(null);
 
   const hotelId = typeof window !== "undefined" ? localStorage.getItem("hotel_id") ?? "" : "";
 
@@ -82,6 +84,13 @@ export default function WebBookingsPage() {
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- تحميل/ضبط حالة مقصود عند الإقلاع
   useEffect(() => { load(); }, [load]);
+
+  // م8: جلب مستحقات المنصّة
+  useEffect(() => {
+    if (!hotelId) return;
+    fetch(apiUrl(`/hotel-dues/`), { headers: getAuthJsonHeaders() })
+      .then(r => r.ok ? r.json() : null).then(d => { if (d) setDues(d); }).catch(() => {});
+  }, [hotelId]);
 
   async function doAction(id: number, action: "web_checkin" | "web_noshow" | "hotel_cancel", reason = "") {
     setActing(id);
@@ -150,6 +159,27 @@ export default function WebBookingsPage() {
           تحديث
         </button>
       </div>
+
+      {/* م8: مستحقات المنصّة (للقراءة — لا يعدّل المدير النسبة) */}
+      {dues && dues.bookings_count > 0 && (
+        <div className="ds-card-p" style={{ marginBottom: "1.25rem" }}>
+          <p style={{ fontWeight: 800, marginBottom: "0.6rem" }}>مستحقات المنصّة (حجوزات الموقع)</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(140px,1fr))", gap: "0.6rem" }}>
+            {([
+              ["عدد الحجوزات", String(dues.bookings_count)],
+              ["إجمالي العمولة", `${dues.commission_total} ${dues.currency}`],
+              ["المدفوع", `${dues.paid_total} ${dues.currency}`],
+              ["المتبقّي", `${dues.remaining} ${dues.currency}`],
+            ] as [string, string][]).map(([lbl, val]) => (
+              <div key={lbl} style={{ border: "1px solid var(--color-border)", borderRadius: 10, padding: "0.6rem 0.8rem" }}>
+                <p style={{ fontSize: "0.72rem", color: "var(--color-muted)", marginBottom: 3 }}>{lbl}</p>
+                <p style={{ fontSize: "1.05rem", fontWeight: 800 }}>{val}</p>
+              </div>
+            ))}
+          </div>
+          <p style={{ fontSize: "0.72rem", color: "var(--color-muted)", marginTop: "0.5rem" }}>نسبة العمولة تُحدَّد من إدارة المنصّة — تُعرض هنا للاطلاع فقط.</p>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="ds-summary-grid" style={{ marginBottom: "1.5rem" }}>
