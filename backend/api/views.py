@@ -1153,17 +1153,23 @@ class RoomViewSet(viewsets.ModelViewSet):
         return Room.objects.filter(hotel_id=user_hotel_id)
 
     def perform_create(self, serializer):
+        from django.db import IntegrityError
         role = _get_user_role(self.request.user)
         hotel_id = self.request.data.get('hotel') or self.request.query_params.get('hotel')
         if role == 'platform_owner':
-            serializer.save(hotel_id=hotel_id)
-            return
-        user_hotel_id = _get_user_hotel_id(self.request.user)
-        if user_hotel_id is None:
-            raise PermissionDenied('غير مرتبط بأي فندق.')
-        if hotel_id and str(hotel_id) != str(user_hotel_id):
-            raise PermissionDenied('ليس لديك صلاحية الإنشاء في هذا الفندق.')
-        serializer.save(hotel_id=user_hotel_id)
+            target = hotel_id
+        else:
+            user_hotel_id = _get_user_hotel_id(self.request.user)
+            if user_hotel_id is None:
+                raise PermissionDenied('غير مرتبط بأي فندق.')
+            if hotel_id and str(hotel_id) != str(user_hotel_id):
+                raise PermissionDenied('ليس لديك صلاحية الإنشاء في هذا الفندق.')
+            target = user_hotel_id
+        # UAT: رقم غرفة مكرّر داخل نفس الفندق يجب أن يُرفَض 400 لا أن يُسبّب 500
+        try:
+            serializer.save(hotel_id=target)
+        except IntegrityError:
+            raise ValidationError({'number': 'رقم الغرفة مستخدم بالفعل في هذا الفندق.'})
 
 
 # ── Reservation ViewSet ───────────────────────────────────────────────────────
@@ -2070,7 +2076,11 @@ class PublicBookingCreateView(APIView):
         room_type     = (d.get('room_type') or '').strip()
         check_in_str  = (d.get('check_in_date') or '').strip()
         check_out_str = (d.get('check_out_date') or '').strip()
-        guests_count  = max(1, int(d.get('guests_count', 1)))
+        # UAT: عدد نزلاء غير رقميّ يجب أن يُرفَض 400 لا أن يُسبّب 500
+        try:
+            guests_count = max(1, int(d.get('guests_count', 1)))
+        except (TypeError, ValueError):
+            return Response({'error': 'عدد النزلاء غير صحيح'}, status=400)
         first_name    = (d.get('guest_first_name') or '').strip()
         last_name     = (d.get('guest_last_name') or '').strip()
         phone         = (d.get('guest_phone') or '').strip()

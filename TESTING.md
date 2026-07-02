@@ -6,7 +6,7 @@ cd backend
 python manage.py test api
 ```
 
-> **العدّ النهائي المُثبَّت:** `python manage.py test api` → **216 / 216 PASS** (`Found 216 tests · Ran 216 · OK`، 0 فشل/0 خطأ، ~300s) — **152** من مراحل الإغلاق التجاري + **56** لسلسلة التحصين (`api/tests_hardening.py`) + **8** سيناريو E2E (`api/tests_e2e_scenario.py`، §ب/م12). آخر تشغيل: 2026‑07‑02.
+> **العدّ النهائي المُثبَّت:** `python manage.py test api` → **259 / 259 PASS** (`Found 259 · Ran 259 · OK`، 0 فشل/0 خطأ) — **152** إغلاق تجاري + **56** تحصين (`tests_hardening.py`) + **8** E2E (`tests_e2e_scenario.py`) + **43** UAT بشريّ (`tests_uat.py`، انظر `HUMAN_UAT_REPORT.md`). آخر تشغيل: 2026‑07‑02.
 
 ---
 
@@ -134,7 +134,7 @@ python manage.py check --deploy      # النتيجة: 0 issues
 
 | الفحص | الأمر | النتيجة |
 |-------|-------|---------|
-| اختبارات الخلفية | `python manage.py test api` | **216 / 216 PASS · 0 فشل · 0 خطأ** (~300s؛ 152+56+8 E2E) |
+| اختبارات الخلفية | `python manage.py test api` | **259 / 259 PASS · 0 فشل · 0 خطأ** (152+56+8 E2E+43 UAT) |
 | بناء الواجهة (كامل) | `npm run build` | ✓ يكتمل بالكامل (46/46 صفحة + Finalizing) — عمّال مثبّتون على 4 (`experimental.cpus`) |
 | فحص النظام | `python manage.py check` | 0 مشاكل |
 | الترحيلات | `makemigrations --check --dry-run` | لا معلّقات (أحدث 0038) |

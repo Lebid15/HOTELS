@@ -13,7 +13,7 @@
 - [ ] إعدادات الإنتاج جاهزة (م9 — `check --deploy` = 0 issues بإعدادات إنتاجية).
 
 ## ب) الاختبارات (المرحلة 11 — ✅ مُجتازة 2026‑07‑02)
-- [x] `cd backend && python manage.py test api` — **216 / 216 PASS** (152 قائم + 56 تحصين + 8 E2E؛ 0 فشل/خطأ).
+- [x] `cd backend && python manage.py test api` — **259 / 259 PASS** (152 + 56 تحصين + 8 E2E + 43 UAT؛ 0 فشل/خطأ).
 - [x] `python manage.py check` — 0 مشاكل.
 - [x] `python manage.py makemigrations --check --dry-run` — لا معلّقات (أحدث 0038).
 - [x] `python manage.py check --deploy` — نظيف **بمتغيّرات بيئة الإنتاج الحقيقية** (0 issues).

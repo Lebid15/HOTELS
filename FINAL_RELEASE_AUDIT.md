@@ -44,7 +44,7 @@
 | فحص النظام | `python manage.py check` | 0 مشاكل |
 | الترحيلات | `makemigrations --check --dry-run` | لا معلّقات (أحدث ترحيل **0038**) |
 | فحص الإنتاج | `python manage.py check --deploy` (بإعدادات إنتاجية) | **0 issues** (م9) |
-| اختبارات الخلفية | `python manage.py test api` | **216 / 216 PASS** (152 قائم + 56 تحصين + 8 E2E؛ 0 فشل/خطأ) |
+| اختبارات الخلفية | `python manage.py test api` | **259 / 259 PASS** (152 + 56 تحصين + 8 E2E + 43 UAT؛ 0 فشل/خطأ) |
 | Lint الواجهة | `npm run lint` | exit 0 |
 | فحص الأنواع | `npm run typecheck` | 0 أخطاء |
 | بناء الواجهة | `npm run build` | ✓ ناجح (46/46 صفحة) |
