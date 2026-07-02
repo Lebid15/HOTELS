@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { apiUrl, getAuthHeaders, getAuthJsonHeaders } from "@/lib/api";
 import { useLang } from "@/lib/i18n/LangContext";
+import { broadcastPlatformInfo } from "@/lib/platformBranding";
 
 const SUB_SETTINGS_KEY = "fandqi.sub_settings";
 const PUBLIC_SETTINGS_KEY = "fandqi.public_settings";
@@ -185,6 +186,12 @@ export default function PlatformSettingsPage() {
         }),
       });
       if (!res.ok) throw new Error();
+      // بثّ فوريّ للهوية إلى كل السايدبارات (شعار/اسم/وصف) بلا إعادة تحميل
+      broadcastPlatformInfo({
+        name: identity.platformName || "funduqii",
+        description: identity.platformSubtitle || "نظام إدارة الفنادق",
+        logo: identity.platformLogo || "",
+      });
       showToast(t("تم حفظ هوية المنصة"));
     } catch { showToast(t("فشل حفظ هوية المنصة"), "error"); }
   }

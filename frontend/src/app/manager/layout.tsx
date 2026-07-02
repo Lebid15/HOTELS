@@ -7,6 +7,8 @@ import type { LucideIcon } from "lucide-react";
 import { LangContext, makeLangCtx } from "./LangContext";
 import { apiUrl, getToken, authFetch, logout as apiLogout } from "@/lib/api";
 import { hydrateHotelCache } from "@/lib/hotel";
+import SidebarBrand from "@/components/SidebarBrand";
+import { fetchPublicPlatformInfo, readCachedPlatformInfo, PLATFORM_INFO_DEFAULT, type PlatformInfo } from "@/lib/platformBranding";
 import {
   LayoutDashboard, CalendarCheck, Building2, Users, ArrowRightLeft,
   Utensils, CreditCard, BarChart3, UserCog,
@@ -18,15 +20,18 @@ import {
 // Ordered per spec. Notifications intentionally absent (accessed via bell only).
 interface NavItem { href: string; label: string; Icon: LucideIcon; foodOnly?: true; activeOn?: string[]; }
 
+// ترتيب حسب سير العمل: العمليات اليوميّة (لوحة → حجوزات → دخول/مغادرة → نزلاء → غرف →
+// خدمة الغرف → مطعم) ثم المال (فوليو → مدفوعات → مصاريف) ثم عمليات اليوم (تدقيق ليلي →
+// تسليم وردية) ثم التحليلات (تقارير → تدقيق) ثم الإدارة (موظفون → اشتراك → إعدادات).
 const NAV: NavItem[] = [
   { href: "/manager",                label: "لوحة التحكم",        Icon: LayoutDashboard },
   { href: "/manager/reservations",   label: "الحجوزات",           Icon: CalendarCheck },
-  { href: "/manager/rooms",          label: "الغرف والطوابق",     Icon: Building2 },
-  { href: "/manager/guests",         label: "النزلاء",            Icon: Users },
   { href: "/manager/check-in-out",   label: "الدخول والمغادرة",   Icon: ArrowRightLeft },
-  { href: "/manager/food-services",  label: "المطعم والكافتريا",    Icon: Utensils, foodOnly: true },
+  { href: "/manager/guests",         label: "النزلاء",            Icon: Users },
+  { href: "/manager/rooms",          label: "الغرف والطوابق",     Icon: Building2 },
   { href: "/manager/housekeeping",   label: "خدمة الغرف",           Icon: BellRing,
     activeOn: ["/manager/maintenance", "/manager/lost-found"] },
+  { href: "/manager/food-services",  label: "المطعم والكافتريا",    Icon: Utensils, foodOnly: true },
   { href: "/manager/folio",          label: "فوليو الغرفة",          Icon: BookOpen },
   { href: "/manager/payments",       label: "المدفوعات",             Icon: CreditCard },
   { href: "/manager/expenses",       label: "المصاريف",              Icon: Receipt },
@@ -42,7 +47,6 @@ const NAV: NavItem[] = [
 
 const UNREAD_KEY   = "fandqi.notifications.unread.v1";
 const SETTINGS_KEY = (hid: string) => `fandqi.settings.${hid}`;
-const PLATFORM_KEY = "fandqi.platform";
 const LANG_KEY     = "fandqi.lang";
 
 // ─── Nav translations ─────────────────────────────────────────────────────────
@@ -72,8 +76,6 @@ const UI: Record<string, { ar: string; en: string }> = {
   hotelFallback:   { ar: "اسم الفندق غير محدد",  en: "Hotel name not set" },
   panelSub:        { ar: "لوحة إدارة الفندق",    en: "Hotel Management" },
   manager:         { ar: "مدير الفندق",           en: "Hotel Manager" },
-  collapse:        { ar: "طي القائمة",            en: "Collapse" },
-  expand:          { ar: "توسيع القائمة",         en: "Expand" },
   notifications:   { ar: "الإشعارات",             en: "Notifications" },
   logout:          { ar: "خروج",                  en: "Logout" },
   openMenu:        { ar: "فتح القائمة",           en: "Open menu" },
@@ -95,9 +97,8 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
   const [hotelName,        setHotelName]        = useState("");
   const [ownerName,        setOwnerName]        = useState("");
   const [hotelLogo,        setHotelLogo]        = useState<string | null>(null);
-  // Platform branding (sidebar)
-  const [platformName,     setPlatformName]     = useState("funduqii");
-  const [platformSubtitle, setPlatformSubtitle] = useState("نظام إدارة الفنادق");
+  // Platform branding (sidebar) — هوية موحّدة من لوحة صاحب المنصّة
+  const [platformInfo,     setPlatformInfo]     = useState<PlatformInfo>(PLATFORM_INFO_DEFAULT);
   // Shell state
   const [mobileOpen,       setMobileOpen]       = useState(false);
   const [unreadNotifs,     setUnreadNotifs]     = useState(0);
@@ -145,6 +146,16 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
     return () => window.removeEventListener("user-profile-updated", onUser);
   }, []);
 
+  // ── هوية المنصّة الموحّدة أعلى السايدبار (شعار/اسم/وصف) + تحديث فوريّ ──
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- عرض فوريّ من الكاش عند الإقلاع
+    setPlatformInfo(readCachedPlatformInfo());
+    fetchPublicPlatformInfo().then(setPlatformInfo).catch(() => {});
+    const onInfo = (e: Event) => setPlatformInfo((e as CustomEvent).detail as PlatformInfo);
+    window.addEventListener("platform-info-updated", onInfo);
+    return () => window.removeEventListener("platform-info-updated", onInfo);
+  }, []);
+
   // ── Auth + hotel identity ────────────────────────────────────────────────
   useEffect(() => {
     const token = getToken();
@@ -156,18 +167,6 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
       document.documentElement.lang = "en";
     }
 
-    // Read platform branding immediately (no network needed)
-    const loadBranding = async () => {
-      try {
-        const pRaw = localStorage.getItem(PLATFORM_KEY);
-        if (pRaw) {
-          const p = JSON.parse(pRaw);
-          if (p.platformName)     setPlatformName(p.platformName);
-          if (p.platformSubtitle) setPlatformSubtitle(p.platformSubtitle);
-        }
-      } catch { /* ignore */ }
-    };
-    loadBranding();
 
     authFetch("/current-user/")
       .then(r => (r.ok ? r.json() : Promise.reject()))
@@ -281,7 +280,6 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
   // ── Avatar / brand letters ───────────────────────────────────────────────
   const userLabel      = (displayName || username).trim();
   const avatarLetter   = userLabel ? userLabel.charAt(0).toUpperCase() : "م";
-  const platformLetter = platformName ? platformName.charAt(0).toUpperCase() : "F";
 
   // ─────────────────────────────────────────────────────────────────────────
   const langCtx = useMemo(() => makeLangCtx(lang), [lang]);
@@ -318,14 +316,8 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
         className={["sidebar", mobileOpen ? "drawer-open" : ""].filter(Boolean).join(" ")}
         aria-label={t("mainMenu")}
       >
-        {/* ── Brand area: platform identity ─────────────────────────── */}
-        <div className="sidebar-header">
-          <div className="sidebar-brand-mark manager">{platformLetter}</div>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <p className="sidebar-brand-title">{platformName}</p>
-            <p className="sidebar-brand-sub">{platformSubtitle || t("mgmtSystem")}</p>
-          </div>
-        </div>
+        {/* ── Brand area: platform identity (شعار/اسم/وصف من لوحة صاحب المنصّة) ── */}
+        <SidebarBrand logo={platformInfo.logo} name={platformInfo.name} description={platformInfo.description} />
 
         {/* ── Navigation ────────────────────────────────────────────── */}
         <nav className="sidebar-nav" aria-label={t("navigation")}>

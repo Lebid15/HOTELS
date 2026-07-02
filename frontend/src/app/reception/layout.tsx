@@ -6,25 +6,29 @@ import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard, KeyRound, CalendarCheck, CreditCard,
-  LogOut, ChevronLeft, ChevronRight, Globe,
+  LogOut, Globe, Menu, X,
 } from "lucide-react";
 import { getToken, authFetch, logout as apiLogout } from "@/lib/api";
 import { LangContext, makeLangCtx, readLang, applyLang, type Lang } from "@/lib/i18n/LangContext";
+import SidebarBrand from "@/components/SidebarBrand";
+import { fetchPublicPlatformInfo, readCachedPlatformInfo, PLATFORM_INFO_DEFAULT, type PlatformInfo } from "@/lib/platformBranding";
 
 interface NavItem { href: string; label: string; Icon: LucideIcon; }
 
+// ترتيب منطقيّ للاستقبال: لوحة → الحجوزات (البيانات) → الاستقبال والمغادرة (الإجراء اليوميّ) → المدفوعات.
 const NAV: NavItem[] = [
   { href: "/reception",              label: "لوحة التحكم",         Icon: LayoutDashboard },
-  { href: "/reception/check-in-out", label: "الاستقبال والمغادرة", Icon: KeyRound },
   { href: "/reception/reservations", label: "الحجوزات",            Icon: CalendarCheck },
+  { href: "/reception/check-in-out", label: "الاستقبال والمغادرة", Icon: KeyRound },
   { href: "/reception/payments",     label: "المدفوعات",           Icon: CreditCard },
 ];
 
 export default function ReceptionLayout({ children }: { children: React.ReactNode }) {
   const [username,  setUsername]  = useState("");
   const [hotelName, setHotelName] = useState("فندقي");
-  const [compact,   setCompact]   = useState(false);
+  const [info,      setInfo]      = useState<PlatformInfo>(PLATFORM_INFO_DEFAULT);
   const [authReady, setAuthReady] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [lang,      setLang]      = useState<Lang>(() => readLang());
   const router   = useRouter();
   const pathname = usePathname();
@@ -37,6 +41,16 @@ export default function ReceptionLayout({ children }: { children: React.ReactNod
     setLang(next);
     applyLang(next);
   }
+
+  // ── هوية المنصّة الموحّدة أعلى السايدبار (شعار/اسم/وصف) + تحديث فوريّ ──
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- عرض فوريّ من الكاش عند الإقلاع
+    setInfo(readCachedPlatformInfo());
+    fetchPublicPlatformInfo().then(setInfo).catch(() => {});
+    const onInfo = (e: Event) => setInfo((e as CustomEvent).detail as PlatformInfo);
+    window.addEventListener("platform-info-updated", onInfo);
+    return () => window.removeEventListener("platform-info-updated", onInfo);
+  }, []);
 
   useEffect(() => {
     const token = getToken();
@@ -56,6 +70,12 @@ export default function ReceptionLayout({ children }: { children: React.ReactNod
   // eslint-disable-next-line react-hooks/exhaustive-deps -- lang read once on mount from lazy state
   }, [router]);
 
+  // إغلاق الدُرج عند التنقل
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- إغلاق الدُرج عند تغيّر المسار
+    setMobileOpen(false);
+  }, [pathname]);
+
   const logout = async () => {
     await apiLogout();
     ["role", "hotel_id"].forEach(k => localStorage.removeItem(k));
@@ -74,18 +94,14 @@ export default function ReceptionLayout({ children }: { children: React.ReactNod
 
   return (
     <LangContext.Provider value={langCtx}>
-    <div className={`app-shell${compact ? " sidebar-compact" : ""}`} dir={langCtx.dir}>
+    <div className="app-shell" dir={langCtx.dir}>
 
-      <aside className={`sidebar${compact ? " compact" : ""}`} aria-label={t("القائمة الرئيسية")}>
-        <div className="sidebar-header">
-          <div className="sidebar-brand-mark">{avatarLetter}</div>
-          {!compact && (
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <p className="sidebar-brand-title">{hotelName}</p>
-              <p className="sidebar-brand-sub">{t("موظف استقبال")}</p>
-            </div>
-          )}
-        </div>
+      {mobileOpen && (
+        <div className="sidebar-overlay" onClick={() => setMobileOpen(false)} aria-hidden="true" />
+      )}
+
+      <aside className={`sidebar${mobileOpen ? " drawer-open" : ""}`} aria-label={t("القائمة الرئيسية")}>
+        <SidebarBrand logo={info.logo} name={info.name} description={info.description} />
 
         <nav className="sidebar-nav" aria-label={t("تنقل")}>
           {NAV.map(item => {
@@ -98,25 +114,25 @@ export default function ReceptionLayout({ children }: { children: React.ReactNod
                 href={item.href}
                 className={`nav-item${active ? " active" : ""}`}
                 aria-current={active ? "page" : undefined}
+                onClick={() => setMobileOpen(false)}
               >
                 <span className="nav-icon"><item.Icon size={20} strokeWidth={1.8} /></span>
-                {!compact && <span className="nav-label">{t(item.label)}</span>}
+                <span className="nav-label">{t(item.label)}</span>
               </Link>
             );
           })}
         </nav>
-
-        <div className="sidebar-footer">
-          <button className="sidebar-toggle" onClick={() => setCompact(c => !c)}>
-            {compact
-              ? <ChevronLeft size={16} />
-              : <><ChevronRight size={16} /><span>{t("طي القائمة")}</span></>
-            }
-          </button>
-        </div>
       </aside>
 
       <header className="topbar" role="banner">
+        <button
+          className="topbar-hamburger"
+          onClick={() => setMobileOpen(o => !o)}
+          aria-label={mobileOpen ? t("إغلاق القائمة") : t("فتح القائمة")}
+          aria-expanded={mobileOpen}
+        >
+          {mobileOpen ? <X size={22} strokeWidth={2} /> : <Menu size={22} strokeWidth={2} />}
+        </button>
         <div className="topbar-title">
           <h1>{t("الاستقبال")}</h1>
           <p>{hotelName}</p>
