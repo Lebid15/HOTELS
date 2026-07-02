@@ -862,8 +862,11 @@ class LostFoundItem(models.Model):
     STATUS_FOUND = 'found'
     STATUS_RETURNED = 'returned'
     STATUS_UNCLAIMED = 'unclaimed'
+    STATUS_DAMAGED = 'damaged'      # م(عابر): تالف
+    STATUS_UNKNOWN = 'unknown'      # م(عابر): غير معروف
     STATUS_CHOICES = [
-        (STATUS_FOUND, 'موجود'), (STATUS_RETURNED, 'أُعيد'), (STATUS_UNCLAIMED, 'غير مُطالَب'),
+        (STATUS_FOUND, 'محفوظ'), (STATUS_RETURNED, 'تم تسليمه'), (STATUS_UNCLAIMED, 'غير مُطالَب'),
+        (STATUS_DAMAGED, 'تالف'), (STATUS_UNKNOWN, 'غير معروف'),
     ]
     hotel         = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='lost_found_items')
     item_name     = models.CharField(max_length=200)
@@ -875,6 +878,7 @@ class LostFoundItem(models.Model):
     notes         = models.CharField(max_length=500, blank=True)
     found_date    = models.DateField(null=True, blank=True)
     returned_date = models.DateField(null=True, blank=True)
+    received_by   = models.CharField(max_length=200, blank=True)   # م(عابر): المستلِم عند التسليم
     created_by    = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL)
     created_at    = models.DateTimeField(auto_now_add=True)
 

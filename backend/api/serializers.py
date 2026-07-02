@@ -443,7 +443,7 @@ class LostFoundItemSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'hotel', 'item_name', 'category', 'location', 'status',
             'guest_name', 'room_number', 'notes', 'found_date', 'returned_date',
-            'created_by', 'created_at',
+            'received_by', 'created_by', 'created_at',
         ]
         extra_kwargs = {'hotel': {'read_only': True}, 'created_by': {'read_only': True}}
 

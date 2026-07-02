@@ -10,7 +10,7 @@ import {
 import { useLang } from "../LangContext";
 
 /* ─── Types ──────────────────────────────────────────────────── */
-type TStatus = "found" | "returned" | "unclaimed";
+type TStatus = "found" | "returned" | "unclaimed" | "damaged" | "unknown";
 type TCategory =
   | "electronics" | "clothing" | "accessories" | "documents"
   | "money" | "keys" | "bags" | "other";
@@ -26,6 +26,7 @@ interface LostItem {
   notes: string;
   foundDate: string;
   returnedDate: string;
+  receivedBy: string;
 }
 
 /* ─── Constants ──────────────────────────────────────────────── */
@@ -33,18 +34,22 @@ const STATUS_STYLE: Record<TStatus, React.CSSProperties> = {
   found:     { background: "#dbeafe", color: "#1d4ed8", border: "1px solid #bfdbfe" },
   returned:  { background: "#dcfce7", color: "#15803d", border: "1px solid #bbf7d0" },
   unclaimed: { background: "#fef9c3", color: "#854d0e", border: "1px solid #fde68a" },
+  damaged:   { background: "#fee2e2", color: "#b91c1c", border: "1px solid #fecaca" },
+  unknown:   { background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0" },
 };
 
 const STATUS_ICON: Record<TStatus, LucideIcon> = {
   found:     Clock         as LucideIcon,
   returned:  CheckCircle2  as LucideIcon,
   unclaimed: AlertTriangle as LucideIcon,
+  damaged:   AlertTriangle as LucideIcon,
+  unknown:   AlertTriangle as LucideIcon,
 };
 
 const BLANK: Omit<LostItem, "id"> = {
   itemName: "", category: "other", location: "",
   status: "found", guestName: "", roomNumber: "",
-  notes: "", foundDate: new Date().toISOString().split("T")[0], returnedDate: "",
+  notes: "", foundDate: new Date().toISOString().split("T")[0], returnedDate: "", receivedBy: "",
 };
 
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
@@ -68,6 +73,7 @@ function mapItem(x: Record<string, unknown>): LostItem {
     notes: String(x.notes ?? ""),
     foundDate: String(x.found_date ?? "").slice(0, 10),
     returnedDate: String(x.returned_date ?? "").slice(0, 10),
+    receivedBy: String(x.received_by ?? ""),
   };
 }
 function toBody(f: Omit<LostItem, "id">) {
@@ -75,6 +81,7 @@ function toBody(f: Omit<LostItem, "id">) {
     item_name: f.itemName, category: f.category, location: f.location, status: f.status,
     guest_name: f.guestName, room_number: f.roomNumber, notes: f.notes,
     found_date: f.foundDate || null, returned_date: f.returnedDate || null,
+    received_by: f.receivedBy,
   };
 }
 function todayIso() { return new Date().toISOString().split("T")[0]; }
@@ -99,9 +106,11 @@ export default function LostFoundPage() {
   };
 
   const STATUS_LABELS: Record<TStatus, string> = {
-    found: t("موجود — بانتظار المطالبة"),
-    returned: t("تم التسليم للنزيل"),
+    found: t("محفوظ — بانتظار المطالبة"),
+    returned: t("تم تسليمه للنزيل"),
     unclaimed: t("غير مطالب به"),
+    damaged: t("تالف"),
+    unknown: t("غير معروف"),
   };
 
   const hotelId =
@@ -185,7 +194,7 @@ export default function LostFoundPage() {
     setForm({
       itemName: item.itemName, category: item.category, location: item.location,
       status: item.status, guestName: item.guestName, roomNumber: item.roomNumber,
-      notes: item.notes, foundDate: item.foundDate, returnedDate: item.returnedDate,
+      notes: item.notes, foundDate: item.foundDate, returnedDate: item.returnedDate, receivedBy: item.receivedBy,
     });
     setEditId(item.id);
     setModal("add");
@@ -524,19 +533,29 @@ export default function LostFoundPage() {
                 <select className="input" value={form.status}
                   onChange={e => setForm(f => ({ ...f, status: e.target.value as TStatus }))}
                   style={{ fontSize: 12 }}>
-                  <option value="found">{t("بانتظار المطالبة")}</option>
-                  <option value="returned">{t("تم التسليم للنزيل")}</option>
+                  <option value="found">{t("محفوظ — بانتظار المطالبة")}</option>
+                  <option value="returned">{t("تم تسليمه للنزيل")}</option>
                   <option value="unclaimed">{t("غير مطالب به")}</option>
+                  <option value="damaged">{t("تالف")}</option>
+                  <option value="unknown">{t("غير معروف")}</option>
                 </select>
               </div>
               {form.status === "returned" && (
-                <div>
-                  <p className="ds-filter-label">{t("تاريخ التسليم")}</p>
-                  <input className="input" type="date"
-                    value={form.returnedDate || todayIso()}
-                    onChange={e => setForm(f => ({ ...f, returnedDate: e.target.value }))}
-                    style={{ fontSize: 12 }} />
-                </div>
+                <>
+                  <div>
+                    <p className="ds-filter-label">{t("تاريخ التسليم")}</p>
+                    <input className="input" type="date"
+                      value={form.returnedDate || todayIso()}
+                      onChange={e => setForm(f => ({ ...f, returnedDate: e.target.value }))}
+                      style={{ fontSize: 12 }} />
+                  </div>
+                  <div>
+                    <p className="ds-filter-label">{t("المستلِم")}</p>
+                    <input className="input" placeholder={t("اسم من استلم الغرض")}
+                      value={form.receivedBy} onChange={e => setForm(f => ({ ...f, receivedBy: e.target.value }))}
+                      style={{ fontSize: 12 }} />
+                  </div>
+                </>
               )}
               <div>
                 <p className="ds-filter-label">{t("ملاحظات")}</p>
