@@ -10,7 +10,8 @@ import { printHtml } from "@/lib/print";
 
 /* ─── Types ──────────────────────────────────────────────────── */
 type TPeriod = "today"|"last7"|"month"|"custom";
-type TTab    = "overview"|"reservations"|"financial"|"rooms"|"food"|"maintenance";
+type TTab    = "overview"|"reservations"|"web"|"guests"|"rooms"|"financial"|"folio"|"food"
+             |"cleaning"|"maintenance"|"lostfound"|"staff"|"shifts"|"dayclose"|"audit"|"dues";
 
 interface Reservation {
   id:number; hotel:number; booking_number:string;
@@ -209,6 +210,9 @@ export default function ReportsPage(){
   const TAB_LABELS:Record<TTab,string> = {
     overview:t("نظرة عامة"), reservations:t("الحجوزات"), financial:t("المالية"),
     rooms:t("الغرف والإشغال"), food:t("المطعم والكافتريا"), maintenance:t("الصيانة"),
+    web:t("حجوزات الموقع"), guests:t("النزلاء"), folio:t("الفوليو والذمم"),
+    cleaning:t("التنظيف"), lostfound:t("المفقودات"), staff:t("الموظفون"),
+    shifts:t("الورديات"), dayclose:t("التدقيق اليومي"), audit:t("سجل النشاط"), dues:t("مستحقات المنصة"),
   };
   const PERIOD_LABELS:Record<TPeriod,string> = {
     today:t("اليوم"), last7:t("آخر 7 أيام"), month:t("هذا الشهر"), custom:t("فترة مخصصة"),
@@ -493,6 +497,75 @@ export default function ReportsPage(){
         </p>
       </div>
     );
+  }
+
+  /* ─── م7: تبويبات إضافية (§12.1) ─── */
+  function renderLinkTab(label:string, href:string, desc:string){
+    return (
+      <div className="ds-card-p" style={{textAlign:"center",padding:"2.2rem 1rem"}}>
+        <p style={{fontWeight:800,fontSize:15,marginBottom:"0.4rem",color:"var(--color-heading)"}}>{label}</p>
+        <p className="text-muted" style={{fontSize:13,marginBottom:"1.1rem"}}>{desc}</p>
+        <a href={href} className="ds-btn ds-btn-primary" style={{textDecoration:"none"}}>{t("افتح الصفحة الكاملة")} →</a>
+      </div>
+    );
+  }
+  function renderTabWebBookings(){
+    const rows=filteredRes.filter(r=>r.source==="website"||r.source==="public_website");
+    if(rows.length===0) return renderEmptyState();
+    return (<div className="ds-card-p">
+      <p style={{fontWeight:700,fontSize:13,marginBottom:"0.75rem"}}>{t("حجوزات الموقع")} · {rows.length}</p>
+      <div className="ds-table-wrap"><table className="ds-table">
+        <thead><tr><th>{t("الرقم")}</th><th>{t("النزيل")}</th><th>{t("التواريخ")}</th><th>{t("الحالة")}</th><th>{t("الإجمالي")}</th></tr></thead>
+        <tbody>{rows.map(r=>(<tr key={r.id}>
+          <td style={{fontWeight:700,fontSize:12}}>{r.booking_number}</td>
+          <td>{`${r.guest_first_name} ${r.guest_last_name}`.trim()||"—"}</td>
+          <td style={{fontSize:11}}>{r.check_in_date||"?"} ← {r.check_out_date||"?"}</td>
+          <td>{RES_STATUS_LABELS[r.status]??r.status}</td>
+          <td>{n(r.total).toLocaleString("en-US")} {currency}</td>
+        </tr>))}</tbody>
+      </table></div>
+    </div>);
+  }
+  function renderTabGuests(){
+    const map=new Map<string,{name:string;count:number;total:number}>();
+    filteredRes.forEach(r=>{const k=`${r.guest_first_name} ${r.guest_last_name}`.trim()||"—";const e=map.get(k)??{name:k,count:0,total:0};e.count++;e.total+=n(r.total);map.set(k,e);});
+    const rows=[...map.values()].sort((a,b)=>b.total-a.total);
+    if(rows.length===0) return renderEmptyState();
+    return (<div className="ds-card-p">
+      <p style={{fontWeight:700,fontSize:13,marginBottom:"0.75rem"}}>{t("النزلاء")} · {rows.length}</p>
+      <div className="ds-table-wrap"><table className="ds-table">
+        <thead><tr><th>{t("النزيل")}</th><th>{t("عدد الحجوزات")}</th><th>{t("إجمالي القيمة")}</th></tr></thead>
+        <tbody>{rows.map((g,i)=>(<tr key={i}><td>{g.name}</td><td>{g.count}</td><td>{g.total.toLocaleString("en-US")} {currency}</td></tr>))}</tbody>
+      </table></div>
+    </div>);
+  }
+  function renderTabFolio(){
+    const rows=filteredRes.filter(r=>resBal(r)>0 && !["cancelled","no_show"].includes(r.status));
+    if(rows.length===0) return renderEmptyState();
+    return (<div className="ds-card-p">
+      <p style={{fontWeight:700,fontSize:13,marginBottom:"0.75rem"}}>{t("الفوليو والذمم")} · {rows.length}</p>
+      <div className="ds-table-wrap"><table className="ds-table">
+        <thead><tr><th>{t("النزيل")}</th><th>{t("الغرفة")}</th><th>{t("الإجمالي")}</th><th>{t("المدفوع")}</th><th>{t("المتبقي")}</th></tr></thead>
+        <tbody>{rows.map(r=>(<tr key={r.id}>
+          <td>{`${r.guest_first_name} ${r.guest_last_name}`.trim()||"—"}</td>
+          <td>{r.room_number??"—"}</td>
+          <td>{n(r.total).toLocaleString("en-US")} {currency}</td>
+          <td>{n(r.paid).toLocaleString("en-US")} {currency}</td>
+          <td style={{color:"#dc2626",fontWeight:700}}>{resBal(r).toLocaleString("en-US")} {currency}</td>
+        </tr>))}</tbody>
+      </table></div>
+    </div>);
+  }
+  function renderTabCleaning(){
+    const rows=nonArchivedRooms.filter(r=>["cleaning","maintenance","out_of_service"].includes(r.status));
+    if(rows.length===0) return renderEmptyState();
+    return (<div className="ds-card-p">
+      <p style={{fontWeight:700,fontSize:13,marginBottom:"0.75rem"}}>{t("التنظيف والصيانة")} · {rows.length}</p>
+      <div className="ds-table-wrap"><table className="ds-table">
+        <thead><tr><th>{t("الغرفة")}</th><th>{t("الطابق")}</th><th>{t("الحالة")}</th></tr></thead>
+        <tbody>{rows.map(r=>(<tr key={r.id}><td>{r.number}</td><td>{r.floor}</td><td>{ROOM_STATUS_LABELS[r.status]??r.status}</td></tr>))}</tbody>
+      </table></div>
+    </div>);
   }
 
   /* ─── Tab: Overview ─── */
@@ -987,7 +1060,7 @@ export default function ReportsPage(){
       <div className="ds-card-p" style={{marginBottom:"1rem"}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:"0.5rem",flexWrap:"wrap"}}>
           <div className="ds-tabs" style={{flex:1}}>
-            {(["overview","reservations","financial","rooms","food","maintenance"] as TTab[]).map(tt=>(
+            {(["overview","reservations","web","guests","rooms","financial","folio","food","cleaning","maintenance","lostfound","staff","shifts","dayclose","audit","dues"] as TTab[]).map(tt=>(
               <button key={tt}
                 className={`ds-tab-btn${tab===tt?" active":""}`}
                 onClick={()=>setTab(tt)}>
@@ -1012,6 +1085,16 @@ export default function ReportsPage(){
           {tab==="rooms"        &&renderTabRooms()}
           {tab==="food"         &&renderTabFood()}
           {tab==="maintenance"  &&renderTabMaintenance()}
+          {tab==="web"          &&renderTabWebBookings()}
+          {tab==="guests"       &&renderTabGuests()}
+          {tab==="folio"        &&renderTabFolio()}
+          {tab==="cleaning"     &&renderTabCleaning()}
+          {tab==="lostfound"    &&renderLinkTab(t("المفقودات"), "/manager/lost-found", t("سجل الأغراض المفقودة والمُسلَّمة."))}
+          {tab==="staff"        &&renderLinkTab(t("الموظفون"), "/manager/staff", t("قائمة الموظفين وحساباتهم وصلاحياتهم."))}
+          {tab==="shifts"       &&renderLinkTab(t("الورديات"), "/manager/shift-handover", t("تقارير الورديات وتسليمها."))}
+          {tab==="dayclose"     &&renderLinkTab(t("التدقيق اليومي"), "/manager/night-audit", t("فحص وإغلاق اليوم وتقاريره."))}
+          {tab==="audit"        &&renderLinkTab(t("سجل النشاط"), "/manager/audit", t("سجلّ العمليات الحسّاسة (من فعل ماذا ومتى)."))}
+          {tab==="dues"         &&renderLinkTab(t("مستحقات المنصة"), "/manager/web-bookings", t("عمولات حجوزات الموقع المستحقة للمنصّة."))}
         </>
       )}
     </div>
