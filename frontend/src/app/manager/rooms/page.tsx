@@ -32,7 +32,7 @@ function statusStyle(s:string): React.CSSProperties {
 interface Room {
   id:number; hotel:number; number:string; type:string; floor:number;
   status:string; capacity:number; price:string|number; currency:string;
-  notes:string; created_at?:string; updated_at?:string;
+  notes:string; amenities?:string[]; created_at?:string; updated_at?:string;
 }
 interface Reservation {
   id:number; room:number|null; status:string;
@@ -52,7 +52,8 @@ function currentReservation(roomId:number, reservations:Reservation[]): Reservat
   return reservations.find(r => r.room === roomId && ["checked_in","confirmed","pending"].includes(r.status)) ?? null;
 }
 
-const EMPTY_FORM = { number:"", floor:"1", type:"", capacity:"2", price:"", currency:"USD", status:"available", notes:"" };
+const ROOM_AMENITIES = ["تكييف","واي فاي","تلفزيون","حمام خاص","ثلاجة","شرفة","إطلالة","سرير مفرد","سرير مزدوج"];
+const EMPTY_FORM = { number:"", floor:"1", type:"", capacity:"2", price:"", currency:"USD", status:"available", notes:"", amenities:[] as string[] };
 
 /* btn helper */
 function QBtn({color,Icon,label,onClick}:{color:string;Icon:React.ElementType;label:string;onClick:()=>void}) {
@@ -216,7 +217,7 @@ export default function RoomsPage() {
     setEditRoom(room);
     const safeStatus = ["available","occupied","cleaning","maintenance","out_of_service"].includes(room.status)?room.status:"available";
     setForm({number:room.number,floor:String(room.floor),type:room.type,capacity:String(room.capacity),
-      price:String(room.price),currency:room.currency,status:safeStatus,notes:room.notes??""});
+      price:String(room.price),currency:room.currency,status:safeStatus,notes:room.notes??"",amenities:Array.isArray(room.amenities)?room.amenities:[]});
     setFormError(""); setModalOpen(true);
   }
   function closeModal(){setModalOpen(false);setEditRoom(null);setForm({...EMPTY_FORM});setFormError("");}
@@ -260,6 +261,7 @@ export default function RoomsPage() {
       capacity:Number(form.capacity)||1,
       price:form.price!==""?Number(form.price):0,
       currency:form.currency, status:form.status, notes:form.notes,
+      amenities:form.amenities,
     };
     try{
       const res = editRoom
@@ -911,6 +913,25 @@ export default function RoomsPage() {
                       <FileText size={12} color="#4f46e5"/> {t("ملاحظات")}
                     </label>
                     <textarea className="textarea" name="notes" value={form.notes} onChange={fld} rows={1} placeholder={lang==="ar"?"ملاحظات داخلية عن الغرفة...":"Internal notes about the room..."} />
+                  </div>
+                </div>
+
+                {/* م(عابر): تجهيزات الغرفة */}
+                <div className="field">
+                  <label className="field-label">{t("تجهيزات الغرفة")}</label>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:"0.5rem"}}>
+                    {ROOM_AMENITIES.map(a=>{
+                      const on=form.amenities.includes(a);
+                      return (
+                        <button key={a} type="button"
+                          onClick={()=>setForm(p=>({...p,amenities:on?p.amenities.filter(x=>x!==a):[...p.amenities,a]}))}
+                          style={{padding:"0.3rem 0.7rem",borderRadius:20,fontSize:12,fontWeight:700,cursor:"pointer",
+                            border:on?"1px solid var(--color-primary)":"1px solid var(--color-border)",
+                            background:on?"var(--color-primary)":"#fff",color:on?"#fff":"var(--color-text)"}}>
+                          {t(a)}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

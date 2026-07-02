@@ -270,6 +270,8 @@ class Room(models.Model):
     notes = models.TextField(blank=True)
     # م1: لحظة بدء التنظيف — تُستخدم للرجوع التلقائي بعد المدة عند cleaning_mode=auto
     cleaning_started_at = models.DateTimeField(null=True, blank=True)
+    # م(عابر): تجهيزات الغرفة (قائمة مفاتيح: تكييف/واي فاي/تلفزيون/حمام خاص/ثلاجة/شرفة/إطلالة/أسرّة…)
+    amenities = models.JSONField(default=list, blank=True)
     # Public fields
     public_description = models.TextField(blank=True)
     show_in_public = models.BooleanField(default=True)

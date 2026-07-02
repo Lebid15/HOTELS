@@ -112,7 +112,7 @@ class RoomSerializer(serializers.ModelSerializer):
         model = Room
         fields = [
             'id', 'hotel', 'number', 'floor', 'type', 'capacity',
-            'status', 'price', 'currency', 'notes', 'created_at', 'updated_at',
+            'status', 'price', 'currency', 'notes', 'amenities', 'created_at', 'updated_at',
         ]
         extra_kwargs = {'hotel': {'read_only': True}}  # B‑7: يُضبط من الخادم فقط
 
