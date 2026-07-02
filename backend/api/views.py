@@ -1107,6 +1107,25 @@ def _validate_reservation_documents(hotel_id, data):
     return missing
 
 
+def _price_override_denied(user, room, room_price):
+    """م5: تعديل سعر الغرفة يدويًّا (قيمة تختلف عن سعر الغرفة) يتطلب صلاحية
+    `price.edit` لغير المدير/المالك. لا تدخّل عند غياب الغرفة أو السعر أو تساويهما."""
+    if room is None or room_price is None:
+        return False
+    role = _get_user_role(user)
+    if role in ('platform_owner', 'manager'):
+        return False
+    from decimal import Decimal as _D
+    try:
+        if _D(str(room_price)) == _D(str(room.price)):
+            return False
+    except Exception:
+        return False
+    from .models import Staff
+    perms = Staff.objects.filter(user=user).values_list('permissions', flat=True).first()
+    return 'price.edit' not in (perms if isinstance(perms, list) else [])
+
+
 class ReservationViewSet(viewsets.ModelViewSet):
     serializer_class = ReservationSerializer
     permission_classes = [ReservationPermission]
@@ -1163,7 +1182,19 @@ class ReservationViewSet(viewsets.ModelViewSet):
             if missing:
                 raise ValidationError({'documents': missing,
                                        'detail': 'لا يكتمل الحجز قبل رفع الوثائق الإلزامية: ' + '، '.join(missing)})
+        # م5: تعديل السعر يدويًّا يتطلب صلاحية خاصة
+        if _price_override_denied(self.request.user, serializer.validated_data.get('room'),
+                                  serializer.validated_data.get('room_price')):
+            raise ValidationError({'room_price': 'تعديل السعر يدويًا يتطلب صلاحية خاصة (price.edit).'})
         serializer.save(hotel_id=user_hotel_id, created_by=self.request.user, **extra)
+
+    def perform_update(self, serializer):
+        # م5: بوّابة تعديل السعر يدويًّا عند التحديث كذلك
+        if _price_override_denied(self.request.user,
+                                  serializer.validated_data.get('room') or serializer.instance.room,
+                                  serializer.validated_data.get('room_price')):
+            raise ValidationError({'room_price': 'تعديل السعر يدويًا يتطلب صلاحية خاصة (price.edit).'})
+        serializer.save()
 
     @action(detail=False, methods=['get'], url_path='guest_lookup')
     def guest_lookup(self, request):

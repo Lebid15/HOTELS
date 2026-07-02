@@ -1512,3 +1512,32 @@ class Stage5ShiftReportTests(BaseAPITest):
     def test_shift_report_requires_user_param(self):
         self.as_(self.mgrA)
         self.assertEqual(self.client.get('/api/shift-report/').status_code, 400)
+
+
+# ── م5 (بقية): تعديل السعر يدويًّا بصلاحية price.edit ───────────────────────
+class Stage5PriceEditTests(BaseAPITest):
+    def _post(self, room_price):
+        return self.client.post('/api/reservations/', {
+            'guest_first_name': 'س', 'guest_last_name': 'ع', 'room': self.roomA.id,
+            'room_price': room_price, 'currency': 'USD',
+        }, format='json')
+
+    def test_reception_without_perm_denied_override(self):
+        Staff.objects.create(hotel=self.hotelA, user=self.recA, full_name='r', role='receptionist', permissions=[])
+        self.as_(self.recA)
+        self.assertEqual(self._post(500).status_code, 400)   # 100 → 500 تجاوز بلا صلاحية
+
+    def test_reception_with_perm_allowed(self):
+        # 'reservations' لاجتياز بوّابة القسم (C6) + 'price.edit' لتجاوز السعر
+        Staff.objects.create(hotel=self.hotelA, user=self.recA, full_name='r', role='receptionist', permissions=['reservations', 'price.edit'])
+        self.as_(self.recA)
+        self.assertEqual(self._post(500).status_code, 201)
+
+    def test_same_price_no_gate(self):
+        Staff.objects.create(hotel=self.hotelA, user=self.recA, full_name='r', role='receptionist', permissions=[])
+        self.as_(self.recA)
+        self.assertEqual(self._post(100).status_code, 201)   # مساوٍ لسعر الغرفة → لا تجاوز
+
+    def test_manager_can_override(self):
+        self.as_(self.mgrA)
+        self.assertEqual(self._post(500).status_code, 201)

@@ -288,6 +288,8 @@ export default function ReservationsPage() {
   const [saving,  setSaving]  = useState(false);
   const [formErr, setFormErr] = useState("");
   const [invalidFields, setInvalidFields] = useState<string[]>([]);   // م2: تلوين الحقول الناقصة بالأحمر
+  const [canEditPrice, setCanEditPrice] = useState(false);            // م5: صلاحية تعديل السعر يدويًّا
+  const [priceManual,  setPriceManual]  = useState(false);            // هل عُدِّل السعر يدويًّا لهذا الحجز؟
 
   /* view modal */
   const [viewRes, setViewRes] = useState<Res|null>(null);
@@ -325,6 +327,11 @@ export default function ReservationsPage() {
     const execute = async () => {
       await fetchRes(); await fetchRooms();
       const u=localStorage.getItem("username"); if(u)setUname(u);
+      // م5: صلاحية تعديل السعر يدويًّا (مدير أو price.edit)
+      fetch(`${API}/current-user/`,{headers:apiH()}).then(r=>r.ok?r.json():null).then(cu=>{
+        const perms:string[]=Array.isArray(cu?.permissions)?cu.permissions:[];
+        setCanEditPrice(perms.includes("*")||perms.includes("price.edit"));
+      }).catch(()=>{});
       if(hotelId){
         fetch(`${API}/hotels/${hotelId}/`,{headers:apiH()})
           .then(r=>r.json())
@@ -367,10 +374,14 @@ export default function ReservationsPage() {
   useEffect(()=>{
     const calc = async () => {
       const room=rooms.find(r=>String(r.id)===booking.room_id);
-      const price=room?Number(room.price):0;
+      const roomPrice=room?Number(room.price):0;
       const currency=room?.currency??booking.currency;
       const nights=Number(booking.nights)||1;
-      setBooking(p=>({...p,room_price:price,currency,total:price*nights,check_out:addDays(p.check_in,nights)}));
+      setBooking(p=>{
+        // م5: أبقِ السعر المُعدَّل/المحمَّل يدويًّا بدل إرجاعه لسعر الغرفة
+        const price=priceManual?Number(p.room_price):roomPrice;
+        return {...p,room_price:price,currency,total:price*nights,check_out:addDays(p.check_in,nights)};
+      });
     };
     calc();
   // eslint-disable-next-line react-hooks/exhaustive-deps -- booking.currency excluded to avoid re-triggering on currency update
@@ -405,7 +416,7 @@ export default function ReservationsPage() {
       setBooking(defBooking(prefix, last, currency));
     }catch{setBooking(defBooking("BK", reservations.length, "USD"));}
     setGuest(defGuest()); setComp(defComp()); setDocs(defDocs());
-    setEditRes(null); setStep(1); setSuccess(null); setFormErr(""); setGuestAutoFilled(false); setOpen(true);
+    setEditRes(null); setStep(1); setSuccess(null); setFormErr(""); setGuestAutoFilled(false); setPriceManual(false); setInvalidFields([]); setOpen(true);
   }
 
   /* ── Open modal (edit) ──────────────────────────────── */
@@ -445,7 +456,7 @@ export default function ReservationsPage() {
       payment_method:((full as Res & {payment_method?:TPayMethod}).payment_method??"cash") as TPayMethod,
       status:full.status??"pending", source:full.source??"direct", notes:full.notes??"",
     });
-    setEditRes(full); setStep(1); setSuccess(null); setFormErr(""); setGuestAutoFilled(false); setOpen(true);
+    setEditRes(full); setStep(1); setSuccess(null); setFormErr(""); setGuestAutoFilled(false); setPriceManual(true); setInvalidFields([]); setOpen(true);
   }
 
   function closeModal() { setOpen(false); setSuccess(null); }
@@ -1547,7 +1558,7 @@ export default function ReservationsPage() {
                           <input className="input" value={booking.booking_number} onChange={e=>setBooking(p=>({...p,booking_number:e.target.value}))} />
                         </div>
                         <div className="field"><label className="field-label"><FL Icon={Home} label={t("الغرفة")} /></label>
-                          <select className="select" style={errBorder("room_id")} value={booking.room_id} onChange={e=>setBooking(p=>({...p,room_id:e.target.value}))}>
+                          <select className="select" style={errBorder("room_id")} value={booking.room_id} onChange={e=>{setPriceManual(false);setBooking(p=>({...p,room_id:e.target.value}));}}>
                             <option value="">{lang==="ar"?"— اختر غرفة —":"— Select a room —"}</option>
                             {activeRooms.map(r=>(
                               <option key={r.id} value={r.id}>{lang==="ar"?`غرفة ${r.number} - الطابق ${r.floor}`:`Room ${r.number} - Floor ${r.floor}`} - {r.currency} {Number(r.price).toLocaleString("en-US")}</option>
@@ -1571,7 +1582,12 @@ export default function ReservationsPage() {
                           <input className="input" type="date" value={booking.check_out} readOnly style={{background:"var(--color-surface)"}} />
                         </div>
                         <div className="field"><label className="field-label"><FL Icon={Banknote} label={t("سعر الغرفة / الليلة")} /></label>
-                          <input className="input" value={booking.room_price} readOnly style={{background:"var(--color-surface)"}} />
+                          {canEditPrice ? (
+                            <input className="input" type="number" min="0" value={booking.room_price}
+                              onChange={e=>{const v=Number(e.target.value)||0;const n=Number(booking.nights)||1;setPriceManual(true);setBooking(p=>({...p,room_price:v,total:v*n}));}} />
+                          ) : (
+                            <input className="input" value={booking.room_price} readOnly style={{background:"var(--color-surface)"}} />
+                          )}
                         </div>
                         <div className="field"><label className="field-label"><FL Icon={Banknote} label={t("الإجمالي (محسوب تلقائياً)")} /></label>
                           <input className="input" value={booking.total} readOnly style={{background:"var(--color-surface)",fontWeight:800,color:"#1e293b"}} />
