@@ -135,8 +135,32 @@ class ReservationSerializer(serializers.ModelSerializer):
         fields = '__all__'
         extra_kwargs = {
             'created_by': {'required': False, 'allow_null': True},
-            'hotel': {'read_only': True},  # B‑7: يُضبط من الخادم فقط
+            'hotel': {'read_only': True},           # B‑7: يُضبط من الخادم فقط
+            'booking_number': {'read_only': True},  # يُولَّد في model.save() — لا يُقبل من العميل
         }
+
+    # حالات لا تُغيَّر بالتعديل المباشر (PATCH/PUT) — تمرّ حصريًّا عبر الإجراءات
+    # المحميّة (check_in/check_out/hotel_cancel) كي لا تُتجاوز حواجزها المالية.
+    _GUARDED_STATUSES = {
+        Reservation.STATUS_CHECKED_IN, Reservation.STATUS_CHECKED_OUT,
+        Reservation.STATUS_CANCELLED, Reservation.STATUS_NO_SHOW,
+    }
+
+    def validate(self, attrs):
+        # (1) تحقّق التواريخ خادميًّا: المغادرة بعد الوصول (بالقيم الفعّالة عند PATCH الجزئي).
+        ci = attrs.get('check_in_date', getattr(self.instance, 'check_in_date', None))
+        co = attrs.get('check_out_date', getattr(self.instance, 'check_out_date', None))
+        if ci and co and co <= ci:
+            raise serializers.ValidationError(
+                {'check_out_date': 'تاريخ المغادرة يجب أن يكون بعد تاريخ الوصول.'})
+        # (2) حارس انتقال الحالة: لا يُسمح بالانتقال إلى حالة محميّة عبر تعديل مباشر
+        #     لحجز قائم — يجب استخدام الإجراء المخصّص (تسجيل دخول/خروج/إلغاء).
+        if self.instance is not None and 'status' in attrs:
+            new_status = attrs['status']
+            if new_status != self.instance.status and new_status in self._GUARDED_STATUSES:
+                raise serializers.ValidationError({'status':
+                    'تغيير هذه الحالة يتم عبر الإجراء المخصّص (تسجيل الدخول/الخروج/الإلغاء) لا بالتعديل المباشر.'})
+        return attrs
 
     def get_guest_full_name(self, obj):
         return f'{obj.guest_first_name} {obj.guest_last_name}'.strip()

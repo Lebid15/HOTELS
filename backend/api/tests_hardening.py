@@ -468,3 +468,88 @@ class FoodOrderSplitConsistencyTests(TestCase):
         oid = self._order(amount='100', payment_method='cash', amount_cash='100').json()['id']
         r = self.client.patch(f'/api/food-orders/{oid}/', {'amount_cash': '40', 'amount_electronic': '40'}, format='json')
         self.assertEqual(r.status_code, 400)   # 80 ≠ 100
+
+
+# ── حجوزات المدير: تحصين المخاطر الحرجة (منع الحجز المزدوج/الحذف/التواريخ/الحالة) ──
+class ReservationManagerHardeningTests(TestCase):
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+        self.hotel = Hotel.objects.create(name='RH', city='D', status=Hotel.STATUS_ACTIVE)
+        self.mgr = mk_user('rh_mgr', UserProfile.ROLE_MANAGER, self.hotel)
+        self.room = Room.objects.create(hotel=self.hotel, number='101', type='single', price=100)
+        self.client.force_authenticate(self.mgr)
+        self.ci = date.today() + timedelta(days=3)
+        self.co = date.today() + timedelta(days=6)
+
+    def _mk(self, status=Reservation.STATUS_CONFIRMED):
+        return Reservation.objects.create(
+            hotel=self.hotel, room=self.room, guest_first_name='G', guest_last_name='X',
+            check_in_date=self.ci, check_out_date=self.co, status=status, total=300)
+
+    def _post(self, **over):
+        body = {'guest_first_name': 'زبون', 'guest_last_name': 'ب', 'room': self.room.id,
+                'check_in_date': self.ci.isoformat(), 'check_out_date': self.co.isoformat(),
+                'room_price': 100, 'nights_count': 3, 'total': 300, 'public_booking': False}
+        body.update(over)
+        return self.client.post('/api/reservations/', body, format='json')
+
+    def test_double_booking_blocked_on_manager_create(self):
+        self._mk()                              # حجز قائم يشغل الغرفة في الفترة
+        r = self._post()                        # تداخل كامل
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('room', r.json())
+
+    def test_non_overlapping_dates_allowed(self):
+        self._mk()
+        r = self._post(check_in_date=(self.co + timedelta(days=1)).isoformat(),
+                       check_out_date=(self.co + timedelta(days=3)).isoformat())
+        self.assertEqual(r.status_code, 201)
+
+    def test_cancelled_reservation_frees_room(self):
+        self._mk(status=Reservation.STATUS_CANCELLED)   # حالة غير حاجزة
+        r = self._post()
+        self.assertEqual(r.status_code, 201)
+
+    def test_manager_cannot_hard_delete_reservation(self):
+        res = self._mk()
+        r = self.client.delete(f'/api/reservations/{res.id}/')
+        self.assertEqual(r.status_code, 400)            # إبطال لا حذف
+        self.assertTrue(Reservation.objects.filter(id=res.id).exists())
+
+    def test_checkout_before_checkin_rejected(self):
+        r = self._post(check_in_date=self.co.isoformat(), check_out_date=self.ci.isoformat())
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('check_out_date', r.json())
+
+    def test_guarded_status_transition_blocked_on_patch(self):
+        res = self._mk()
+        r = self.client.patch(f'/api/reservations/{res.id}/', {'status': 'checked_in'}, format='json')
+        self.assertEqual(r.status_code, 400)            # يجب استخدام الإجراء المخصّص
+        res.refresh_from_db()
+        self.assertNotEqual(res.status, Reservation.STATUS_CHECKED_IN)
+        ok = self.client.post(f'/api/reservations/{res.id}/check_in/', {}, format='json')
+        self.assertEqual(ok.status_code, 200)           # الإجراء ينجح
+
+    def test_confirm_via_patch_still_allowed(self):
+        res = self._mk(status=Reservation.STATUS_PENDING)
+        r = self.client.patch(f'/api/reservations/{res.id}/', {'status': 'confirmed'}, format='json')
+        self.assertEqual(r.status_code, 200)            # pending→confirmed مسموح
+
+    def test_update_does_not_conflict_with_self(self):
+        res = self._mk()
+        r = self.client.patch(f'/api/reservations/{res.id}/', {'notes': 'ملاحظة'}, format='json')
+        self.assertEqual(r.status_code, 200)            # لا يتعارض الحجز مع نفسه
+
+    def test_hotel_cancel_audits_and_frees_room(self):
+        self.room.status = Room.STATUS_OCCUPIED
+        self.room.save()
+        res = self._mk()
+        r = self.client.post(f'/api/reservations/{res.id}/hotel_cancel/', {'reason': 'اختبار'}, format='json')
+        self.assertEqual(r.status_code, 200)
+        res.refresh_from_db()
+        self.assertEqual(res.status, Reservation.STATUS_CANCELLED)
+        self.assertEqual(res.cancel_reason, 'اختبار')
+        self.room.refresh_from_db()
+        self.assertEqual(self.room.status, Room.STATUS_AVAILABLE)
+        self.assertTrue(AuditLog.objects.filter(action='reservation.cancel', hotel_id=self.hotel.id).exists())

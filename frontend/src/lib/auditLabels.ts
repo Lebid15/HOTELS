@@ -23,6 +23,7 @@ export const AUDIT_ACTION_LABEL: Record<string, string> = {
   "reservation.check_in": "تسجيل دخول نزيل",
   "reservation.check_out": "تسجيل خروج نزيل",
   "reservation.settle_checkout": "دفع وإغلاق حساب + خروج",
+  "reservation.cancel": "إلغاء حجز",
   // ── المال ─────────────────────────────────────────────────────────
   "payment.create": "تسجيل دفعة",
   "payment.void": "إبطال دفعة",
