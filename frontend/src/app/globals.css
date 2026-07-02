@@ -53,6 +53,7 @@
   /* ── Layout dimensions ─── */
   --sidebar-width: 292px;
   --topbar-height:  72px;
+  --shell-gap:      10px;   /* هامش خفيف حول السايدبار ليبدو عائمًا فوق الخلفية */
 
   /* ── Transitions ─── */
   --transition:      190ms cubic-bezier(.2, .8, .2, 1);
@@ -171,31 +172,22 @@ a { text-decoration: none; color: inherit; }
   min-height: 100vh;
 }
 
-.app-shell.sidebar-compact {
-  grid-template-columns: 68px 1fr;
-}
-
-/* ─── 5. SIDEBAR ─────────────────────────────────────────── */
+/* ─── 5. SIDEBAR — عائم فوق الخلفية بهامش خفيف من كل الجهات ── */
 .sidebar {
   grid-row: 1 / -1;
   grid-column: 1;
   position: sticky;
-  top: 0;
-  height: 100vh;
-  width: var(--sidebar-width);
-  overflow-y: auto;
-  overflow-x: hidden;
+  top: var(--shell-gap);
+  margin: var(--shell-gap);
+  height: calc(100vh - 2 * var(--shell-gap));
+  overflow: hidden;                 /* يقصّ المحتوى ضمن الزوايا المدوّرة (التمرير داخل .sidebar-nav) */
   display: flex;
   flex-direction: column;
   background: #ffffff;
-  border-left: 1px solid var(--color-border);
-  box-shadow: -2px 0 24px rgba(15,23,42,.10);
-  transition: width var(--transition);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  box-shadow: 0 12px 34px rgba(15,23,42,.14);
   z-index: 50;
-}
-
-.sidebar.compact {
-  width: 68px;
 }
 
 .sidebar-header {
@@ -310,34 +302,7 @@ a { text-decoration: none; color: inherit; }
   text-overflow: ellipsis;
 }
 
-.sidebar-footer {
-  padding: 10px 8px;
-  border-top: 1px solid var(--color-border);
-  flex-shrink: 0;
-  background: var(--color-surface-soft);
-}
-
-.sidebar-toggle {
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: none;
-  border: none;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--color-muted);
-  text-align: start;
-  cursor: pointer;
-  transition: all var(--transition);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.sidebar-toggle:hover {
-  background: var(--color-primary-soft);
-  color: var(--color-primary);
-}
+/* (أُزيل .sidebar-footer / .sidebar-toggle — حُذفت ميزة طيّ السايدبار من كل الواجهات) */
 
 /* ─── 6. TOPBAR ──────────────────────────────────────────── */
 .topbar {
@@ -1244,13 +1209,8 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* ─── 23. RESPONSIVE ─────────────────────────────────────── */
-/* ── Tablet (769-960px): compact sidebar, icons only ───── */
-@media (max-width: 960px) {
-  .app-shell { grid-template-columns: 68px 1fr; }
-  .sidebar   { width: 68px; }
-  .sidebar-brand-title, .sidebar-brand-sub, .nav-label,
-  .sidebar-user-card, .sidebar-user-info { display: none; }
-}
+/* لا يوجد طيّ للسايدبار على أيّ مقاس (أُزيلت ميزة الطيّ من المشروع كامل).
+   السايدبار الكامل يبقى على سطح المكتب واللوحيّ، ويتحوّل إلى دُرج جانبيّ على الجوّال. */
 
 /* ── Mobile (≤768px): drawer sidebar ───────────────────── */
 @media (max-width: 768px) {
@@ -1260,13 +1220,16 @@ a { text-decoration: none; color: inherit; }
     grid-template-rows: var(--topbar-height) 1fr;
   }
 
-  /* Sidebar becomes a fixed off-screen drawer */
+  /* Sidebar becomes a fixed off-screen drawer (يُلغى التعويم داخل الدُرج) */
   .sidebar {
     position: fixed;
     top: 0;
     right: -300px;
+    margin: 0;
     width: var(--sidebar-width) !important;
     height: 100dvh;
+    border-radius: 0;
+    border: none;
     z-index: 200;
     transition: right var(--transition);
   }
@@ -1276,12 +1239,6 @@ a { text-decoration: none; color: inherit; }
     right: 0;
     box-shadow: -8px 0 40px rgba(15,23,42,.22);
   }
-
-  /* Restore labels and user card in drawer */
-  .sidebar.drawer-open .sidebar-brand-title,
-  .sidebar.drawer-open .sidebar-brand-sub { display: block; }
-  .sidebar.drawer-open .nav-label         { display: block; }
-  .sidebar.drawer-open .sidebar-user-card { display: flex; }
 
   /* Topbar and content span full width */
   .topbar     { grid-column: 1; }
@@ -1293,18 +1250,19 @@ a { text-decoration: none; color: inherit; }
   /* Reduce content padding */
   .page-shell { padding: 16px; }
   .modal-grid { grid-template-columns: 1fr; }
-}
 
-/* ── LTR (English) mobile sidebar: flip to left ──────────── */
-[dir="ltr"] .sidebar {
-  right: auto;
-  left: -300px;
-  transition: left var(--transition) !important;
-}
-[dir="ltr"] .sidebar.drawer-open {
-  right: auto;
-  left: 0;
-  box-shadow: 8px 0 40px rgba(15,23,42,.22) !important;
+  /* LTR (English): flip the off-canvas drawer to the left edge — داخل حدّ الجوّال فقط
+     كي لا يتسرّب على السايدبار العائم على سطح المكتب. */
+  [dir="ltr"] .sidebar {
+    right: auto;
+    left: -300px;
+    transition: left var(--transition);
+  }
+  [dir="ltr"] .sidebar.drawer-open {
+    right: auto;
+    left: 0;
+    box-shadow: 8px 0 40px rgba(15,23,42,.22);
+  }
 }
 
 /* ── LTR: text-align corrections for key elements ────────── */
