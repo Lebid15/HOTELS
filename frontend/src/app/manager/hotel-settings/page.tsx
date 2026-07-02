@@ -163,6 +163,8 @@ export default function SettingsPage() {
   const [pub,       setPub]       = useState<IPublish>(DEFAULT_PUBLISH);
   const [food,      setFood]      = useState<IFood>(DEFAULT_FOOD);
   const [hotelCode, setHotelCode] = useState("");
+  // م8: اتفاقية حجوزات الموقع (يجب قبولها قبل تفعيل الظهور/الحجز)
+  const [agreement, setAgreement] = useState<{ text: string; accepted: boolean; accepted_by_name: string; accepted_at: string | null }>({ text: "", accepted: false, accepted_by_name: "", accepted_at: null });
   const [rooms,     setRooms]     = useState<IRooms>(DEFAULT_ROOMS);
   const [printing,  setPrinting]  = useState<IPrinting>(DEFAULT_PRINTING);
   const [docs,      setDocs]      = useState<IDocs>(DEFAULT_DOCS);
@@ -235,6 +237,9 @@ export default function SettingsPage() {
         }));
         if (d.floors_count) setRooms(prev => ({ ...prev, floors: String(d.floors_count) }));
       }).catch(() => {});
+    // م8: حالة اتفاقية حجوزات الموقع
+    fetch(`${API}/platform/web-booking-agreement/`, { headers: apiH() })
+      .then(r => r.ok ? r.json() : null).then(a => { if (a) setAgreement(a); }).catch(() => {});
     // م1: جلب حِزم إعدادات التشغيل من الخادم (المصدر) — تتقدّم على المخبّأ المحلّي
     fetchOpSettings().then(s => {
       if (!s) return;
@@ -315,6 +320,16 @@ export default function SettingsPage() {
     saveLS(hotelId, { rest: { hasRestaurant: food.restaurant_enabled, hasCafeteria: food.cafeteria_enabled, hasRoomService: true } });
     setSaving(false);
     showToast(t("تم حفظ إعدادات المطعم والكافتريا بنجاح."));
+  }
+
+  async function acceptAgreement() {
+    setSaving(true); setError("");
+    try {
+      const r = await fetch(`${API}/platform/web-booking-agreement/`, { method: "POST", headers: apiHJ(), body: "{}" });
+      if (r.ok) { setAgreement(await r.json()); showToast(t("تم قبول اتفاقية حجوزات الموقع.")); }
+      else setError(t("تعذّر قبول الاتفاقية."));
+    } catch { setError(t("خطأ في الاتصال.")); }
+    setSaving(false);
   }
 
   async function doSavePublish() {
@@ -695,9 +710,31 @@ export default function SettingsPage() {
          ════════════════════════════════════════════════════════════════════ */}
       {tab === "publish" && (
         <>
+          {/* م8: اتفاقية المنصّة — يجب قبولها قبل تفعيل الظهور/الحجز */}
+          <CardSection title={t("اتفاقية حجوزات الموقع")} desc={t("يجب قبول هذه الاتفاقية قبل تفعيل ظهور الفندق أو استقبال حجوزات الموقع.")}>
+            {agreement.accepted ? (
+              <div className="ds-alert ds-alert-success" style={{ fontSize: "0.85rem" }}>
+                <Check size={15} /> {t("الاتفاقية مقبولة")} — {agreement.accepted_by_name}{agreement.accepted_at ? ` · ${new Date(agreement.accepted_at).toLocaleDateString()}` : ""}
+              </div>
+            ) : (
+              <>
+                <div style={{ maxHeight: 180, overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: 8, padding: "0.75rem", fontSize: "0.82rem", whiteSpace: "pre-wrap", marginBottom: "0.75rem", background: "#fafafa" }}>
+                  {agreement.text || t("لم تُضبَط اتفاقية بعد من إدارة المنصّة.")}
+                </div>
+                <button className="ds-btn ds-btn-primary ds-btn-sm" disabled={saving || !agreement.text} onClick={acceptAgreement}>
+                  {t("أوافق على الاتفاقية")}
+                </button>
+              </>
+            )}
+          </CardSection>
           <CardSection title={t("الظهور على موقع الحجز")} desc={t("تحكّم بظهور فندقك واستقبال حجوزات الموقع. يتطلب التفعيل قبول اتفاقية المنصّة.")}>
-            <SW label={t("إظهار الفندق في موقع الحجز العام")} checked={pub.listingEnabled} onChange={v => setPub(p => ({ ...p, listingEnabled: v }))} />
-            <SW label={t("استقبال حجوزات من الموقع العام")} checked={pub.bookingEnabled} onChange={v => setPub(p => ({ ...p, bookingEnabled: v }))} />
+            {!agreement.accepted && (
+              <div className="ds-alert ds-alert-warning" style={{ fontSize: "0.82rem", marginBottom: "0.6rem" }}>
+                {t("فعّل التبديلات بعد قبول الاتفاقية أعلاه.")}
+              </div>
+            )}
+            <SW label={t("إظهار الفندق في موقع الحجز العام")} checked={pub.listingEnabled} onChange={v => agreement.accepted && setPub(p => ({ ...p, listingEnabled: v }))} />
+            <SW label={t("استقبال حجوزات من الموقع العام")} checked={pub.bookingEnabled} onChange={v => agreement.accepted && setPub(p => ({ ...p, bookingEnabled: v }))} />
             <SW label={t("حجوزات الموقع تحتاج تأكيدًا يدويًا")} checked={pub.needsConfirmation} onChange={v => setPub(p => ({ ...p, needsConfirmation: v }))} hint={t("عند الإطفاء تُؤكَّد حجوزات الموقع تلقائيًا")} />
             <SW label={t("إظهار معلومات التواصل للزوّار")} checked={pub.showContact} onChange={v => setPub(p => ({ ...p, showContact: v }))} />
           </CardSection>
