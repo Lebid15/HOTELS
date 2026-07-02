@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ScrollText, RefreshCw, Filter } from "lucide-react";
 import { useLang } from "@/lib/i18n/LangContext";
 import { authFetch } from "@/lib/api";
+import { AUDIT_ROLE_LABEL as ROLE_LABEL, auditActionLabel, auditBadgeClass, auditDetail } from "@/lib/auditLabels";
 
 interface AuditRow {
   id: number;
@@ -16,36 +17,6 @@ interface AuditRow {
   entity_id: string;
   summary: string;
   created_at: string;
-}
-
-const ACTION_LABEL: Record<string, string> = {
-  "reservation.check_in": "تسجيل دخول",
-  "reservation.check_out": "تسجيل خروج",
-  "payment.create": "تسجيل دفعة",
-  "hotel.create": "إنشاء فندق",
-  "hotel.status.active": "تفعيل فندق",
-  "hotel.status.suspended": "إيقاف فندق",
-  "hotel.status.archived": "أرشفة فندق",
-  "hotel.manager_password_reset": "إعادة تعيين كلمة مرور مدير",
-  "subscription.approve": "اعتماد اشتراك",
-  "subscription.reject": "رفض اشتراك",
-  "commission.mark_paid": "تعليم عمولة كمدفوعة",
-  "commission.mark_partial": "عمولة جزئية",
-  "commission.waive": "إعفاء عمولة",
-  "commission.mark_due": "تعليم عمولة كمستحقة",
-};
-
-const ROLE_LABEL: Record<string, string> = {
-  platform_owner: "صاحب المنصة",
-  manager: "مدير الفندق",
-  reception: "موظف استقبال",
-};
-
-function actionBadgeClass(action: string): string {
-  if (action.startsWith("payment") || action.startsWith("commission.mark_paid") || action === "hotel.status.active") return "ds-badge-success";
-  if (action.includes("reject") || action.includes("suspended") || action.includes("waive")) return "ds-badge-warning";
-  if (action.startsWith("hotel")) return "ds-badge-info";
-  return "ds-badge-neutral";
 }
 
 export default function PlatformAuditPage() {
@@ -84,7 +55,7 @@ export default function PlatformAuditPage() {
       year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
     });
   };
-  const actionLabel = (a: string) => (ACTION_LABEL[a] ? t(ACTION_LABEL[a]) : a);
+  const actionLabel = (a: string) => auditActionLabel(a, t);
 
   return (
     <div>
@@ -141,14 +112,14 @@ export default function PlatformAuditPage() {
               <tr key={r.id} style={{ borderTop: "1px solid var(--color-border)" }}>
                 <td style={{ padding: "9px 14px", whiteSpace: "nowrap", color: "var(--color-muted)" }}>{fmtTime(r.created_at)}</td>
                 <td style={{ padding: "9px 14px" }}>
-                  <span className={`ds-badge ${actionBadgeClass(r.action)}`}>{actionLabel(r.action)}</span>
+                  <span className={`ds-badge ${auditBadgeClass(r.action)}`}>{actionLabel(r.action)}</span>
                 </td>
                 <td style={{ padding: "9px 14px", whiteSpace: "nowrap" }}>{r.hotel_name || (lang === "ar" ? "المنصّة" : "Platform")}</td>
                 <td style={{ padding: "9px 14px", whiteSpace: "nowrap" }}>
                   {r.actor_name || "—"}
                   {r.actor_role && <span className="text-muted" style={{ fontSize: 11, marginInlineStart: 6 }}>{t(ROLE_LABEL[r.actor_role] ?? r.actor_role)}</span>}
                 </td>
-                <td style={{ padding: "9px 14px" }}>{r.summary || "—"}</td>
+                <td style={{ padding: "9px 14px" }}>{auditDetail(r.action, r.summary, r.actor_name)}</td>
               </tr>
             ))}
           </tbody>
