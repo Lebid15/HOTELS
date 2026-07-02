@@ -2,12 +2,13 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Building2, Settings, BedDouble, Printer, FileText, Bell, Globe, Utensils, Check, X } from "lucide-react";
+import { Building2, Settings, BedDouble, Printer, FileText, Bell, Globe, Utensils, Check, X, ScrollText } from "lucide-react";
 import { useLang } from "../LangContext";
 
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
 import { fetchOpSettings, patchOpSettings } from "@/lib/settings";
 import HotelMap from "@/components/HotelMap";
+import AuditLogView from "@/components/AuditLogView";
 const LS_KEY = (hid: string) => `fandqi.settings.${hid}`;
 
 function loadLS(hid: string) {
@@ -37,7 +38,7 @@ function saveLS(hid: string, patch: object) {
 }
 
 // ─── types ───────────────────────────────────────────────────────────────────
-type TTab = "identity" | "publish" | "operations" | "rooms" | "restaurant" | "printing" | "documents" | "notifications";
+type TTab = "identity" | "publish" | "operations" | "rooms" | "restaurant" | "printing" | "documents" | "notifications" | "audit";
 
 interface IIdentity { name: string; ownerName: string; city: string; address: string; phone: string; email: string; website: string; logo: string | null; coverImage: string | null; mapUrl: string; latitude: string; longitude: string; }
 // م1: أوقات الدخول/الخروج ووضع/مدة التنظيف حقول تشغيلية مركزية مُلزَمة خادميًّا
@@ -161,6 +162,7 @@ export default function SettingsPage() {
     { key: "printing",      label: t("الطباعة والفواتير"),    Icon: Printer },
     { key: "documents",     label: t("الوثائق والماسح"),      Icon: FileText },
     { key: "notifications", label: t("التنبيهات"),             Icon: Bell },
+    { key: "audit",         label: t("سجل التدقيق"),           Icon: ScrollText },
     // د‑1: أُزيل تبويبا «النسخ الاحتياطي» (يخصّ إدارة المنصّة/السيرفر) و«الواجهة» (تفضيلات شخصية للمستخدم).
   ];
 
@@ -996,6 +998,17 @@ export default function SettingsPage() {
             <SaveBtn label={t("حفظ إعدادات التنبيهات")} saving={saving} saved={false} onClick={doSaveNotifs} />
           </div>
         </CardSection>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+           TAB: سجلّ التدقيق (نُقل من السايدبار إلى داخل الإعدادات)
+         ════════════════════════════════════════════════════════════════════ */}
+      {tab === "audit" && (
+        <div>
+          <p style={{ fontWeight: 700, fontSize: "0.95rem", color: "var(--color-heading)", marginBottom: "0.2rem" }}>{t("سجلّ التدقيق")}</p>
+          <p style={{ fontSize: "0.82rem", color: "var(--color-muted)", marginBottom: "1rem" }}>{t("أثر ثابت لكل عملية حسّاسة: من فعل ماذا ومتى — دخول/خروج، مدفوعات، وتغييرات الحساب.")}</p>
+          <AuditLogView t={t} lang={lang} showHotel={false} />
+        </div>
       )}
 
       {/* د‑1: أُزيل تبويبا «النسخ الاحتياطي» و«الواجهة» — النسخ الاحتياطي يخصّ إدارة المنصّة/السيرفر،

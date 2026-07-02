@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import {
   Eye, EyeOff, User, KeyRound, Building2, Globe, CalendarCheck, CircleDollarSign,
   BadgeCheck, Bell, Plug, ShieldCheck, DatabaseBackup, X, Save, Download,
-  AlertTriangle, CheckCircle2,
+  AlertTriangle, CheckCircle2, ScrollText,
 } from "lucide-react";
 import { apiUrl, getAuthHeaders, getAuthJsonHeaders } from "@/lib/api";
 import { useLang } from "@/lib/i18n/LangContext";
 import { broadcastPlatformInfo } from "@/lib/platformBranding";
+import AuditLogView from "@/components/AuditLogView";
 
 const SUB_SETTINGS_KEY = "fandqi.sub_settings";
 const PUBLIC_SETTINGS_KEY = "fandqi.public_settings";
@@ -61,12 +62,13 @@ const TABS = [
   { key: "integrations", label: "التكاملات",         Icon: Plug },
   { key: "security",     label: "الأمان",            Icon: ShieldCheck },
   { key: "backup",       label: "النسخ الاحتياطي",   Icon: DatabaseBackup },
+  { key: "audit",        label: "سجل التدقيق",       Icon: ScrollText },
 ] as const;
 
 type TabKey = typeof TABS[number]["key"];
 
 export default function PlatformSettingsPage() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
   const { toast, show: showToast, clear: clearToast } = useToast();
   const [tab, setTab] = useState<TabKey>("identity");
 
@@ -519,6 +521,15 @@ export default function PlatformSettingsPage() {
           <div className="ds-alert ds-alert-warning pf-form-actions">
             <AlertTriangle size={16} /> {t("أي عملية استيراد أو إعادة ضبط ستكون مصحوبة بتأكيد قبل التنفيذ.")}
           </div>
+        </div>
+      )}
+
+      {/* ── Tab: سجلّ التدقيق (نُقل من السايدبار إلى داخل الإعدادات) ─────────── */}
+      {tab === "audit" && (
+        <div>
+          <h2 className="pf-block-title"><ScrollText size={18} /> {t("سجلّ التدقيق")}</h2>
+          <p className="pf-hint">{t("أثر ثابت لكل عملية حسّاسة عبر جميع الفنادق والمنصّة: من فعل ماذا ومتى.")}</p>
+          <AuditLogView t={t} lang={lang} showHotel={true} />
         </div>
       )}
     </div>
