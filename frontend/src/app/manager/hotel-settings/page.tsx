@@ -14,8 +14,26 @@ function loadLS(hid: string) {
   try { return JSON.parse(localStorage.getItem(LS_KEY(hid)) ?? "{}"); } catch { return {}; }
 }
 function saveLS(hid: string, patch: object) {
-  const cur = loadLS(hid);
-  localStorage.setItem(LS_KEY(hid), JSON.stringify({ ...cur, ...patch }));
+  // مخبّأ محليّ للقراءة السريعة فقط؛ **المصدر الحقيقي هو الباكند**. لا نُخزّن الصور
+  // الكبيرة (base64: الشعار/الغلاف/المعرض) في localStorage لأنها تتجاوز حصّة التخزين
+  // (~5MB) فترمي QuotaExceededError عند رفع الشعار. والكتابة best-effort فلا تُعطِّل
+  // الصفحة إن فشلت (الصور محفوظة/مُحمَّلة من الباكند على أي حال).
+  try {
+    const merged: Record<string, unknown> = { ...loadLS(hid), ...patch };
+    const strip = (key: string, fields: string[]) => {
+      const v = merged[key];
+      if (v && typeof v === "object") {
+        const clone = { ...(v as Record<string, unknown>) };
+        for (const f of fields) delete clone[f];
+        merged[key] = clone;
+      }
+    };
+    strip("identity", ["logo", "coverImage"]);
+    strip("publish", ["galleryImages"]);
+    localStorage.setItem(LS_KEY(hid), JSON.stringify(merged));
+  } catch {
+    /* تجاوز الحصّة أو تعذّر التخزين — يُتجاهَل (المصدر الحقيقي هو الباكند) */
+  }
 }
 
 // ─── types ───────────────────────────────────────────────────────────────────
