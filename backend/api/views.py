@@ -315,6 +315,10 @@ class CurrentUserView(APIView):
             'permissions': _user_granular_permissions(user, role),
             # د‑6: حالة التحقق بخطوتين
             'two_factor_enabled': getattr(getattr(user, 'profile', None), 'two_factor_enabled', False),
+            # م(عابر): بيانات البروفايل الشخصية
+            'phone': getattr(getattr(user, 'profile', None), 'phone', ''),
+            'avatar': getattr(getattr(user, 'profile', None), 'avatar', ''),
+            'last_login': user.last_login,
         })
 
     def patch(self, request):
@@ -331,6 +335,14 @@ class CurrentUserView(APIView):
         user.first_name = first_name
         user.last_name  = last_name
         user.save()
+        # م(عابر): تحديث الهاتف/الصورة على الملف الشخصي
+        prof = getattr(user, 'profile', None)
+        if prof is not None:
+            if 'phone' in request.data:
+                prof.phone = (request.data.get('phone') or '').strip()
+            if 'avatar' in request.data:
+                prof.avatar = request.data.get('avatar') or ''
+            prof.save()
         hotel_id = _get_user_hotel_id(user)
         hotel_name = Hotel.objects.filter(pk=hotel_id).values_list('name', flat=True).first() if hotel_id else None
         return Response({
@@ -342,6 +354,8 @@ class CurrentUserView(APIView):
             'role': _get_user_role(user),
             'hotel_id': hotel_id,
             'hotel_name': hotel_name,
+            'phone': getattr(prof, 'phone', ''),
+            'avatar': getattr(prof, 'avatar', ''),
         })
 
 

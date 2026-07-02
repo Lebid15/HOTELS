@@ -590,6 +590,9 @@ class UserProfile(models.Model):
         on_delete=models.SET_NULL, related_name='staff_profiles',
     )
     two_factor_enabled = models.BooleanField(default=False)   # د‑6: التحقق بخطوتين
+    # م(عابر): بيانات البروفايل الشخصية
+    phone  = models.CharField(max_length=50, blank=True)
+    avatar = models.TextField(blank=True)   # صورة شخصية (data-url)
 
     def __str__(self):
         return f'{self.user.username} — {self.role}'

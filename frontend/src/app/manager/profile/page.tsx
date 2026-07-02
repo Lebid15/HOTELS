@@ -5,7 +5,7 @@ import { ShieldCheck, KeyRound, RefreshCw, User } from "lucide-react";
 import { useLang } from "../LangContext";
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ, authFetch } from "@/lib/api";
 
-interface Me { username:string; email:string; role:string; two_factor_enabled?:boolean; }
+interface Me { username:string; email:string; role:string; two_factor_enabled?:boolean; phone?:string; avatar?:string; last_login?:string|null; }
 interface PendingCode { username:string; code:string; created_at:string; }
 
 export default function ManagerProfilePage() {
@@ -21,13 +21,17 @@ export default function ManagerProfilePage() {
   // 2FA
   const [tfa, setTfa] = useState(false);
   const [pending, setPending] = useState<PendingCode[]>([]);
+  // م(عابر): بيانات البروفايل الشخصية
+  const [phone, setPhone] = useState("");
+  const [avatar, setAvatar] = useState("");
+  const [profSaving, setProfSaving] = useState(false);
 
   const showToast = (m:string) => { setToast(m); setTimeout(()=>setToast(""), 3000); };
 
   useEffect(() => {
     let alive = true;
     authFetch("/current-user/").then(r=>r.ok?r.json():null).then((d:Me)=>{
-      if(alive && d){ setMe(d); setTfa(!!d.two_factor_enabled); }
+      if(alive && d){ setMe(d); setTfa(!!d.two_factor_enabled); setPhone(d.phone??""); setAvatar(d.avatar??""); }
     }).catch(()=>{});
     return () => { alive = false; };
   }, []);
@@ -62,6 +66,25 @@ export default function ManagerProfilePage() {
     } catch { showToast(t("خطأ في الاتصال")); }
   }
 
+  async function saveProfile() {
+    setProfSaving(true);
+    try {
+      const r = await fetch(`${API}/current-user/`, { method: "PATCH", headers: apiHJ(), body: JSON.stringify({ phone, avatar }) });
+      if (!r.ok) throw new Error();
+      const d = await r.json(); setMe(m => m ? { ...m, phone: d.phone, avatar: d.avatar } : m);
+      showToast(t("تم حفظ الملف الشخصي."));
+    } catch { showToast(t("خطأ في الاتصال")); }
+    finally { setProfSaving(false); }
+  }
+
+  function onAvatar(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]; if (!f) return;
+    if (f.size > 2 * 1024 * 1024) { showToast(t("حجم الصورة كبير جدًا (الحد 2 ميجابايت).")); return; }
+    const reader = new FileReader();
+    reader.onload = ev => setAvatar(ev.target?.result as string);
+    reader.readAsDataURL(f);
+  }
+
   async function logoutAllDevices() {
     if (!confirm(t("سيتم إنهاء جلساتك على كل الأجهزة. متابعة؟"))) return;
     try {
@@ -84,6 +107,32 @@ export default function ManagerProfilePage() {
             <h1>{t("الملف الشخصي")}</h1>
           </div>
           <p>{me ? `${me.username} · ${t("مدير الفندق")}` : t("جارٍ التحميل...")}</p>
+        </div>
+      </div>
+
+      {/* م(عابر): المعلومات الشخصية (صورة/هاتف/آخر دخول) */}
+      <div className="ds-card-p" style={{marginBottom:"1rem"}}>
+        <h3 style={{display:"flex",alignItems:"center",gap:6,marginTop:0}}><User size={16}/> {t("المعلومات الشخصية")}</h3>
+        <div style={{display:"flex",gap:"1rem",alignItems:"center",flexWrap:"wrap"}}>
+          {avatar
+            /* eslint-disable-next-line @next/next/no-img-element -- صورة شخصية data-url */
+            ? <img src={avatar} alt="avatar" style={{width:64,height:64,borderRadius:"50%",objectFit:"cover",border:"1px solid #e5e7eb"}}/>
+            : <div style={{width:64,height:64,borderRadius:"50%",background:"#eef2ff",display:"flex",alignItems:"center",justifyContent:"center"}}><User size={28} color="#6366f1"/></div>}
+          <div style={{display:"flex",gap:"0.5rem"}}>
+            <input id="avatar-input" type="file" accept="image/*" style={{display:"none"}} onChange={onAvatar}/>
+            <button className="ds-btn ds-btn-neutral ds-btn-sm" onClick={()=>document.getElementById("avatar-input")?.click()}>{t("تغيير الصورة")}</button>
+            {avatar && <button className="ds-btn ds-btn-danger ds-btn-sm" onClick={()=>setAvatar("")}>{t("إزالة")}</button>}
+          </div>
+          <div className="field" style={{margin:0,minWidth:200}}>
+            <label className="field-label">{t("رقم الهاتف")}</label>
+            <input className="input" value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+9665XXXXXXXX"/>
+          </div>
+        </div>
+        <p className="text-muted" style={{fontSize:12,marginTop:"0.6rem"}}>
+          {t("آخر تسجيل دخول")}: {me?.last_login ? new Date(me.last_login).toLocaleString() : t("—")}
+        </p>
+        <div style={{marginTop:"0.6rem"}}>
+          <button className="ds-btn ds-btn-primary ds-btn-sm" disabled={profSaving} onClick={saveProfile}>{profSaving?t("جارٍ الحفظ..."):t("حفظ الملف الشخصي")}</button>
         </div>
       </div>
 
