@@ -1220,6 +1220,40 @@ def _price_override_denied(user, room, room_price):
     return 'price.edit' not in (perms if isinstance(perms, list) else [])
 
 
+def _reservation_room_total(room_price, nights):
+    """إجمالي الغرفة = سعر الليلة × عدد الليالي — يُحسب خادميًّا (لا يُقبل من العميل)
+    كي لا يتباعد `total` عن السعر×الليالي فيُفسِد grand_total/balance_due."""
+    from decimal import Decimal as _D
+    try:
+        rp = _D(str(room_price if room_price is not None else 0))
+    except Exception:
+        rp = _D('0')
+    try:
+        n = int(nights or 1)
+    except (TypeError, ValueError):
+        n = 1
+    if n < 1:
+        n = 1
+    return rp * n
+
+
+def _assert_room_available(hotel_id, room, check_in, check_out, exclude_reservation_id=None):
+    """منع الحجز المزدوج خادميًّا: يرفض إن كانت الغرفة محجوزة بتداخل زمنيّ خلال
+    الفترة. يستخدم قاعدة التداخل المركزية (eligibility.conflicting_room_ids) — نفس
+    منطق المسار العام — فلا يُكرَّر. يُستدعى داخل معاملة مع قفل صفّ الغرفة لحسم السباق."""
+    from .eligibility import conflicting_room_ids
+    if not (room and check_in and check_out):
+        return
+    room_id = getattr(room, 'id', room)
+    busy = conflicting_room_ids(hotel_id, check_in, check_out,
+                                exclude_reservation_id=exclude_reservation_id)
+    if room_id in busy:
+        raise ValidationError({
+            'room': 'هذه الغرفة محجوزة بالفعل خلال هذه الفترة (تعارض تواريخ).',
+            'code': 'room_conflict',
+        })
+
+
 class ReservationViewSet(viewsets.ModelViewSet):
     serializer_class = ReservationSerializer
     permission_classes = [ReservationPermission]
@@ -1259,36 +1293,79 @@ class ReservationViewSet(viewsets.ModelViewSet):
         return {}
 
     def perform_create(self, serializer):
+        from django.db import transaction
+        from .eligibility import NON_BLOCKING_RESERVATION_STATUSES
         role = _get_user_role(self.request.user)
         hotel_id = self.request.data.get('hotel') or self.request.query_params.get('hotel')
         extra = self._auto_confirm_kwargs(serializer)
+        vdata = serializer.validated_data
+        room = vdata.get('room')
+        # سلسلة المال: عند إرسال سعر الغرفة يُحسب الإجمالي خادميًّا (room_price × nights) فلا
+        # يُلفَّق total مخالفًا للسعر؛ وإن لم يُرسَل سعر (إجمالي مقطوع) يُقبل total كما هو.
+        if vdata.get('room_price') is not None:
+            extra['total'] = _reservation_room_total(vdata.get('room_price'), vdata.get('nights_count'))
+
         if role == 'platform_owner':
-            serializer.save(hotel_id=hotel_id, created_by=self.request.user, **extra)
-            return
-        user_hotel_id = _get_user_hotel_id(self.request.user)
-        if user_hotel_id is None:
-            raise PermissionDenied('غير مرتبط بأي فندق.')
-        if hotel_id and str(hotel_id) != str(user_hotel_id):
-            raise PermissionDenied('ليس لديك صلاحية الإنشاء في هذا الفندق.')
-        # م2: إلزام الوثائق خادميًّا للحجز المباشر (يحترم إعدادات الفندق؛ الحجز العام مُستثنى)
-        if not serializer.validated_data.get('public_booking', False):
-            missing = _validate_reservation_documents(user_hotel_id, serializer.validated_data)
-            if missing:
-                raise ValidationError({'documents': missing,
-                                       'detail': 'لا يكتمل الحجز قبل رفع الوثائق الإلزامية: ' + '، '.join(missing)})
-        # م5: تعديل السعر يدويًّا يتطلب صلاحية خاصة
-        if _price_override_denied(self.request.user, serializer.validated_data.get('room'),
-                                  serializer.validated_data.get('room_price')):
-            raise ValidationError({'room_price': 'تعديل السعر يدويًا يتطلب صلاحية خاصة (price.edit).'})
-        serializer.save(hotel_id=user_hotel_id, created_by=self.request.user, **extra)
+            target_hotel_id = hotel_id
+        else:
+            user_hotel_id = _get_user_hotel_id(self.request.user)
+            if user_hotel_id is None:
+                raise PermissionDenied('غير مرتبط بأي فندق.')
+            if hotel_id and str(hotel_id) != str(user_hotel_id):
+                raise PermissionDenied('ليس لديك صلاحية الإنشاء في هذا الفندق.')
+            # م2: إلزام الوثائق خادميًّا للحجز المباشر (يحترم إعدادات الفندق؛ الحجز العام مُستثنى)
+            if not vdata.get('public_booking', False):
+                missing = _validate_reservation_documents(user_hotel_id, vdata)
+                if missing:
+                    raise ValidationError({'documents': missing,
+                                           'detail': 'لا يكتمل الحجز قبل رفع الوثائق الإلزامية: ' + '، '.join(missing)})
+            # م5: تعديل السعر يدويًّا يتطلب صلاحية خاصة
+            if _price_override_denied(self.request.user, room, vdata.get('room_price')):
+                raise ValidationError({'room_price': 'تعديل السعر يدويًا يتطلب صلاحية خاصة (price.edit).'})
+            target_hotel_id = user_hotel_id
+
+        new_status = extra.get('status') or vdata.get('status') or Reservation.STATUS_PENDING
+        with transaction.atomic():
+            # منع الحجز المزدوج (بقفل صفّ الغرفة لحسم السباق) — إلا للحالات غير الحاجزة (ملغى/لم يحضر).
+            if room is not None and new_status not in NON_BLOCKING_RESERVATION_STATUSES:
+                Room.objects.select_for_update().filter(pk=room.pk).first()
+                _assert_room_available(target_hotel_id, room,
+                                       vdata.get('check_in_date'), vdata.get('check_out_date'))
+            serializer.save(hotel_id=target_hotel_id, created_by=self.request.user, **extra)
 
     def perform_update(self, serializer):
+        from django.db import transaction
+        from .eligibility import NON_BLOCKING_RESERVATION_STATUSES
+        instance = serializer.instance
+        vdata = serializer.validated_data
+        room = vdata.get('room') or instance.room
         # م5: بوّابة تعديل السعر يدويًّا عند التحديث كذلك
-        if _price_override_denied(self.request.user,
-                                  serializer.validated_data.get('room') or serializer.instance.room,
-                                  serializer.validated_data.get('room_price')):
+        if _price_override_denied(self.request.user, room, vdata.get('room_price')):
             raise ValidationError({'room_price': 'تعديل السعر يدويًا يتطلب صلاحية خاصة (price.edit).'})
-        serializer.save()
+        # سلسلة المال: عند تغيير السعر/الليالي في هذا التحديث يُعاد حساب الإجمالي خادميًّا.
+        save_kwargs = {}
+        if 'room_price' in vdata or 'nights_count' in vdata:
+            eff_price = vdata.get('room_price') if 'room_price' in vdata else instance.room_price
+            eff_nights = vdata.get('nights_count') if 'nights_count' in vdata else instance.nights_count
+            if eff_price is not None:
+                save_kwargs['total'] = _reservation_room_total(eff_price, eff_nights)
+        eff_ci = vdata.get('check_in_date') if 'check_in_date' in vdata else instance.check_in_date
+        eff_co = vdata.get('check_out_date') if 'check_out_date' in vdata else instance.check_out_date
+        eff_status = vdata.get('status') if 'status' in vdata else instance.status
+        with transaction.atomic():
+            if room is not None and eff_status not in NON_BLOCKING_RESERVATION_STATUSES:
+                Room.objects.select_for_update().filter(pk=room.pk).first()
+                _assert_room_available(instance.hotel_id, room, eff_ci, eff_co,
+                                       exclude_reservation_id=instance.pk)
+            serializer.save(**save_kwargs)
+
+    def perform_destroy(self, instance):
+        # سياسة «إبطال لا حذف»: لا يُمحى سجلّ حجز (يجرّ معه مدفوعات/فوليو/طلبات).
+        # الإلغاء يتمّ عبر إجراء hotel_cancel الذي يحفظ السبب ويُحرّر الغرفة ويُبقي الأثر.
+        raise ValidationError({
+            'detail': 'لا يُحذف الحجز نهائيًّا. استخدم «إلغاء الحجز» (hotel_cancel) للحفاظ على الأثر المالي.',
+            'code': 'delete_forbidden',
+        })
 
     @action(detail=False, methods=['get'], url_path='guest_lookup')
     def guest_lookup(self, request):
@@ -1373,6 +1450,10 @@ class ReservationViewSet(viewsets.ModelViewSet):
             res.room.status = Room.STATUS_AVAILABLE
             res.room.save()
         _sync_commission(res)
+        record_audit(request.user, hotel_id=res.hotel_id, action='reservation.cancel',
+                     entity_type='reservation', entity_id=res.pk,
+                     summary=f'إلغاء حجز: {res.guest_first_name} {res.guest_last_name} · حجز {res.booking_number}'
+                             + (f' · السبب: {res.cancel_reason}' if res.cancel_reason else ''))
         return Response(ReservationSerializer(res).data)
 
     @action(detail=True, methods=['post'], url_path='check_in')

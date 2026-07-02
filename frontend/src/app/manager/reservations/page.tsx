@@ -291,6 +291,11 @@ export default function ReservationsPage() {
   const [viewRes, setViewRes] = useState<Res|null>(null);
   const [viewTab, setViewTab] = useState(0);
 
+  /* quick-action feedback */
+  const [toast,  setToast]  = useState("");
+  const [busyId, setBusyId] = useState<number|null>(null);
+  const showToast = (m:string) => { setToast(m); setTimeout(()=>setToast(""), 3500); };
+
   /* form state */
   const [guest,     setGuest]     = useState(defGuest());
   const [guestAutoFilled, setGuestAutoFilled] = useState(false);
@@ -662,22 +667,44 @@ export default function ReservationsPage() {
     finally{setSaving(false);}
   }
 
-  /* ── Quick actions ──────────────────────────────────── */
-  async function quickConfirm(r:Res) {
-    await fetch(`${API}/reservations/${r.id}/`,{method:"PATCH",headers:apiHJ(),body:JSON.stringify({status:"confirmed"})})
-      .then(res=>{ if(res.ok) fetchRes(); }).catch(()=>{});
+  /* ── Quick actions — تمرّ عبر إجراءات الباك‑إند المحميّة (لا PATCH خام) مع تغذية راجعة ── */
+  // تستدعي إجراءً محميًّا (check_in/check_out/hotel_cancel) وتُظهر نتيجته أو خطأه بوضوح.
+  async function runAction(r:Res, action:string, body:object, okMsg:string) {
+    if(busyId!==null) return;                       // منع النقر المزدوج
+    setBusyId(r.id);
+    try {
+      const res = await fetch(`${API}/reservations/${r.id}/${action}/`,
+        {method:"POST",headers:apiHJ(),body:JSON.stringify(body)});
+      const d = await res.json().catch(()=>({}));
+      if(!res.ok){
+        let msg = d.error || d.detail || t("تعذّر تنفيذ العملية.");
+        if(d.code==="balance_due" && d.balance_due) msg = `${msg} (${d.balance_due} ${d.currency||""})`;
+        showToast(msg);
+        return;
+      }
+      showToast(okMsg); fetchRes();
+    } catch { showToast(t("خطأ في الاتصال بالخادم.")); }
+    finally { setBusyId(null); }
   }
-  async function quickCancel(r:Res) {
-    await fetch(`${API}/reservations/${r.id}/`,{method:"PATCH",headers:apiHJ(),body:JSON.stringify({status:"cancelled"})})
-      .then(res=>{ if(res.ok) fetchRes(); }).catch(()=>{});
+  function quickConfirm(r:Res) {
+    // التأكيد بلا آثار جانبية خادمية — PATCH مباشر مقبول (تسمح به بوّابة الحالة).
+    if(busyId!==null) return;
+    setBusyId(r.id);
+    fetch(`${API}/reservations/${r.id}/`,{method:"PATCH",headers:apiHJ(),body:JSON.stringify({status:"confirmed"})})
+      .then(async res=>{ if(res.ok){ showToast(t("تم تأكيد الحجز.")); fetchRes(); }
+        else { const d=await res.json().catch(()=>({})); showToast(d.detail||d.error||t("تعذّر التأكيد.")); } })
+      .catch(()=>showToast(t("خطأ في الاتصال بالخادم.")))
+      .finally(()=>setBusyId(null));
   }
-  async function quickCheckIn(r:Res) {
-    await fetch(`${API}/reservations/${r.id}/`,{method:"PATCH",headers:apiHJ(),body:JSON.stringify({status:"checked_in"})})
-      .then(res=>{ if(res.ok) fetchRes(); }).catch(()=>{});
+  function quickCheckIn(r:Res) { runAction(r,"check_in",{},t("تم تسجيل دخول النزيل.")); }
+  function quickCheckOut(r:Res) {
+    if(!window.confirm(t("تأكيد تسجيل خروج النزيل؟ لن يتمّ إن كان عليه رصيد مستحق."))) return;
+    runAction(r,"check_out",{},t("تم تسجيل خروج النزيل."));
   }
-  async function quickCheckOut(r:Res) {
-    await fetch(`${API}/reservations/${r.id}/`,{method:"PATCH",headers:apiHJ(),body:JSON.stringify({status:"checked_out"})})
-      .then(res=>{ if(res.ok) fetchRes(); }).catch(()=>{});
+  function quickCancel(r:Res) {
+    if(!window.confirm(t("تأكيد إلغاء هذا الحجز؟"))) return;
+    const reason = window.prompt(t("سبب الإلغاء (اختياري):"),"") ?? "";
+    runAction(r,"hotel_cancel",{reason},t("تم إلغاء الحجز."));
   }
 
   /* ── Stats ─────────────────────────────────────────── */
@@ -724,6 +751,13 @@ export default function ReservationsPage() {
   /* ─────────────────────────────────────────────────────────── */
   return (
     <div className="ds-page">
+      {/* تغذية راجعة للإجراءات السريعة (نجاح/خطأ مثل منع الخروج بالدَّين) */}
+      {toast && (
+        <div style={{position:"fixed",top:80,insetInlineEnd:24,zIndex:9999,maxWidth:360,
+          background:"#1e293b",color:"#fff",padding:"0.7rem 1.1rem",borderRadius:10,
+          fontWeight:700,fontSize:13,boxShadow:"0 8px 24px rgba(15,23,42,.25)"}}>{toast}</div>
+      )}
+
       {/* عابر: عرض الوثيقة داخل نافذة منبثقة (لا تبويب جديد) */}
       <DocumentModal src={docView} onClose={() => setDocView(null)} info={{ label: t("وثيقة الحجز") }} />
 
@@ -1607,15 +1641,20 @@ export default function ReservationsPage() {
                           </select>
                         </div>
                         <div className="field"><label className="field-label"><FL Icon={BookOpen} label={t("حالة الحجز")} /></label>
-                          <select className="select" value={booking.status} onChange={e=>setBooking(p=>({...p,status:e.target.value as ResStatus}))}>
+                          {/* الدخول/الخروج/الإلغاء تُدار عبر أزرار الإجراءات في البطاقة (إجراءات محميّة)
+                              لا من هنا — فتبقى القائمة على «قيد الانتظار/مؤكد» فقط. */}
+                          <select className="select" value={booking.status}
+                            disabled={!!editRes && ["checked_in","checked_out","cancelled","no_show"].includes(booking.status)}
+                            onChange={e=>setBooking(p=>({...p,status:e.target.value as ResStatus}))}>
                             {/* د‑2: «قيد الانتظار» لا تظهر للحجز المباشر (يُؤكَّد تلقائيًا) */}
                             {booking.source!=="direct" && <option value="pending">{t("قيد الانتظار")}</option>}
                             <option value="confirmed">{t("مؤكد")}</option>
-                            <option value="checked_in">{t("مقيم الآن")}</option>
-                            <option value="checked_out">{t("مغادر")}</option>
-                            <option value="cancelled">{t("ملغي")}</option>
-                            <option value="no_show">{t("لم يحضر")}</option>
+                            {editRes && ["checked_in","checked_out","cancelled","no_show"].includes(booking.status) &&
+                              <option value={booking.status} disabled>{STATUS_LABELS[booking.status]??booking.status}</option>}
                           </select>
+                          <p className="text-muted" style={{fontSize:11,marginTop:4}}>
+                            {t("تسجيل الدخول/الخروج/الإلغاء يتمّ عبر أزرار الإجراءات في بطاقة الحجز.")}
+                          </p>
                         </div>
                         <div className="field"><label className="field-label"><FL Icon={Radio} label={t("مصدر الحجز")} /></label>
                           <select className="select" value={booking.source} onChange={e=>setBooking(p=>({...p,source:e.target.value as ResSource}))}>

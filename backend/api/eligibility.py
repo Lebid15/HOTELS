@@ -135,17 +135,18 @@ def bookable_hotel_or_none(hotel_id):
 
 
 # ─────────────────────────── الغرف العامة والتوفّر ────────────────────────
-def conflicting_room_ids(hotel_id, check_in, check_out):
+def conflicting_room_ids(hotel_id, check_in, check_out, exclude_reservation_id=None):
     """أرقام غرف الفندق المحجوزة (تداخل زمنيّ نصف‑مفتوح) خلال الفترة — تُستثنى
     الحجوزات الملغاة/التي لم تحضر. قاعدة التداخل: existing.in < new.out و
-    existing.out > new.in."""
-    return list(
-        Reservation.objects.filter(
-            hotel_id=hotel_id, room__isnull=False,
-            check_in_date__lt=check_out, check_out_date__gt=check_in,
-        ).exclude(status__in=NON_BLOCKING_RESERVATION_STATUSES)
-        .values_list('room_id', flat=True)
-    )
+    existing.out > new.in. عند تعديل حجز قائم يُمرَّر exclude_reservation_id كي لا
+    يتعارض الحجز مع نفسه."""
+    qs = Reservation.objects.filter(
+        hotel_id=hotel_id, room__isnull=False,
+        check_in_date__lt=check_out, check_out_date__gt=check_in,
+    ).exclude(status__in=NON_BLOCKING_RESERVATION_STATUSES)
+    if exclude_reservation_id is not None:
+        qs = qs.exclude(pk=exclude_reservation_id)
+    return list(qs.values_list('room_id', flat=True))
 
 
 def public_available_rooms_qs(hotel, check_in, check_out, guests=1,
