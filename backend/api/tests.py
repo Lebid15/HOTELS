@@ -1402,3 +1402,43 @@ class Stage2ReservationTests(BaseAPITest):
             'guest_first_name': 'افتراضي', 'guest_last_name': 'بلا إعداد', 'room': self.roomA.id,
         }, format='json')
         self.assertEqual(r.status_code, 201)                 # بلا إعداد وثائق → لا إلزام
+
+
+# ── م3‑ب: الدفع المختلط (تفصيل نقدي/إلكتروني/كرت) ──────────────────────────
+class Stage3MixedPaymentTests(BaseAPITest):
+    def test_split_payment_derives_total_and_mixed_method(self):
+        self.as_(self.mgrA)
+        r = self.client.post('/api/payments/', {
+            'reservation': self.resA.id, 'amount_cash': 30, 'amount_card': 20,
+            'currency': 'USD', 'source': 'booking',
+        }, format='json')
+        self.assertEqual(r.status_code, 201)
+        d = r.json()
+        self.assertEqual(float(d['amount']), 50)             # الإجمالي مُشتقّ من الأجزاء
+        self.assertEqual(d['method'], 'mixed')
+        self.assertEqual(float(d['amount_electronic']), 0)
+
+    def test_single_method_autofills_split_column(self):
+        self.as_(self.mgrA)
+        r = self.client.post('/api/payments/', {
+            'reservation': self.resA.id, 'amount': 40, 'method': 'electronic',
+            'currency': 'USD', 'source': 'booking',
+        }, format='json')
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(float(r.json()['amount_electronic']), 40)   # يُملأ تلقائيًا
+
+    def test_settle_and_checkout_with_split(self):
+        from .models import Payment
+        res = Reservation.objects.create(hotel=self.hotelA, room=self.roomA,
+                                         guest_first_name='دفع', guest_last_name='مختلط',
+                                         total=100, currency='USD', status=Reservation.STATUS_CHECKED_IN)
+        self.as_(self.mgrA)
+        r = self.client.post(f'/api/reservations/{res.id}/settle_and_checkout/',
+                             {'amount_cash': 60, 'amount_card': 40}, format='json')
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()['status'], 'checked_out')
+        self.assertEqual(float(r.json()['balance_due']), 0)
+        p = Payment.objects.filter(reservation=res).first()
+        self.assertEqual(p.method, 'mixed')
+        self.assertEqual(float(p.amount_cash), 60)
+        self.assertEqual(float(p.amount_card), 40)

@@ -383,7 +383,9 @@ class PaymentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Payment
         fields = [
-            'id', 'hotel', 'reservation', 'amount', 'currency', 'method', 'source', 'note',
+            'id', 'hotel', 'reservation', 'amount',
+            'amount_cash', 'amount_electronic', 'amount_card',
+            'currency', 'method', 'source', 'note',
             'receipt_no', 'voided', 'voided_at', 'void_reason',
             'created_by', 'created_by_name', 'guest_name', 'created_at',
         ]
@@ -394,6 +396,18 @@ class PaymentSerializer(serializers.ModelSerializer):
             'voided': {'read_only': True}, 'voided_at': {'read_only': True},
             'void_reason': {'read_only': True},
         }
+
+    def validate(self, attrs):
+        # م3: عند إرسال تفصيل الدفع، الإجمالي مُشتقّ = مجموع الأجزاء (مصدر حقيقة واحد)
+        cash = attrs.get('amount_cash') or Decimal('0')
+        elec = attrs.get('amount_electronic') or Decimal('0')
+        card = attrs.get('amount_card') or Decimal('0')
+        split_sum = cash + elec + card
+        if split_sum > 0:
+            attrs['amount'] = split_sum
+            if sum(1 for x in (cash, elec, card) if x) > 1:
+                attrs['method'] = Payment.METHOD_MIXED
+        return attrs
 
     def get_guest_name(self, obj):
         r = obj.reservation

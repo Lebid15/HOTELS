@@ -1238,13 +1238,28 @@ class ReservationViewSet(viewsets.ModelViewSet):
         res = self.get_object()
         if res.status != Reservation.STATUS_CHECKED_IN:
             return Response({'error': 'لا يمكن تسجيل الخروج قبل تسجيل الدخول'}, status=400)
+        from decimal import Decimal as _D
         method = request.data.get('method', Payment.METHOD_CASH)
+        cash = _D(str(request.data.get('amount_cash') or 0))
+        elec = _D(str(request.data.get('amount_electronic') or 0))
+        card = _D(str(request.data.get('amount_card') or 0))
+        split_sum = cash + elec + card
         with transaction.atomic():
             room_bal = (res.total or 0) - (res.paid or 0)
             if room_bal > 0:
-                Payment.objects.create(hotel_id=res.hotel_id, reservation=res, amount=room_bal,
-                                       currency=res.currency, method=method, source='booking',
-                                       created_by=request.user)
+                if split_sum > 0:   # م3: دفع مختلط — تفصيل نقدي/إلكتروني/كرت
+                    nonzero = sum(1 for x in (cash, elec, card) if x)
+                    m = (Payment.METHOD_MIXED if nonzero > 1
+                         else Payment.METHOD_CASH if cash
+                         else Payment.METHOD_ELECTRONIC if elec else Payment.METHOD_CARD)
+                    Payment.objects.create(hotel_id=res.hotel_id, reservation=res, amount=split_sum,
+                                           amount_cash=cash, amount_electronic=elec, amount_card=card,
+                                           currency=res.currency, method=m, source='booking',
+                                           created_by=request.user)
+                else:
+                    Payment.objects.create(hotel_id=res.hotel_id, reservation=res, amount=room_bal,
+                                           currency=res.currency, method=method, source='booking',
+                                           created_by=request.user)
             res.folio_charges.filter(settled=False).update(settled=True)
             # د‑4: تسوية جزء حساب الغرفة لطلبات الطعام (بدل تعديل وسيلة الدفع)
             res.food_orders.exclude(status=FoodOrder.STATUS_CANCELLED).filter(

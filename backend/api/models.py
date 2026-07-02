@@ -731,12 +731,14 @@ class HotelRating(models.Model):
 # ─── Payment (سلسلة المال — مصدر الحقيقة للمدفوعات) ───────────────────────
 class Payment(models.Model):
     METHOD_CASH = 'cash'
+    METHOD_ELECTRONIC = 'electronic'
     METHOD_CARD = 'card'
     METHOD_TRANSFER = 'transfer'
+    METHOD_MIXED = 'mixed'
     METHOD_OTHER = 'other'
     METHOD_CHOICES = [
-        (METHOD_CASH, 'نقدًا'), (METHOD_CARD, 'بطاقة'),
-        (METHOD_TRANSFER, 'تحويل'), (METHOD_OTHER, 'أخرى'),
+        (METHOD_CASH, 'نقدًا'), (METHOD_ELECTRONIC, 'إلكتروني'), (METHOD_CARD, 'بطاقة/كرت'),
+        (METHOD_TRANSFER, 'تحويل'), (METHOD_MIXED, 'مختلط'), (METHOD_OTHER, 'أخرى'),
     ]
     # د‑3: مصدر الدفعة (لتتبّع «من أين دخل المبلغ» في المدفوعات والتقارير)
     SOURCE_CHOICES = [
@@ -746,7 +748,11 @@ class Payment(models.Model):
     ]
     hotel       = models.ForeignKey(Hotel, on_delete=models.CASCADE, related_name='payments')
     reservation = models.ForeignKey(Reservation, null=True, blank=True, on_delete=models.SET_NULL, related_name='payments')
-    amount      = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    amount      = models.DecimalField(max_digits=10, decimal_places=2, default=0)   # الإجمالي (مصدر الحقيقة)
+    # م3: تفصيل الدفع المختلط — تُجمَع = amount. تُملأ تلقائيًا لطريقة مفردة (لتقارير موحّدة).
+    amount_cash       = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    amount_electronic = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    amount_card       = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     currency    = models.CharField(max_length=10, default='SAR')
     method      = models.CharField(max_length=20, choices=METHOD_CHOICES, default=METHOD_CASH)
     source      = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='booking')
@@ -765,6 +771,14 @@ class Payment(models.Model):
         indexes = [models.Index(fields=['hotel', 'created_at']), models.Index(fields=['reservation'])]
 
     def save(self, *args, **kwargs):
+        # م3: إن لم يُفصَّل الدفع، وزّع الإجمالي على عمود الطريقة المفردة (تقارير موحّدة)
+        if (self.amount_cash + self.amount_electronic + self.amount_card) == 0 and self.amount:
+            if self.method == self.METHOD_CASH:
+                self.amount_cash = self.amount
+            elif self.method == self.METHOD_ELECTRONIC:
+                self.amount_electronic = self.amount
+            elif self.method == self.METHOD_CARD:
+                self.amount_card = self.amount
         super().save(*args, **kwargs)
         if not self.receipt_no:
             Payment.objects.filter(pk=self.pk).update(receipt_no=f'RC-{self.pk:06d}')

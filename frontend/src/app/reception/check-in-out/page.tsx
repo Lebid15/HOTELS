@@ -72,7 +72,7 @@ export default function CheckInOutPage() {
   const [checkoutSuccess, setCheckoutSuccess] = useState<number | null>(null);
   // م3: نافذة تسوية الرصيد عند منع الخروج بالدين (402) بدل خطأ عام
   const [settleFor, setSettleFor] = useState<{ id: number; guestName: string; room: string; balance: number; currency: string } | null>(null);
-  const [settleMethod, setSettleMethod] = useState("cash");
+  const [settleSplit, setSettleSplit] = useState<{ cash: number; electronic: number; card: number }>({ cash: 0, electronic: 0, card: 0 });
   const [settleBusy, setSettleBusy] = useState(false);
 
   useEffect(() => {
@@ -179,13 +179,15 @@ export default function CheckInOutPage() {
         // م3: دين مستحق — افتح نافذة تسوية بدل رسالة خطأ عامة
         const data = await r.json().catch(() => ({}));
         const g = guests.find((x) => x.id === guestId);
+        const bal = Number(data.balance_due ?? 0);
         setSettleFor({
           id: guestId,
           guestName: g?.guestName ?? "",
           room: g?.room ?? "",
-          balance: Number(data.balance_due ?? 0),
+          balance: bal,
           currency: data.currency ?? "",
         });
+        setSettleSplit({ cash: bal, electronic: 0, card: 0 });   // م3: المبلغ كلّه نقدي افتراضيًّا — قابل للتقسيم
         return;
       }
       if (!r.ok) throw new Error();
@@ -203,7 +205,7 @@ export default function CheckInOutPage() {
     try {
       const r = await fetch(apiUrl(`/reservations/${settleFor.id}/settle_and_checkout/`), {
         method: "POST", headers: getAuthJsonHeaders(),
-        body: JSON.stringify({ method: settleMethod }),
+        body: JSON.stringify({ amount_cash: settleSplit.cash, amount_electronic: settleSplit.electronic, amount_card: settleSplit.card }),
       });
       if (!r.ok) throw new Error();
       const id = settleFor.id;
@@ -243,14 +245,29 @@ export default function CheckInOutPage() {
                 <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--color-muted)" }}>{t("الغرفة")}</span><strong>{settleFor.room}</strong></div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}><span style={{ color: "var(--color-muted)" }}>{t("المتبقي")}</span><strong style={{ color: "var(--color-danger)", fontSize: "1.05rem" }}>{settleFor.currency} {settleFor.balance.toLocaleString("en-US")}</strong></div>
               </div>
-              <label className="field-label">{t("طريقة الدفع")}</label>
-              <select className="select" value={settleMethod} onChange={e => setSettleMethod(e.target.value)} style={{ marginBottom: "1rem" }}>
-                <option value="cash">{t("نقدي")}</option>
-                <option value="electronic">{t("إلكتروني")}</option>
-                <option value="card">{t("كرت / بطاقة بنكية")}</option>
-              </select>
+              <label className="field-label">{t("طريقة الدفع (يمكن التقسيم)")}</label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "0.6rem" }}>
+                {([["cash", t("نقدي")], ["electronic", t("إلكتروني")], ["card", t("كرت")]] as const).map(([k, lbl]) => (
+                  <div key={k}>
+                    <label style={{ fontSize: "0.72rem", color: "var(--color-muted)" }}>{lbl}</label>
+                    <input className="input" type="number" min={0} value={settleSplit[k]}
+                      onChange={e => setSettleSplit(s => ({ ...s, [k]: Number(e.target.value) || 0 }))} />
+                  </div>
+                ))}
+              </div>
+              {(() => {
+                const sum = settleSplit.cash + settleSplit.electronic + settleSplit.card;
+                const diff = Math.round((settleFor.balance - sum) * 100) / 100;
+                return (
+                  <p style={{ fontSize: "0.8rem", marginBottom: "1rem", color: diff === 0 ? "#16a34a" : "#dc2626", fontWeight: 700 }}>
+                    {diff === 0 ? t("المجموع مطابق للمستحق ✓") : `${t("المتبقي لمطابقة المستحق:")} ${settleFor.currency} ${diff.toLocaleString("en-US")}`}
+                  </p>
+                );
+              })()}
               <div style={{ display: "flex", gap: "0.5rem" }}>
-                <button className="ds-btn ds-btn-success" disabled={settleBusy} onClick={handleSettleAndCheckout} style={{ flex: 1, justifyContent: "center" }}>
+                <button className="ds-btn ds-btn-success"
+                  disabled={settleBusy || Math.round((settleSplit.cash + settleSplit.electronic + settleSplit.card - settleFor.balance) * 100) / 100 !== 0}
+                  onClick={handleSettleAndCheckout} style={{ flex: 1, justifyContent: "center" }}>
                   {settleBusy ? t("جارٍ المعالجة...") : t("دفع وإغلاق الحساب")}
                 </button>
                 <button className="ds-btn ds-btn-neutral" disabled={settleBusy} onClick={() => setSettleFor(null)}>{t("إلغاء")}</button>
