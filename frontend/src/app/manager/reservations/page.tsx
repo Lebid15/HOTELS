@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import { ClipboardList, Clock, CheckCircle2, Home, Banknote, Search, Calendar, User, Radio, Moon, Users, UserCheck, Eye, Printer, Pencil, Check, XCircle, FileText, Phone, Mail, CreditCard, Hash, Upload, Globe, BookOpen, X, AlertTriangle } from "lucide-react";
 import { useLang } from "../LangContext";
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
+import { cachedOpSettings } from "@/lib/settings";
 import { escapeHtml as esc } from "@/lib/print";
 
 /* ─── Types ──────────────────────────────────────────────── */
@@ -286,6 +287,7 @@ export default function ReservationsPage() {
   const [success, setSuccess] = useState<null|{booking_number:string;guest:string;room:string;total:number;currency:string}>(null);
   const [saving,  setSaving]  = useState(false);
   const [formErr, setFormErr] = useState("");
+  const [invalidFields, setInvalidFields] = useState<string[]>([]);   // م2: تلوين الحقول الناقصة بالأحمر
 
   /* view modal */
   const [viewRes, setViewRes] = useState<Res|null>(null);
@@ -449,7 +451,7 @@ export default function ReservationsPage() {
   function closeModal() { setOpen(false); setSuccess(null); }
 
   /* ── Guest recall from backend (د‑2: مصدر مركزي بدل localStorage) ───────── */
-  async function lookupFromGuestDB(by: "id" | "phone", value: string) {
+  async function lookupFromGuestDB(by: "id" | "phone" | "name", value: string) {
     const q = value.trim();
     if (q.length < 3) return;
     try {
@@ -490,44 +492,62 @@ export default function ReservationsPage() {
     setDocs(p=>{const cd=[...p.companion_docs];cd[i]={...cd[i],doc_image:b,doc_name:f.name};return{...p,companion_docs:cd};});
   }
 
-  /* ── د‑2: تحقّق كل مرحلة + إلزام الوثائق حسب الإعدادات ─────────────────── */
+  /* ── م2: تحقّق كل مرحلة (مُحاذًى للترتيب المرئي: نزيل→مرافقون→وثائق→حجز) ─────
+     يعيد رسالة + الحقول الناقصة لإبرازها بالأحمر. إعدادات الوثائق من المصدر
+     المركزي الخادمي (المخبّأ) بدل مفتاح localStorage القديم. */
   function docSettings(): { requireGuest?:boolean; requireCompanion?:boolean; requireRelation?:boolean } {
+    try {
+      const d = cachedOpSettings().documents as { requireGuest?:boolean; requireCompanion?:boolean; requireRelation?:boolean };
+      if (d && Object.keys(d).length) return d;
+    } catch { /* fallback below */ }
     try { const s = JSON.parse(localStorage.getItem(`fandqi.settings.${hotelId}`) ?? "{}"); return s.docs ?? {}; }
     catch { return {}; }
   }
-  function stepError(n:number): string {
-    if(n===1){
-      if(!guest.first_name.trim()||!guest.last_name.trim()) return t("اسم النزيل (الأول والأخير) مطلوب.");
-      if(!guest.id_number.trim()) return t("رقم الهوية/الجواز مطلوب.");
-      if(!guest.no_email && guest.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email)) return t("البريد الإلكتروني غير صحيح.");
+  function stepCheck(n:number): { msg:string; fields:string[] } {
+    if(n===1){   // بيانات النزيل
+      const f:string[]=[];
+      if(!guest.first_name.trim()) f.push("first_name");
+      if(!guest.last_name.trim())  f.push("last_name");
+      if(f.length) return { msg:t("اسم النزيل (الأول والأخير) مطلوب."), fields:f };
+      if(!guest.id_number.trim()) return { msg:t("رقم الهوية/الجواز مطلوب."), fields:["id_number"] };
+      if(!guest.no_email && guest.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email)) return { msg:t("البريد الإلكتروني غير صحيح."), fields:["email"] };
     }
-    if(n===2){
-      if(!booking.room_id) return t("يجب اختيار الغرفة.");
-      if(!booking.check_in||!booking.check_out) return t("يجب تحديد تاريخ الوصول والمغادرة.");
-      if(booking.check_out<=booking.check_in) return t("تاريخ المغادرة يجب أن يكون بعد تاريخ الوصول.");
+    if(n===2 && comp.has_companions){   // المرافقون
+      if(comp.list.some(c=>!c.first_name.trim())) return { msg:t("بيانات المرافقين ناقصة (الاسم مطلوب)."), fields:["companions"] };
     }
-    if(n===3 && comp.has_companions){
-      if(comp.list.some(c=>!c.first_name.trim())) return t("بيانات المرافقين ناقصة (الاسم مطلوب).");
-    }
-    if(n===4){
-      const ds = docSettings();
-      if(ds.requireGuest && !docs.guest_doc_image) return t("وثيقة النزيل مطلوبة قبل إتمام الحجز.");
+    if(n===3){   // الوثائق
+      const ds = docSettings(); const missing:string[]=[]; const fields:string[]=[];
+      if(ds.requireGuest && !docs.guest_doc_image){ missing.push(t("وثيقة صاحب الحجز")); fields.push("guest_doc"); }
       const hasWife = comp.has_companions && comp.list.some(c=>/زوج/.test(c.relation||""));
-      if(hasWife && ds.requireRelation && !docs.family_doc_image) return t("دفتر العائلة/إثبات الزواج مطلوب عند وجود زوجة.");
-      if(ds.requireCompanion && comp.has_companions && comp.list.some((_,i)=>!docs.companion_docs[i]?.doc_image)) return t("وثائق المرافقين مطلوبة.");
+      if(hasWife && ds.requireRelation && !docs.family_doc_image){ missing.push(t("دفتر العائلة/إثبات الزواج")); fields.push("family_doc"); }
+      if(ds.requireCompanion && comp.has_companions && comp.list.some((_,i)=>!docs.companion_docs[i]?.doc_image)){ missing.push(t("وثائق المرافقين")); fields.push("companion_docs"); }
+      if(missing.length) return { msg:t("الوثائق الإلزامية الناقصة:")+" "+missing.join("، "), fields };
     }
-    return "";
+    if(n===4){   // بيانات الحجز
+      if(!booking.room_id) return { msg:t("يجب اختيار الغرفة."), fields:["room_id"] };
+      const f:string[]=[];
+      if(!booking.check_in)  f.push("check_in");
+      if(!booking.check_out) f.push("check_out");
+      if(f.length) return { msg:t("يجب تحديد تاريخ الوصول والمغادرة."), fields:f };
+      if(booking.check_out<=booking.check_in) return { msg:t("تاريخ المغادرة يجب أن يكون بعد تاريخ الوصول."), fields:["check_out"] };
+    }
+    return { msg:"", fields:[] };
   }
   function goNext(){
-    const err = stepError(step);
-    if(err){ setFormErr(err); return; }
-    setFormErr(""); setStep(p=>p+1);
+    const { msg, fields } = stepCheck(step);
+    if(msg){ setFormErr(msg); setInvalidFields(fields); return; }
+    setFormErr(""); setInvalidFields([]); setStep(p=>p+1);
   }
+  const inv = (k:string) => invalidFields.includes(k);
+  const errBorder = (k:string): React.CSSProperties => inv(k) ? { borderColor:"#dc2626", boxShadow:"0 0 0 1px #dc2626" } : {};
+  const fErr = (k:string, msg?:string) => inv(k)
+    ? <p style={{ color:"#dc2626", fontSize:"0.7rem", marginTop:"0.2rem", fontWeight:600 }}>{msg ?? t("هذا الحقل مطلوب")}</p>
+    : null;
 
   /* ── Submit (add + edit) ───────────────────────────── */
   async function handleSave() {
     setFormErr("");
-    for(const n of [1,2,3,4]){ const err=stepError(n); if(err){ setStep(n); setFormErr(err); return; } }
+    for(const n of [1,2,3,4]){ const {msg,fields}=stepCheck(n); if(msg){ setStep(n); setFormErr(msg); setInvalidFields(fields); return; } }
     setSaving(true);
     if(booking.room_id&&booking.check_in&&booking.check_out) {
       if(roomHasConflict(booking.room_id,booking.check_in,booking.check_out,editRes?.id)) {
@@ -1304,15 +1324,18 @@ export default function ReservationsPage() {
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:"0.75rem",marginBottom:"0.75rem"}}>
                         <div className="field">
                           <label className="field-label"><FL Icon={Hash} label={t("الرقم الوطني")} /></label>
-                          <input className="input" value={guest.id_number} onChange={e=>setGuest(p=>({...p,id_number:e.target.value}))} onBlur={e=>lookupFromGuestDB("id",e.target.value)} placeholder={t("أدخل الرقم لاستيراد بيانات النزيل")} />
+                          <input className="input" style={errBorder("id_number")} value={guest.id_number} onChange={e=>setGuest(p=>({...p,id_number:e.target.value}))} onBlur={e=>lookupFromGuestDB("id",e.target.value)} placeholder={t("أدخل الرقم لاستيراد بيانات النزيل")} />
+                          {fErr("id_number")}
                         </div>
                         <div className="field">
                           <label className="field-label"><FL Icon={User} label={t("الاسم الأول")} /></label>
-                          <input className="input" value={guest.first_name} onChange={e=>setGuest(p=>({...p,first_name:e.target.value}))} />
+                          <input className="input" style={errBorder("first_name")} value={guest.first_name} onChange={e=>setGuest(p=>({...p,first_name:e.target.value}))} />
+                          {fErr("first_name")}
                         </div>
                         <div className="field">
                           <label className="field-label"><FL Icon={User} label={t("الكنية")} /></label>
-                          <input className="input" value={guest.last_name} onChange={e=>setGuest(p=>({...p,last_name:e.target.value}))} />
+                          <input className="input" style={errBorder("last_name")} value={guest.last_name} onChange={e=>setGuest(p=>({...p,last_name:e.target.value}))} onBlur={e=>lookupFromGuestDB("name",`${guest.first_name} ${e.target.value}`.trim())} />
+                          {fErr("last_name")}
                         </div>
                         <div className="field">
                           <label className="field-label"><FL Icon={User} label={t("اسم الأب")} /></label>
@@ -1424,8 +1447,9 @@ export default function ReservationsPage() {
                     <div>
                       <p style={{fontWeight:800,marginBottom:"0.85rem",color:"var(--color-heading)"}}>{t("الوثائق")}</p>
                       <hr style={{border:"none",borderTop:"1px solid var(--color-border)",marginBottom:"1rem"}} />
+                      {formErr && step===3 && <p style={{color:"#dc2626",fontSize:"0.78rem",fontWeight:700,marginBottom:"0.6rem"}}>{formErr}</p>}
                       <input ref={guestDocRef} type="file" accept="image/*,application/pdf" style={{display:"none"}} onChange={onGuestDoc} />
-                      <div style={{padding:"0.85rem",border:"1px solid var(--color-border)",borderRadius:"var(--radius-md)",marginBottom:"0.85rem"}}>
+                      <div style={{padding:"0.85rem",border:"1px solid var(--color-border)",borderRadius:"var(--radius-md)",marginBottom:"0.85rem",...errBorder("guest_doc")}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"0.65rem"}}>
                           <span style={{background:docs.guest_doc_name?"#1e293b":"#f3f4f6",color:docs.guest_doc_name?"#fff":"var(--color-muted)",fontSize:"0.7rem",fontWeight:700,padding:"0.2rem 0.6rem",borderRadius:20}}>
                             {docs.guest_doc_name||t("لم يتم اختيار ملف")}
@@ -1453,7 +1477,7 @@ export default function ReservationsPage() {
                         )}
                       </div>
                       {comp.has_companions&&comp.list.length>0&&(
-                        <div style={{padding:"0.85rem",border:"1px solid var(--color-border)",borderRadius:"var(--radius-md)",marginBottom:"0.85rem"}}>
+                        <div style={{padding:"0.85rem",border:"1px solid var(--color-border)",borderRadius:"var(--radius-md)",marginBottom:"0.85rem",...errBorder("companion_docs")}}>
                           <p style={{fontWeight:800,fontSize:"var(--text-sm)",marginBottom:"0.75rem"}}>{t("وثائق المرافقين البالغين")}</p>
                           {comp.list.map((c,i)=>{
                             const cd=docs.companion_docs[i];
@@ -1492,9 +1516,10 @@ export default function ReservationsPage() {
                         </div>
                       )}
                       <input ref={familyDocRef} type="file" accept="image/*,application/pdf" style={{display:"none"}} onChange={onFamilyDoc} />
-                      <div style={{padding:"0.85rem",border:"1px solid var(--color-border)",borderRadius:"var(--radius-md)"}}>
+                      <div style={{padding:"0.85rem",border:"1px solid var(--color-border)",borderRadius:"var(--radius-md)",...errBorder("family_doc")}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:"0.5rem"}}>
-                          <span style={{background:"#f3f4f6",color:"var(--color-muted)",fontSize:"0.72rem",fontWeight:700,padding:"0.2rem 0.6rem",borderRadius:20}}>{t("اختياري")}</span>
+                          {(() => { const wifeReq = comp.has_companions && comp.list.some(c=>/زوج/.test(c.relation||"")) && !!docSettings().requireRelation;
+                            return <span style={{background:wifeReq?"#fee2e2":"#f3f4f6",color:wifeReq?"#dc2626":"var(--color-muted)",fontSize:"0.72rem",fontWeight:700,padding:"0.2rem 0.6rem",borderRadius:20}}>{wifeReq?t("مطلوب"):t("اختياري")}</span>; })()}
                           <p style={{fontWeight:800,fontSize:"var(--text-sm)"}}>{t("دفتر عائلة أو إثبات قرابة")}</p>
                         </div>
                         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.75rem",marginBottom:"0.65rem"}}>
@@ -1538,18 +1563,20 @@ export default function ReservationsPage() {
                           <input className="input" value={booking.booking_number} onChange={e=>setBooking(p=>({...p,booking_number:e.target.value}))} />
                         </div>
                         <div className="field"><label className="field-label"><FL Icon={Home} label={t("الغرفة")} /></label>
-                          <select className="select" value={booking.room_id} onChange={e=>setBooking(p=>({...p,room_id:e.target.value}))}>
+                          <select className="select" style={errBorder("room_id")} value={booking.room_id} onChange={e=>setBooking(p=>({...p,room_id:e.target.value}))}>
                             <option value="">{lang==="ar"?"— اختر غرفة —":"— Select a room —"}</option>
                             {activeRooms.map(r=>(
                               <option key={r.id} value={r.id}>{lang==="ar"?`غرفة ${r.number} - الطابق ${r.floor}`:`Room ${r.number} - Floor ${r.floor}`} - {r.currency} {Number(r.price).toLocaleString("en-US")}</option>
                             ))}
                           </select>
+                          {fErr("room_id", t("يجب اختيار الغرفة."))}
                         </div>
                         <div className="field"><label className="field-label"><FL Icon={Users} label={t("عدد الأشخاص")} /></label>
                           <input className="input" type="number" min="1" value={booking.persons_count} onChange={e=>setBooking(p=>({...p,persons_count:Number(e.target.value)}))} />
                         </div>
                         <div className="field"><label className="field-label"><FL Icon={Calendar} label={t("تاريخ الدخول")} /></label>
-                          <input className="input" type="date" value={booking.check_in} onChange={e=>setBooking(p=>({...p,check_in:e.target.value}))} />
+                          <input className="input" style={errBorder("check_in")} type="date" value={booking.check_in} onChange={e=>setBooking(p=>({...p,check_in:e.target.value}))} />
+                          {fErr("check_in")}
                         </div>
                       </div>
                       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:"0.75rem",marginBottom:"0.75rem"}}>
