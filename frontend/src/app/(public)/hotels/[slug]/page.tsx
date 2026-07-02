@@ -205,6 +205,8 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
           total:     String(data.total),
           currency:  data.currency,
           phone:     data.guest_phone,
+          // المرحلة 3: نمرّر رمز الإدارة القويّ (يظهر مرّة واحدة) لصفحة النجاح فقط
+          token:     data.manage_token ?? "",
         });
         router.push(`/booking/success?${p}`);
       })

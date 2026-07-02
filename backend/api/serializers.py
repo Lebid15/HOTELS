@@ -302,8 +302,12 @@ def _mask_phone(phone: str) -> str:
     return '*' * (len(digits) - 4) + digits[-4:]
 
 
-class PublicBookingDetailSerializer(serializers.ModelSerializer):
-    """B‑1: الاستجابة العامة تُقنّع بريد/هاتف الضيف (لا تُرجعهما كاملين)."""
+class PublicBookingLookupSerializer(serializers.ModelSerializer):
+    """المرحلة 3: استجابة البحث/عرض الحجز العام (lookup برقم+هاتف أو رمز).
+
+    **لا تتضمّن `manage_token` إطلاقًا** — الرمز القويّ يظهر مرّة واحدة فقط في
+    استجابة إنشاء الحجز (PublicBookingCreateResponseSerializer). البريد/الهاتف
+    مُقنّعان (B‑1). هذا هو المُسلسِل الآمن الافتراضي لأيّ عرض لاحق للحجز."""
     hotel_name = serializers.CharField(source='hotel.name', read_only=True)
     hotel_city = serializers.CharField(source='hotel.city', read_only=True)
     hotel_phone = serializers.SerializerMethodField()
@@ -314,7 +318,7 @@ class PublicBookingDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Reservation
         fields = [
-            'id', 'public_booking_no', 'manage_token', 'hotel_name', 'hotel_city', 'hotel_phone',
+            'id', 'public_booking_no', 'hotel_name', 'hotel_city', 'hotel_phone',
             'guest_first_name', 'guest_last_name', 'guest_phone', 'guest_email',
             'room_type_label', 'check_in_date', 'check_out_date', 'nights_count',
             'persons_count', 'total', 'currency', 'payment_method', 'documents_status',
@@ -331,6 +335,20 @@ class PublicBookingDetailSerializer(serializers.ModelSerializer):
 
     def get_guest_phone(self, obj):
         return _mask_phone(obj.guest_phone)
+
+
+class PublicBookingCreateResponseSerializer(PublicBookingLookupSerializer):
+    """المرحلة 3: استجابة إنشاء الحجز الناجح **فقط** — تُظهر `manage_token` مرّةً
+    واحدة (+ `manage_url` جاهز للحفظ) كي يحتفظ بهما العميل لإدارة/إلغاء حجزه لاحقًا.
+    يُمنع استخدام هذا المُسلسِل في أيّ بحث/عرض لاحق (كي لا يُعاد كشف الرمز)."""
+    manage_url = serializers.SerializerMethodField()
+
+    class Meta(PublicBookingLookupSerializer.Meta):
+        fields = PublicBookingLookupSerializer.Meta.fields + ['manage_token', 'manage_url']
+
+    def get_manage_url(self, obj):
+        # مسار نسبيّ يحمل الرمز — تبنيه الواجهة رابطًا مطلقًا للحفظ/المشاركة.
+        return f"/manage-booking?no={obj.public_booking_no}&token={obj.manage_token}"
 
 
 class StaffSerializer(serializers.ModelSerializer):

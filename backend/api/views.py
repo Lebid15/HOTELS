@@ -1922,7 +1922,10 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 # ─────────────────────────────────────────────────────────────────────────────
 
 from django.db import transaction as _transaction
-from .serializers import PublicHotelCardSerializer, PublicHotelDetailSerializer, PublicBookingDetailSerializer
+from .serializers import (
+    PublicHotelCardSerializer, PublicHotelDetailSerializer,
+    PublicBookingLookupSerializer, PublicBookingCreateResponseSerializer,
+)
 from . import eligibility as _elig
 
 
@@ -2128,7 +2131,8 @@ class PublicBookingCreateView(APIView):
             ensure_commission(reservation)
         except Exception:
             pass
-        return Response(PublicBookingDetailSerializer(reservation).data, status=201)
+        # المرحلة 3: الرمز القويّ + رابط الإدارة يظهران هنا فقط (مرّة الإنشاء).
+        return Response(PublicBookingCreateResponseSerializer(reservation).data, status=201)
 
 
 def _resolve_public_reservation(booking_no, token='', phone='', extra_select=()):
@@ -2158,8 +2162,10 @@ class PublicBookingManageView(APIView):
             return Response({'error': 'يرجى إدخال رقم الحجز مع رمز الإدارة أو رقم الهاتف'}, status=400)
         res = _resolve_public_reservation(booking_no, token, phone, extra_select=('hotel',))
         if res is None:
-            return Response({'error': 'لم يتم العثور على حجز مطابق'}, status=404)
-        return Response(PublicBookingDetailSerializer(res).data)
+            # رسالة عامّة موحّدة — لا تكشف أيّ الحقلين (الرقم/الهاتف) كان خاطئًا.
+            return Response({'error': 'لم يتم العثور على الحجز بهذه البيانات'}, status=404)
+        # المرحلة 3: مُسلسِل البحث لا يُرجع manage_token مهما كان مسار التحقّق.
+        return Response(PublicBookingLookupSerializer(res).data)
 
 
 class PublicBookingCancelView(APIView):

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { Search, CheckCircle, XCircle, AlertCircle, Calendar, Building2, User, Phone, MessageCircle, Copy, Check } from "lucide-react";
 import { apiUrl } from "@/lib/api";
@@ -59,6 +59,8 @@ export default function ManageBookingPage() {
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState("");
   const [booking,   setBooking]   = useState<BookingDetail | null>(null);
+  // المرحلة 3: رمز الإدارة القويّ يأتي حصراً من رابط الإنشاء الأصلي (لا من البحث)
+  const [urlToken,  setUrlToken]  = useState("");
 
   const [showCancel,    setShowCancel]    = useState(false);
   const [cancelReason,  setCancelReason]  = useState("");
@@ -89,15 +91,14 @@ ${t("طريقة الدفع")}: ${t("الدفع عند الوصول")}`
     }).catch(() => {});
   }
 
-  function lookup(e: React.FormEvent) {
-    e.preventDefault();
-    if (!bookingNo.trim() || !phone.trim()) { setError(t("يرجى إدخال رقم الحجز ورقم الهاتف")); return; }
+  // بحث موحّد — يُبنى استعلامه من (رقم+رمز) عبر الرابط أو (رقم+هاتف) عبر النموذج
+  function runLookup(qs: string) {
     setLoading(true);
     setError("");
     setBooking(null);
     setCancelSuccess(false);
     setShowCancel(false);
-    fetch(apiUrl(`/public/manage-booking/?no=${encodeURIComponent(bookingNo.trim())}&phone=${encodeURIComponent(phone.trim())}`))
+    fetch(apiUrl(`/public/manage-booking/?${qs}`))
       .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
       .then(({ ok, data }) => {
         if (!ok) { setError(data.error ?? t("لم يتم العثور على الحجز")); setLoading(false); return; }
@@ -111,6 +112,28 @@ ${t("طريقة الدفع")}: ${t("الدفع عند الوصول")}`
       .catch(() => { setError(t("حدث خطأ في الاتصال")); setLoading(false); });
   }
 
+  function lookup(e: React.FormEvent) {
+    e.preventDefault();
+    if (!bookingNo.trim() || !phone.trim()) { setError(t("يرجى إدخال رقم الحجز ورقم الهاتف")); return; }
+    setUrlToken("");   // بحث يدويّ بالهاتف — لا نعتمد رمزًا
+    runLookup(`no=${encodeURIComponent(bookingNo.trim())}&phone=${encodeURIComponent(phone.trim())}`);
+  }
+
+  // المرحلة 3: القدوم عبر رابط الإدارة (no+token) → بحث بالرمز القويّ مباشرةً.
+  // النموذج اليدويّ (رقم+هاتف) يبقى مسارًا بديلاً. لا يُؤخذ الرمز من نتيجة بحث.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const no = (p.get("no") || "").trim();
+    const tok = (p.get("token") || "").trim();
+    if (!no || !tok) return;
+    /* eslint-disable react-hooks/set-state-in-effect -- تعبئة الحقول من الرابط مقصودة عند الإقلاع */
+    setBookingNo(no);
+    setUrlToken(tok);
+    /* eslint-enable react-hooks/set-state-in-effect */
+    runLookup(`no=${encodeURIComponent(no)}&token=${encodeURIComponent(tok)}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- قراءة معاملات الرابط مرّة واحدة فقط عند الإقلاع
+  }, []);
+
   function submitCancel(e: React.FormEvent) {
     e.preventDefault();
     if (!booking) return;
@@ -119,7 +142,10 @@ ${t("طريقة الدفع")}: ${t("الدفع عند الوصول")}`
     fetch(apiUrl(`/public/bookings/${booking.public_booking_no}/cancel/`), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ phone: phone.trim(), reason: cancelReason }),
+      // المرحلة 3: نُفضّل الرمز القويّ (إن جاء من الرابط)، وإلا الهاتف كبديل
+      body: JSON.stringify(urlToken
+        ? { token: urlToken, reason: cancelReason }
+        : { phone: phone.trim(), reason: cancelReason }),
     })
       .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
       .then(({ ok, data }) => {

@@ -3,7 +3,7 @@
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, Calendar, Building2, Phone, User, Printer, MessageCircle, Copy, Check } from "lucide-react";
+import { CheckCircle, Calendar, Building2, Phone, User, Printer, MessageCircle, Copy, Check, KeyRound } from "lucide-react";
 import { useLang } from "@/lib/i18n/LangContext";
 
 function BookingSuccessInner() {
@@ -21,8 +21,24 @@ function BookingSuccessInner() {
   const total     = sp.get("total")    ?? "";
   const currency  = sp.get("currency") ?? "";
   const phone     = sp.get("phone")    ?? "";
+  const token     = sp.get("token")    ?? "";
 
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+
+  // المرحلة 3: رابط إدارة الحجز يحمل الرمز القويّ — يظهر مرّة واحدة هنا فقط
+  // (لا يُكشف لاحقًا في البحث). نبنيه رابطًا مطلقًا كي يحفظه العميل.
+  const manageUrl = token && bookingNo
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/manage-booking?no=${encodeURIComponent(bookingNo)}&token=${encodeURIComponent(token)}`
+    : "";
+
+  function copyManageLink() {
+    if (!manageUrl) return;
+    navigator.clipboard?.writeText(manageUrl).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }).catch(() => {});
+  }
 
   function formatDate(d: string) {
     if (!d) return "";
@@ -138,6 +154,26 @@ ${t("طريقة الدفع")}: ${t("الدفع عند الوصول")}`;
                 </div>
               )}
             </div>
+
+            {/* المرحلة 3: رابط إدارة الحجز الآمن — احتفظ به (يظهر مرّة واحدة فقط) */}
+            {manageUrl && (
+              <div className="ds-alert ds-alert-warning" style={{ marginBottom: "1.5rem", flexDirection: "column", alignItems: "stretch", gap: ".6rem" }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                  <KeyRound size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <span>{t("احتفظ برابط إدارة الحجز، فقد تحتاجه لاحقًا لإدارة أو إلغاء الحجز. لن يظهر هذا الرابط مرة أخرى.")}</span>
+                </div>
+                <div style={{ display: "flex", gap: ".5rem", alignItems: "center", flexWrap: "wrap" }}>
+                  <input readOnly value={manageUrl} onFocus={e => e.currentTarget.select()}
+                    dir="ltr"
+                    style={{ flex: 1, minWidth: 200, padding: ".5rem .75rem", border: "1.5px solid var(--color-border)",
+                      borderRadius: 8, fontSize: "var(--text-xs)", fontFamily: "var(--font-main)", background: "#fff",
+                      color: "var(--color-heading)", boxSizing: "border-box" }} />
+                  <button onClick={copyManageLink} className="ds-btn ds-btn-neutral ds-btn-sm" style={{ gap: 6, flexShrink: 0 }}>
+                    {linkCopied ? <><Check size={15} /> {t("تم النسخ")}</> : <><Copy size={15} /> {t("نسخ الرابط")}</>}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Pay at hotel notice */}
             <div className="ds-alert ds-alert-info" style={{ marginBottom: "1.5rem" }}>

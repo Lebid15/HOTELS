@@ -173,6 +173,14 @@ npm run build
 
 ### سجل تنفيذ ملاحظات التطوير (Changelog)
 <!-- يُضاف سطر بعد كل مرحلة -->
+- **[2026‑07‑02] Phase 3 — Public Booking Manage Token Hardening ✅ (تحصين رمز إدارة الحجز بلا اختبارات بطلب المرحلة).**
+  - **تم حصر ظهور `manage_token` في استجابة إنشاء الحجز فقط.** فُصِل مُسلسِل واحد إلى اثنين: `PublicBookingLookupSerializer` (بحث/عرض — **بلا** `manage_token`/`manage_url`) و`PublicBookingCreateResponseSerializer` (الإنشاء فقط — يُظهر `manage_token` + `manage_url` مرّة واحدة).
+  - **تم منع كشف `manage_token` عند البحث برقم الحجز والهاتف:** `PublicBookingManageView.get` صار يُرجع `PublicBookingLookupSerializer` (لا رمز مهما كان مسار التحقّق: رقم+هاتف أو رقم+رمز). حُذف `PublicBookingDetailSerializer` القديم بالكامل (لا مرجع متبقٍّ).
+  - **تم فصل ردود الإنشاء عن ردود البحث/التفاصيل** كما أعلاه؛ إنشاء الحجز يستخدم `PublicBookingCreateResponseSerializer` (201) فقط.
+  - **تم تقليل تسريب البيانات في البحث العام:** البريد/الهاتف يبقيان مُقنّعين، ورسالة الفشل موحّدة «لم يتم العثور على الحجز بهذه البيانات» (لا تكشف أيّ الحقلين خاطئ).
+  - **تم الحفاظ على إدارة الحجز عبر الرمز الأصلي دون إعادة كشفه:** صفحة النجاح تعرض **رابط إدارة آمنًا** (يحمل الرمز) مع تنبيه «احتفظ بالرابط… لن يظهر مرة أخرى» وزرّ نسخ؛ صفحة الإدارة تقرأ `no`+`token` من الرابط الأصلي فتبحث/تُلغي بالرمز القويّ، ويبقى مسار (رقم+هاتف) اليدويّ بديلاً — ولا يُؤخذ أيّ رمز من نتيجة بحث.
+  - **الفحص السريع:** `check` نظيف · لا ترحيلات (لا تغيير نماذج) · `tsc` = 0 · `eslint` (الملفات الثلاث) = 0 · `build` ✓ · smoke‑test: lookup بلا `manage_token`/`manage_url`، create يحويهما، وlookup يُبقي التقنيع. **لم تُشغَّل/تُكتَب اختبارات** (حسب نطاق المرحلة). الفرع: `feat/p3-manage-token`.
+  - **مؤجّل للاختبار النهائي:** اختبار يؤكّد غياب `manage_token` من استجابة البحث (رقم+هاتف) ووجوده في الإنشاء + مسار الإلغاء بالرمز عبر الرابط.
 - **[2026‑07‑02] Phase 2 — Public Booking Eligibility Gate ✅ (توحيد بوّابة الظهور/الحجز العام بلا اختبارات بطلب المرحلة).**
   - **مصدر مركزي واحد جديد `backend/api/eligibility.py`** يجمع كل قرارات الأهلية العامة: `public_visible_hotels_qs()` + `can_show_publicly(hotel)` + `bookable_hotels_qs()` + `can_accept_public_booking(hotel)` + `bookable_hotel_or_none(hotel_id)` + `hotel_accepted_agreement(hotel)`/`agreement_enforced()` + `conflicting_room_ids()` + `public_available_rooms_qs()`. الـViews تُفوِّض إليه ولا تُكرِّر الشروط.
   - **`can_show_publicly` (الظهور):** الحالة=فعّال (تلقائيًا: غير موقوف من المنصّة وغير مؤرشف) + `public_listing_enabled` + بيانات أساسية (اسم+مدينة) + اشتراك قائم غير منتهٍ + الباقة تسمح بالظهور. القرار كلّه خادميّ.
