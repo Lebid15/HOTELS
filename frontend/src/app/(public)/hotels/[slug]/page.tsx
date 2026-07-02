@@ -78,7 +78,7 @@ const HOTEL_TYPE_MAP: Record<string, string> = {
 export default function HotelDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const router   = useRouter();
-  const { t }    = useLang();
+  const { t, locale } = useLang();
 
   const [hotel,    setHotel]    = useState<HotelDetail | null>(null);
   const [loading,  setLoading]  = useState(true);
@@ -527,7 +527,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
                         </span>
                       </div>
                       <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>
-                        {new Date(r.created_at).toLocaleDateString("ar-SY", { year: "numeric", month: "long", day: "numeric" })}
+                        {new Date(r.created_at).toLocaleDateString(locale, { year: "numeric", month: "long", day: "numeric" })}
                       </span>
                     </div>
                     {r.comment && (
@@ -548,7 +548,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
                 borderBottom: "1px solid var(--color-border)" }}>
                 <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>{t("يبدأ من")}</span>
                 <div className="pub-room-card-price" style={{ fontSize: "1.6rem" }}>
-                  {hotel.min_price.toLocaleString("ar")} <span style={{ fontSize: "var(--text-sm)", fontWeight: 400, color: "var(--color-muted)" }}>{hotel.min_currency} / {t("ليلة")}</span>
+                  {hotel.min_price.toLocaleString(locale)} <span style={{ fontSize: "var(--text-sm)", fontWeight: 400, color: "var(--color-muted)" }}>{hotel.min_currency} / {t("ليلة")}</span>
                 </div>
               </div>
             )}
@@ -615,12 +615,12 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
                           )}
                         </div>
                         <div style={{ textAlign: "center", flexShrink: 0 }}>
-                          <div className="pub-room-card-price">{r.price_per_night.toLocaleString("ar")}</div>
+                          <div className="pub-room-card-price">{r.price_per_night.toLocaleString(locale)}</div>
                           <div style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)", marginBottom: ".5rem" }}>
                             {r.currency}/{t("ليلة")}
                           </div>
                           <div style={{ fontSize: "var(--text-xs)", color: "var(--color-primary)", fontWeight: 600, marginBottom: ".5rem" }}>
-                            {t("المجموع:")} {r.total_price.toLocaleString("ar")} {r.currency}
+                            {t("المجموع:")} {r.total_price.toLocaleString(locale)} {r.currency}
                           </div>
                           <button className="ds-btn ds-btn-primary ds-btn-sm"
                             onClick={() => { setSelectedRoom(r); setBookError(""); }}>
@@ -669,7 +669,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ color: "var(--color-muted)" }}>{t("الإجمالي")}</span>
                 <strong style={{ color: "var(--color-primary)", fontSize: "var(--text-lg)" }}>
-                  {selectedRoom.total_price.toLocaleString("ar")} {selectedRoom.currency}
+                  {selectedRoom.total_price.toLocaleString(locale)} {selectedRoom.currency}
                 </strong>
               </div>
               <div style={{ marginTop: ".5rem", fontSize: "var(--text-xs)", color: "var(--color-muted)", textAlign: "center" }}>

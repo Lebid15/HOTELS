@@ -36,7 +36,7 @@ const STARS_OPTS = [
 ];
 
 function HotelsPageInner() {
-  const { t } = useLang();
+  const { t, locale } = useLang();
   const sp     = useSearchParams();
   const router = useRouter();
 
@@ -194,7 +194,7 @@ function HotelsPageInner() {
                       <div className="pub-hotel-card-footer">
                         {h.min_price != null ? (
                           <div className="pub-price">
-                            {h.min_price.toLocaleString("ar")}
+                            {h.min_price.toLocaleString(locale)}
                             {" "}<span className="pub-price-label">{h.min_currency} / {t("ليلة")}</span>
                           </div>
                         ) : <div />}

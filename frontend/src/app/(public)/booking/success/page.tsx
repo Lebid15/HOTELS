@@ -7,7 +7,7 @@ import { CheckCircle, Calendar, Building2, Phone, User, Printer, MessageCircle, 
 import { useLang } from "@/lib/i18n/LangContext";
 
 function BookingSuccessInner() {
-  const { t } = useLang();
+  const { t, locale } = useLang();
   const sp = useSearchParams();
 
   const bookingNo = sp.get("no")       ?? "";
@@ -26,7 +26,7 @@ function BookingSuccessInner() {
 
   function formatDate(d: string) {
     if (!d) return "";
-    try { return new Date(d).toLocaleDateString("ar-SY", { weekday: "long", year: "numeric", month: "long", day: "numeric" }); }
+    try { return new Date(d).toLocaleDateString(locale, { weekday: "long", year: "numeric", month: "long", day: "numeric" }); }
     catch { return d; }
   }
 
@@ -39,7 +39,7 @@ ${t("نوع الغرفة")}: ${roomType}
 ${t("الوصول")}: ${checkIn}
 ${t("المغادرة")}: ${checkOut}
 ${t("عدد الليالي")}: ${nights}
-${t("الإجمالي")}: ${total ? `${parseFloat(total).toLocaleString("ar")} ${currency}` : ""}
+${t("الإجمالي")}: ${total ? `${parseFloat(total).toLocaleString(locale)} ${currency}` : ""}
 ${t("طريقة الدفع")}: ${t("الدفع عند الوصول")}`;
 
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(summaryText)}`;
@@ -133,7 +133,7 @@ ${t("طريقة الدفع")}: ${t("الدفع عند الوصول")}`;
                 <div className="pub-detail-row" style={{ background: "var(--color-success-soft)", borderRadius: 8, padding: ".75rem", border: "none" }}>
                   <span className="pub-detail-label" style={{ fontWeight: 700, color: "var(--color-heading)" }}>{t("الإجمالي")}</span>
                   <span className="pub-detail-value" style={{ color: "var(--color-success)", fontSize: "var(--text-lg)" }}>
-                    {parseFloat(total).toLocaleString("ar")} {currency}
+                    {parseFloat(total).toLocaleString(locale)} {currency}
                   </span>
                 </div>
               )}

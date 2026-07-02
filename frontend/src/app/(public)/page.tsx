@@ -25,7 +25,7 @@ interface HotelCard {
 }
 
 function HotelCardComp({ hotel }: { hotel: HotelCard }) {
-  const { t } = useLang();
+  const { t, locale } = useLang();
   return (
     <Link href={`/hotels/${hotel.slug}`} className="pub-hotel-card">
       {hotel.cover_image ? (
@@ -55,7 +55,7 @@ function HotelCardComp({ hotel }: { hotel: HotelCard }) {
         <div className="pub-hotel-card-footer">
           {hotel.min_price != null ? (
             <div className="pub-price">
-              {hotel.min_price.toLocaleString("ar")}
+              {hotel.min_price.toLocaleString(locale)}
               {" "}<span className="pub-price-label">{hotel.min_currency} / {t("ليلة")}</span>
             </div>
           ) : <div />}

@@ -45,15 +45,15 @@ const STATUS_LABELS: Record<string, { label: string; badge: string }> = {
   cancelled_by_hotel:{ label: "ملغى من الفندق", badge: "ds-badge ds-badge-danger" },
 };
 
-function formatDate(d: string) {
+function formatDate(d: string, locale = "ar-SY") {
   if (!d) return "";
   try {
-    return new Date(d).toLocaleDateString("ar-SY", { weekday: "short", year: "numeric", month: "long", day: "numeric" });
+    return new Date(d).toLocaleDateString(locale, { weekday: "short", year: "numeric", month: "long", day: "numeric" });
   } catch { return d; }
 }
 
 export default function ManageBookingPage() {
-  const { t } = useLang();
+  const { t, locale } = useLang();
   const [bookingNo, setBookingNo] = useState("");
   const [phone,     setPhone]     = useState("");
   const [loading,   setLoading]   = useState(false);
@@ -77,7 +77,7 @@ ${t("نوع الغرفة")}: ${b.room_type_label}
 ${t("الوصول")}: ${b.check_in_date}
 ${t("المغادرة")}: ${b.check_out_date}
 ${t("عدد الليالي")}: ${b.nights_count}
-${t("الإجمالي")}: ${parseFloat(b.total).toLocaleString("ar")} ${b.currency}
+${t("الإجمالي")}: ${parseFloat(b.total).toLocaleString(locale)} ${b.currency}
 ${t("طريقة الدفع")}: ${t("الدفع عند الوصول")}`
     );
   }
@@ -249,11 +249,11 @@ ${t("طريقة الدفع")}: ${t("الدفع عند الوصول")}`
               </div>
               <div className="pub-detail-row">
                 <span className="pub-detail-label"><Calendar size={14} style={{ display: "inline", marginLeft: 4 }} />{t("الوصول")}</span>
-                <span className="pub-detail-value">{formatDate(booking.check_in_date)}</span>
+                <span className="pub-detail-value">{formatDate(booking.check_in_date, locale)}</span>
               </div>
               <div className="pub-detail-row">
                 <span className="pub-detail-label"><Calendar size={14} style={{ display: "inline", marginLeft: 4 }} />{t("المغادرة")}</span>
-                <span className="pub-detail-value">{formatDate(booking.check_out_date)}</span>
+                <span className="pub-detail-value">{formatDate(booking.check_out_date, locale)}</span>
               </div>
               <div className="pub-detail-row">
                 <span className="pub-detail-label">{t("المدة")}</span>
@@ -266,7 +266,7 @@ ${t("طريقة الدفع")}: ${t("الدفع عند الوصول")}`
               <div className="pub-detail-row">
                 <span className="pub-detail-label">{t("الإجمالي")}</span>
                 <span className="pub-detail-value" style={{ color: "var(--color-primary)", fontSize: "var(--text-lg)" }}>
-                  {parseFloat(booking.total).toLocaleString("ar")} {booking.currency}
+                  {parseFloat(booking.total).toLocaleString(locale)} {booking.currency}
                 </span>
               </div>
               <div className="pub-detail-row">

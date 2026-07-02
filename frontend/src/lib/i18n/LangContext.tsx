@@ -13,12 +13,15 @@ export interface LangCtx {
   lang: Lang;
   dir: "rtl" | "ltr";
   t: (s: string) => string;
+  /** م11: لغة BCP‑47 لتنسيق الأرقام/التواريخ حسب اللغة (ar‑SY / en‑US). */
+  locale: string;
 }
 
 export const LangContext = createContext<LangCtx>({
   lang: "ar",
   dir: "rtl",
   t: (s) => s,
+  locale: "ar-SY",
 });
 
 export function useLang(): LangCtx {
@@ -31,7 +34,8 @@ export function makeLangCtx(lang: Lang): LangCtx {
   const t = lang === "ar"
     ? (s: string) => s
     : (s: string) => EN[s] ?? s;
-  return { lang, dir, t };
+  const locale = lang === "ar" ? "ar-SY" : "en-US";
+  return { lang, dir, t, locale };
 }
 
 /** Read the persisted language (client only). Defaults to Arabic. */
