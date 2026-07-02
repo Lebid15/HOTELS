@@ -28,11 +28,11 @@ def _add_months(d, months: int) -> _date:
     return _date(year, month, day)
 
 from .models import (
-    Hotel, Package, Subscription, SubscriptionRequest,
+    Hotel, HotelSettings, Package, Subscription, SubscriptionRequest,
     Room, Staff, Reservation, MaintenanceTicket, UserProfile, Payment, Expense, LostFoundItem, ShiftHandover, MenuItem, FoodOrder, FolioCharge, GuestProfile, AuditLog, LoginChallenge, DayClose, HotelAgreementAcceptance, PlatformSettings,
 )
 from .serializers import (
-    HotelSerializer, PackageSerializer, SubscriptionSerializer,
+    HotelSerializer, HotelSettingsSerializer, PackageSerializer, SubscriptionSerializer,
     SubscriptionRequestSerializer, RoomSerializer, StaffSerializer,
     ReservationSerializer, ReservationListSerializer, MaintenanceTicketSerializer,
     PaymentSerializer, ExpenseSerializer, LostFoundItemSerializer, ShiftHandoverSerializer,
@@ -551,6 +551,44 @@ class PlatformDashboardView(APIView):
 
 # ── Hotel ViewSet ─────────────────────────────────────────────────────────────
 
+class HotelSettingsView(APIView):
+    """م1: إعدادات تشغيل الفندق المركزية (طباعة/وثائق/تنبيهات) — مصدر خادمي واحد.
+    GET يعيد الحِزم لفندق المستخدم؛ PATCH يدمج المفاتيح المُرسَلة (دمج ضحل، لا
+    يمسح ما لم يُذكَر) — للمدير/مالك المنصّة فقط. الحقول المُلزَمة خادميًّا
+    (أوقات/تنظيف/عرض عام) تبقى على /hotels/{id}/."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def _hotel(self, request):
+        role = _get_user_role(request.user)
+        if role == 'platform_owner':
+            hid = request.query_params.get('hotel') or request.data.get('hotel')
+            return Hotel.objects.filter(id=hid).first() if hid else None
+        hid = _get_user_hotel_id(request.user)
+        return Hotel.objects.filter(id=hid).first() if hid else None
+
+    def get(self, request):
+        hotel = self._hotel(request)
+        if not hotel:
+            return Response({'detail': 'غير مرتبط بأي فندق.'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(HotelSettingsSerializer(HotelSettings.get_for(hotel)).data)
+
+    def patch(self, request):
+        if _get_user_role(request.user) not in ('platform_owner', 'manager'):
+            return Response({'detail': 'هذه العملية متاحة لمدير الفندق فقط.'}, status=status.HTTP_403_FORBIDDEN)
+        hotel = self._hotel(request)
+        if not hotel:
+            return Response({'detail': 'غير مرتبط بأي فندق.'}, status=status.HTTP_404_NOT_FOUND)
+        s = HotelSettings.get_for(hotel)
+        for key in ('printing', 'documents', 'notifications'):
+            val = request.data.get(key)
+            if isinstance(val, dict):
+                setattr(s, key, {**(getattr(s, key) or {}), **val})   # دمج ضحل حفاظًا على غير المُرسَل
+        s.save()
+        record_audit(request.user, hotel_id=hotel.id, action='hotel.settings.update',
+                     entity_type='hotel', entity_id=hotel.id, summary='تحديث إعدادات تشغيل الفندق')
+        return Response(HotelSettingsSerializer(s).data)
+
+
 class HotelViewSet(viewsets.ModelViewSet):
     serializer_class = HotelSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -586,16 +624,19 @@ class HotelViewSet(viewsets.ModelViewSet):
             user_hotel_id = _get_user_hotel_id(self.request.user)
             if not user_hotel_id or str(user_hotel_id) != str(serializer.instance.id):
                 raise PermissionDenied('غير مسموح بتعديل بيانات هذا الفندق.')
-            allowed = {'name', 'country', 'city', 'address', 'phone', 'email',
+            allowed = {'name', 'country', 'governorate', 'city', 'address', 'phone', 'email',
                        'currency', 'logo', 'owner_name', 'website', 'food_settings',
                        'floors_count', 'cover_image', 'map_url',
                        'latitude', 'longitude',
                        # د‑8: حضور الفندق على موقع الحجز (مشروط بقبول الاتفاقية)
-                       'public_listing_enabled', 'public_booking_enabled',
+                       'public_listing_enabled', 'public_booking_enabled', 'web_booking_needs_confirmation',
                        'public_description_short', 'public_description_full',
-                       'gallery_images', 'amenities', 'stars', 'hotel_type',
+                       'gallery_images', 'amenities', 'stars', 'hotel_type', 'is_featured',
                        'cancellation_policy', 'check_in_policy', 'check_out_policy',
-                       'payment_policy', 'show_contact_info'}
+                       'payment_policy', 'show_contact_info',
+                       # م1: الحقول التشغيلية المركزية
+                       'check_in_time', 'check_out_time',
+                       'cleaning_mode', 'cleaning_duration_minutes'}
             payload = {k: v for k, v in serializer.validated_data.items() if k in allowed}
             # د‑8: لا يُفعَّل حضور الموقع/الحجوزات إلا بعد قبول اتفاقية المنصّة
             enabling = payload.get('public_booking_enabled') or payload.get('public_listing_enabled')
@@ -920,6 +961,22 @@ class SubscriptionRequestViewSet(viewsets.ModelViewSet):
 
 # ── Room ViewSet ──────────────────────────────────────────────────────────────
 
+def _auto_return_cleaned_rooms(hotel_id):
+    """م1: عند cleaning_mode=auto تُعاد الغرف من «تنظيف» إلى «متاحة» بعد انقضاء
+    المدة — تقييم كسول بلا cron (يُستدعى عند قراءة الغرف/التوفّر)."""
+    if hotel_id is None:
+        return
+    hotel = Hotel.objects.filter(id=hotel_id).only('cleaning_mode', 'cleaning_duration_minutes').first()
+    if not hotel or hotel.cleaning_mode != Hotel.CLEANING_AUTO:
+        return
+    from datetime import timedelta
+    cutoff = timezone.now() - timedelta(minutes=hotel.cleaning_duration_minutes or 0)
+    Room.objects.filter(hotel_id=hotel_id, status=Room.STATUS_CLEANING,
+                        cleaning_started_at__isnull=False,
+                        cleaning_started_at__lte=cutoff).update(
+        status=Room.STATUS_AVAILABLE, cleaning_started_at=None)
+
+
 class RoomViewSet(viewsets.ModelViewSet):
     serializer_class = RoomSerializer
     permission_classes = [RoomPermission]
@@ -928,6 +985,7 @@ class RoomViewSet(viewsets.ModelViewSet):
         role = _get_user_role(self.request.user)
         hotel_id = self.request.query_params.get('hotel')
         if role == 'platform_owner':
+            _auto_return_cleaned_rooms(hotel_id)
             qs = Room.objects.all()
             if hotel_id:
                 qs = qs.filter(hotel_id=hotel_id)
@@ -935,6 +993,7 @@ class RoomViewSet(viewsets.ModelViewSet):
         user_hotel_id = _get_user_hotel_id(self.request.user)
         if user_hotel_id is None:
             return Room.objects.none()
+        _auto_return_cleaned_rooms(user_hotel_id)
         return Room.objects.filter(hotel_id=user_hotel_id)
 
     def perform_create(self, serializer):
@@ -1126,6 +1185,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
             res.save()
             if res.room and res.room.status != Room.STATUS_MAINTENANCE:
                 res.room.status = Room.STATUS_CLEANING
+                res.room.cleaning_started_at = timezone.now()   # م1: بدء عدّاد التنظيف
                 res.room.save()
         _sync_commission(res)
         record_audit(request.user, hotel_id=res.hotel_id, action='reservation.check_out',
@@ -1158,6 +1218,7 @@ class ReservationViewSet(viewsets.ModelViewSet):
             res.save()
             if res.room and res.room.status != Room.STATUS_MAINTENANCE:
                 res.room.status = Room.STATUS_CLEANING
+                res.room.cleaning_started_at = timezone.now()   # م1: بدء عدّاد التنظيف
                 res.room.save()
         _sync_commission(res)
         record_audit(request.user, hotel_id=res.hotel_id, action='reservation.settle_checkout',

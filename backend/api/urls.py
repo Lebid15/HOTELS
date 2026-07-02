@@ -3,7 +3,7 @@ from rest_framework import routers
 from .views import (
     CurrentUserView, ChangePasswordView, PlatformStatsView, PlatformDashboardView, RegisterView,
     LogoutView,
-    HotelViewSet, PackageViewSet,
+    HotelViewSet, HotelSettingsView, PackageViewSet,
     SubscriptionViewSet, SubscriptionRequestViewSet,
     RoomViewSet, StaffViewSet, ReservationViewSet,
     MaintenanceTicketViewSet, PaymentViewSet, ExpenseViewSet, LostFoundViewSet, ShiftHandoverViewSet,
@@ -44,6 +44,8 @@ urlpatterns = [
     path('current-user/', CurrentUserView.as_view(), name='current-user'),
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('logout/', LogoutView.as_view(), name='logout'),
+    # م1: إعدادات تشغيل الفندق المركزية (طباعة/وثائق/تنبيهات)
+    path('hotel-settings/', HotelSettingsView.as_view(), name='hotel-settings'),
     # د‑6: الأمان — التحقق بخطوتين
     path('auth/2fa/verify/', Login2FAVerifyView.as_view(), name='login-2fa-verify'),
     path('auth/2fa/pending/', Pending2FAView.as_view(), name='login-2fa-pending'),

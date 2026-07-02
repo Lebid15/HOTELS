@@ -1284,3 +1284,66 @@ class AuditLogTests(BaseAPITest):
         # للقراءة فقط: لا إنشاء عبر الـAPI
         r = self.client.post('/api/audit-logs/', {'action': 'x'}, format='json')
         self.assertEqual(r.status_code, 405)
+
+
+# ── م1: الإعدادات المركزية (HotelSettings + الحقول التشغيلية + التنظيف) ──────
+class Stage1SettingsTests(BaseAPITest):
+    def test_hotel_code_auto_generated_and_unique(self):
+        self.hotelA.refresh_from_db(); self.hotelB.refresh_from_db()
+        self.assertTrue(self.hotelA.code and self.hotelA.code.startswith('FND-'))
+        self.assertNotEqual(self.hotelA.code, self.hotelB.code)
+
+    def test_settings_endpoint_manager_merge_preserves_keys(self):
+        self.as_(self.mgrA)
+        self.assertEqual(self.client.patch('/api/hotel-settings/', {'printing': {'showLogo': True}}, format='json').status_code, 200)
+        self.assertEqual(self.client.patch('/api/hotel-settings/', {'printing': {'footer': 'شكرًا'}}, format='json').status_code, 200)
+        data = self.client.get('/api/hotel-settings/').json()
+        self.assertTrue(data['printing']['showLogo'])            # الدمج الضحل لم يمسح المفتاح السابق
+        self.assertEqual(data['printing']['footer'], 'شكرًا')
+
+    def test_settings_reception_read_only(self):
+        self.as_(self.recA)
+        self.assertEqual(self.client.get('/api/hotel-settings/').status_code, 200)
+        self.assertEqual(self.client.patch('/api/hotel-settings/', {'printing': {'x': 1}}, format='json').status_code, 403)
+
+    def test_manager_saves_central_operational_fields(self):
+        self.as_(self.mgrA)
+        r = self.client.patch(f'/api/hotels/{self.hotelA.id}/',
+                              {'check_in_time': '14:00', 'check_out_time': '12:00',
+                               'cleaning_mode': 'auto', 'cleaning_duration_minutes': 45}, format='json')
+        self.assertEqual(r.status_code, 200)
+        self.hotelA.refresh_from_db()
+        self.assertEqual(self.hotelA.cleaning_mode, 'auto')
+        self.assertEqual(self.hotelA.cleaning_duration_minutes, 45)
+
+    def test_hotel_code_is_read_only(self):
+        self.as_(self.mgrA)
+        old = self.hotelA.code
+        self.client.patch(f'/api/hotels/{self.hotelA.id}/', {'code': 'HACK-1'}, format='json')
+        self.hotelA.refresh_from_db()
+        self.assertEqual(self.hotelA.code, old)
+
+    def test_cleaning_auto_return_after_duration(self):
+        from django.utils import timezone
+        self.hotelA.cleaning_mode = Hotel.CLEANING_AUTO
+        self.hotelA.cleaning_duration_minutes = 30
+        self.hotelA.save()
+        self.roomA.status = Room.STATUS_CLEANING
+        self.roomA.cleaning_started_at = timezone.now() - timedelta(minutes=40)
+        self.roomA.save()
+        self.as_(self.mgrA)
+        self.client.get('/api/rooms/')                            # يُشغّل الرجوع الكسول
+        self.roomA.refresh_from_db()
+        self.assertEqual(self.roomA.status, Room.STATUS_AVAILABLE)
+
+    def test_cleaning_manual_stays_in_cleaning(self):
+        from django.utils import timezone
+        self.hotelA.cleaning_mode = Hotel.CLEANING_MANUAL
+        self.hotelA.save()
+        self.roomA.status = Room.STATUS_CLEANING
+        self.roomA.cleaning_started_at = timezone.now() - timedelta(minutes=120)
+        self.roomA.save()
+        self.as_(self.mgrA)
+        self.client.get('/api/rooms/')
+        self.roomA.refresh_from_db()
+        self.assertEqual(self.roomA.status, Room.STATUS_CLEANING)  # يدوي: يبقى حتى زر «تم التنظيف»

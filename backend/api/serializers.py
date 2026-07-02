@@ -1,6 +1,6 @@
 from decimal import Decimal
 from rest_framework import serializers
-from .models import Hotel, Package, Subscription, SubscriptionRequest, Room, Staff, Reservation, MaintenanceTicket, Payment, Expense, PlatformSettings, LostFoundItem, ShiftHandover, MenuItem, FoodOrder, FolioCharge, GuestProfile, HotelRating, AuditLog, DayClose
+from .models import Hotel, HotelSettings, Package, Subscription, SubscriptionRequest, Room, Staff, Reservation, MaintenanceTicket, Payment, Expense, PlatformSettings, LostFoundItem, ShiftHandover, MenuItem, FoodOrder, FolioCharge, GuestProfile, HotelRating, AuditLog, DayClose
 
 
 class HotelSerializer(serializers.ModelSerializer):
@@ -10,17 +10,24 @@ class HotelSerializer(serializers.ModelSerializer):
     class Meta:
         model = Hotel
         fields = [
-            'id', 'name', 'country', 'city', 'address', 'phone', 'email',
+            'id', 'name', 'country', 'governorate', 'city', 'address', 'phone', 'email',
             'currency', 'logo', 'owner_name', 'website', 'food_settings',
             'status', 'floors_count', 'manager_name', 'manager_email',
             'manager_username', 'subscription_status',
             'cover_image', 'map_url', 'latitude', 'longitude',
-            # د‑8: حضور الفندق على موقع الحجز
-            'public_listing_enabled', 'public_booking_enabled',
+            # د‑8 + م1: حضور الفندق على موقع الحجز (قابل للحفظ من واجهة المدير)
+            'public_listing_enabled', 'public_booking_enabled', 'web_booking_needs_confirmation',
             'public_description_short', 'public_description_full',
-            'stars', 'hotel_type', 'cancellation_policy',
+            'gallery_images', 'amenities', 'is_featured',
+            'stars', 'hotel_type',
+            'cancellation_policy', 'check_in_policy', 'check_out_policy', 'payment_policy',
+            'show_contact_info',
+            # م1: الحقول التشغيلية المركزية المُلزَمة خادميًّا
+            'code', 'check_in_time', 'check_out_time',
+            'cleaning_mode', 'cleaning_duration_minutes',
             'created_at', 'updated_at',
         ]
+        read_only_fields = ['code']
 
     def get_subscription_status(self, obj):
         try:
@@ -30,6 +37,14 @@ class HotelSerializer(serializers.ModelSerializer):
 
     def get_manager_username(self, obj):
         return obj.manager_user.username if obj.manager_user_id else None
+
+
+class HotelSettingsSerializer(serializers.ModelSerializer):
+    """م1: حِزم إعدادات التشغيل المرنة (طباعة/وثائق/تنبيهات) — مصدر خادمي مركزي."""
+    class Meta:
+        model = HotelSettings
+        fields = ['printing', 'documents', 'notifications', 'updated_at']
+        read_only_fields = ['updated_at']
 
 
 class PackageSerializer(serializers.ModelSerializer):

@@ -66,6 +66,17 @@ class Hotel(models.Model):
     payment_policy = models.TextField(blank=True)
     show_contact_info = models.BooleanField(default=False)
 
+    # ── م1 (الإعدادات المركزية): حقول تشغيلية مُلزَمة خادميًّا ────────────────
+    CLEANING_AUTO = 'auto'
+    CLEANING_MANUAL = 'manual'
+    CLEANING_MODE_CHOICES = [(CLEANING_AUTO, 'تلقائي'), (CLEANING_MANUAL, 'يدوي')]
+    code = models.CharField(max_length=20, blank=True, null=True, unique=True)   # كود فندق داخلي فريد (للعرض؛ يُولَّد تلقائيًا)
+    check_in_time = models.TimeField(null=True, blank=True)                      # وقت الدخول الافتراضي
+    check_out_time = models.TimeField(null=True, blank=True)                     # وقت المغادرة الافتراضي
+    cleaning_mode = models.CharField(max_length=10, choices=CLEANING_MODE_CHOICES, default=CLEANING_MANUAL)
+    cleaning_duration_minutes = models.PositiveIntegerField(default=60)          # مدة التنظيف قبل الرجوع التلقائي (auto)
+    web_booking_needs_confirmation = models.BooleanField(default=True)           # هل حجوزات الموقع تحتاج تأكيدًا؟
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -74,14 +85,42 @@ class Hotel(models.Model):
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
-        # H‑1: تعيين الـslug لحظة الحفظ (بدل توليده عند كل قراءة عامة).
+        # H‑1/م1: تعيين الـslug والكود الداخلي الفريد لحظة الحفظ.
+        updates = {}
         if not self.slug:
-            slug = f'hotel-{self.pk}'
-            Hotel.objects.filter(pk=self.pk).update(slug=slug)
-            self.slug = slug
+            self.slug = f'hotel-{self.pk}'
+            updates['slug'] = self.slug
+        if not self.code:
+            self.code = f'FND-{self.pk:04d}'
+            updates['code'] = self.code
+        if updates:
+            Hotel.objects.filter(pk=self.pk).update(**updates)
 
     def __str__(self):
         return self.name
+
+
+class HotelSettings(models.Model):
+    """م1: مصدر مركزي واحد لإعدادات تشغيل الفندق (بدل localStorage المتصفّح).
+
+    حِزم JSON مرنة للواجهة (طباعة/وثائق/تنبيهات)، بينما الحقول التي تُلزَم
+    خادميًّا (أوقات الدخول/الخروج، وضع/مدة التنظيف، إعدادات المطعم) تبقى على
+    نموذج Hotel نفسه كي تُقرأ وتُنفَّذ من الخادم. يُنشأ سجلّ واحد لكل فندق.
+    """
+    hotel = models.OneToOneField(Hotel, on_delete=models.CASCADE, related_name='op_settings')
+    printing = models.JSONField(default=dict, blank=True)       # showLogo/showContact/عناوين/شروط/تذييل/لغة الأرقام/قوالب
+    documents = models.JSONField(default=dict, blank=True)      # أنواع الوثائق/إلزامية النزيل والمرافق/إثبات الزواج/الماسح
+    notifications = models.JSONField(default=dict, blank=True)  # لكل تنبيه: تفعيل/مستلم/أهمية/طريقة ظهور + عتبة الرصيد/إظهار الجرس
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    @classmethod
+    def get_for(cls, hotel):
+        obj, _ = cls.objects.get_or_create(hotel=hotel)
+        return obj
+
+    def __str__(self):
+        return f"HotelSettings<{self.hotel_id}>"
 
 
 class Package(models.Model):
@@ -222,6 +261,8 @@ class Room(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     currency = models.CharField(max_length=10, default='SAR')
     notes = models.TextField(blank=True)
+    # م1: لحظة بدء التنظيف — تُستخدم للرجوع التلقائي بعد المدة عند cleaning_mode=auto
+    cleaning_started_at = models.DateTimeField(null=True, blank=True)
     # Public fields
     public_description = models.TextField(blank=True)
     show_in_public = models.BooleanField(default=True)
