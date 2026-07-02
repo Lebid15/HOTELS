@@ -45,7 +45,7 @@ const SETTINGS_KEY = (h: string) => `fandqi.settings.${h}`;
 type TStatus = "new" | "preparing" | "ready" | "delivered" | "cancelled";
 type TSource  = "room" | "table" | "direct" | "room_service";
 type TService = "restaurant" | "cafeteria" | "room_service";
-type TPayment = "cash" | "electronic" | "room_account";
+type TPayment = "cash" | "electronic" | "card" | "room_account";
 type TDateF   = "today" | "last7" | "month" | "all";
 type TTab     = "all" | TStatus;
 
@@ -77,6 +77,7 @@ const STATUS_STYLE: Record<TStatus, { background:string; color:string }> = {
 const PAY_STYLE: Record<TPayment, { background:string; color:string }> = {
   cash:         { background:"#16a34a", color:"#fff" },
   electronic:   { background:"#0369a1", color:"#fff" },
+  card:         { background:"#7c3aed", color:"#fff" },
   room_account: { background:"#d97706", color:"#fff" },
 };
 const STATUS_ORDER: TStatus[] = ["new","preparing","ready","delivered","cancelled"];
@@ -206,7 +207,7 @@ export default function FoodServicesPage() {
   const { t, lang } = useLang();
   const router = useRouter();
   const STATUS_LABEL: Record<TStatus, string> = { new:t("جديد"), preparing:t("قيد التحضير"), ready:t("جاهز"), delivered:t("تم التسليم"), cancelled:t("ملغي") };
-  const PAY_LABEL: Record<TPayment, string> = { cash:t("نقدي"), electronic:t("إلكتروني"), room_account:t("على حساب الغرفة") };
+  const PAY_LABEL: Record<TPayment, string> = { cash:t("نقدي"), electronic:t("إلكتروني"), card:t("كرت"), room_account:t("على حساب الغرفة") };
   const SRC_LABEL: Record<TSource,  string> = { room:t("غرفة"), table:t("طاولة"), direct:t("خارجي / مباشر"), room_service:t("خدمة غرف") };
   const SVC_LABEL: Record<TService, string> = { restaurant:t("مطعم"), cafeteria:t("كافتريا"), room_service:t("خدمة غرف") };
   const TABS: { key: TTab; label: string }[] = [
@@ -228,6 +229,8 @@ export default function FoodServicesPage() {
   const [hasRest,      setHasRest]      = useState(true);
   const [hasCaf,       setHasCaf]       = useState(true);
   const [hasRS,        setHasRS]        = useState(true);
+  // م4: إعدادات المطعم من الخادم (Hotel.food_settings)
+  const [foodCfg,      setFoodCfg]      = useState<{dedicated_staff:boolean; allow_cash:boolean; allow_electronic:boolean; allow_card:boolean; allow_room_account:boolean}>({ dedicated_staff:false, allow_cash:true, allow_electronic:true, allow_card:true, allow_room_account:true });
   const [tab,          setTab]          = useState<TTab>("all");
   const [search,       setSearch]       = useState("");
   const [srcFilter,    setSrcFilter]    = useState<TSource | "all">("all");
@@ -289,6 +292,12 @@ export default function FoodServicesPage() {
       .then(r => r.ok ? r.json() : []).then(setRooms).catch(() => {});
     fetch(`${API}/reservations/?hotel=${hotelId}`, { headers: h })
       .then(r => r.ok ? r.json() : []).then(setReservations).catch(() => {});
+    // م4: إعدادات المطعم من الخادم (موظف مستقل + السماحيات)
+    fetch(`${API}/hotels/${hotelId}/`, { headers: h })
+      .then(r => r.ok ? r.json() : null).then(d => {
+        const fs = d?.food_settings;
+        if (fs && typeof fs === "object") setFoodCfg(prev => ({ ...prev, ...fs }));
+      }).catch(() => {});
   }, [hotelId]);
 
   // toast auto-dismiss
@@ -421,7 +430,8 @@ export default function FoodServicesPage() {
       body.amount_card       = pm === "card"        ? total : 0;
       body.amount_room       = pm === "room_account"? total : 0;
     }
-    if (!editId) body.status = "new";
+    // م4: عند غياب موظف مطعم مستقل، الطلب يُكتمَل مباشرة (يعكس السلوك الخادمي)
+    if (!editId) body.status = foodCfg.dedicated_staff ? "new" : "delivered";
     try {
       const r = await fetch(editId ? `${API}/food-orders/${editId}/` : `${API}/food-orders/`, {
         method: editId ? "PATCH" : "POST", headers: apiHJ(), body: JSON.stringify(body),
@@ -715,9 +725,10 @@ export default function FoodServicesPage() {
                   {o.guestName && (
                     <button onClick={() => navToGuests(o.guestName!)} className="ds-btn ds-btn-neutral ds-btn-sm" title={t("ملف النزيل")} style={{ display:"flex", alignItems:"center", gap:"0.2rem" }}><UserCheck size={13} strokeWidth={2} /></button>
                   )}
-                  {o.status === "new"       && <button onClick={() => setStatus(o.id,"preparing")} className="ds-btn ds-btn-warning ds-btn-sm">{t("بدء التحضير")}</button>}
-                  {o.status === "preparing" && <button onClick={() => setStatus(o.id,"ready")}     className="ds-btn ds-btn-primary ds-btn-sm">{t("جاهز")}</button>}
-                  {(o.status === "new" || o.status === "preparing" || o.status === "ready") && (
+                  {/* م4: مراحل التجهيز تظهر فقط عند وجود موظف مطعم مستقل؛ وإلا الطلب يُكتمَل مباشرة */}
+                  {foodCfg.dedicated_staff && o.status === "new"       && <button onClick={() => setStatus(o.id,"preparing")} className="ds-btn ds-btn-warning ds-btn-sm">{t("بدء التحضير")}</button>}
+                  {foodCfg.dedicated_staff && o.status === "preparing" && <button onClick={() => setStatus(o.id,"ready")}     className="ds-btn ds-btn-primary ds-btn-sm">{t("جاهز")}</button>}
+                  {foodCfg.dedicated_staff && (o.status === "new" || o.status === "preparing" || o.status === "ready") && (
                     <button onClick={() => setStatus(o.id,"delivered",{deliveredAt:now(),deliveredBy:username})} className="ds-btn ds-btn-success ds-btn-sm">{t("تسليم")}</button>
                   )}
                   {isActive && <button onClick={() => { setCancelModal({id:o.id}); setCancelReason(""); }} className="ds-btn ds-btn-danger ds-btn-sm">{t("إلغاء")}</button>}
@@ -870,11 +881,14 @@ export default function FoodServicesPage() {
                 <div className="field" style={{ margin:0 }}>
                   <label className="field-label">{t("طريقة الدفع")}</label>
                   <select className="select" value={form.paymentMethod} onChange={e => setForm(p => ({ ...p, paymentMethod: e.target.value as TPayment }))}>
-                    <option value="cash">{t("نقدي")}</option>
-                    <option value="electronic">{t("إلكتروني")}</option>
-                    <option value="room_account" disabled={form.sourceType === "direct" || form.sourceType === "table"}>
-                      {t("على حساب الغرفة")}{(form.sourceType==="direct"||form.sourceType==="table") ? ` (${t("غير متاح")})` : ""}
-                    </option>
+                    {foodCfg.allow_cash && <option value="cash">{t("نقدي")}</option>}
+                    {foodCfg.allow_electronic && <option value="electronic">{t("إلكتروني")}</option>}
+                    {foodCfg.allow_card && <option value="card">{t("كرت")}</option>}
+                    {foodCfg.allow_room_account && (
+                      <option value="room_account" disabled={form.sourceType === "direct" || form.sourceType === "table"}>
+                        {t("على حساب الغرفة")}{(form.sourceType==="direct"||form.sourceType==="table") ? ` (${t("غير متاح")})` : ""}
+                      </option>
+                    )}
                   </select>
                 </div>
               </div>
