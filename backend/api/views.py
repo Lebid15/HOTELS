@@ -51,17 +51,25 @@ from .validators import UsernameValidator
 User = get_user_model()
 
 
-# ── B‑1: throttling للنقاط العامة الحسّاسة ────────────────────────────────
+# ── B‑1/م7: throttling للنقاط العامة الحسّاسة (scope واضح لكل نوع) ─────────────
 class PublicLookupThrottle(AnonRateThrottle):
-    scope = 'public_lookup'
+    scope = 'public_lookup'          # بحث/إدارة الحجز (رقم+هاتف أو رمز)
 
 
-class PublicWriteThrottle(AnonRateThrottle):
-    scope = 'public_write'
+class PublicAvailabilityThrottle(AnonRateThrottle):
+    scope = 'public_availability'    # م7: توفّر الغرف (ثقيل على DB + كشط أسعار)
 
 
 class PublicBookingThrottle(AnonRateThrottle):
-    scope = 'public_booking'
+    scope = 'public_booking'         # إنشاء حجز عام (عملية حسّاسة)
+
+
+class PublicReviewThrottle(AnonRateThrottle):
+    scope = 'public_review'          # م7: إرسال تقييم عام (منع السبام)
+
+
+class PublicCancelThrottle(AnonRateThrottle):
+    scope = 'public_cancel'          # م7: إلغاء الحجز العام
 
 
 class LogoutView(APIView):
@@ -1993,7 +2001,7 @@ class PublicHotelDetailView(APIView):
 
 class PublicRoomAvailabilityView(APIView):
     permission_classes = [permissions.AllowAny]
-    throttle_classes = []
+    throttle_classes = [PublicAvailabilityThrottle]   # م7: حماية التوفّر من الاستدعاء الكثيف/الكشط
 
     def get(self, request, slug):
         try:
@@ -2181,7 +2189,7 @@ class PublicBookingManageView(APIView):
 
 class PublicBookingCancelView(APIView):
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [PublicWriteThrottle]
+    throttle_classes = [PublicCancelThrottle]
 
     def post(self, request, booking_no):
         token  = (request.data.get('token') or '').strip()
@@ -2299,7 +2307,7 @@ class PublicHotelRatingsView(APIView):
 
     def get_throttles(self):
         # التقييم (POST) محدود لمنع الإغراق؛ قراءة القائمة (GET) حرّة.
-        return [PublicWriteThrottle()] if self.request.method == 'POST' else []
+        return [PublicReviewThrottle()] if self.request.method == 'POST' else []
 
     def _get_hotel(self, slug):
         qs = _public_hotels_qs()

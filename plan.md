@@ -173,6 +173,15 @@ npm run build
 
 ### سجل تنفيذ ملاحظات التطوير (Changelog)
 <!-- يُضاف سطر بعد كل مرحلة -->
+- **[2026‑07‑02] Phase 7 — Public API Throttling ✅ (حماية النقاط العامة الحسّاسة بلا اختبارات بطلب المرحلة).**
+  - **توحيد throttle classes بـ scope واضح لكل نوع:** `PublicLookupThrottle` (بحث/إدارة) + **`PublicAvailabilityThrottle`** (جديد) + `PublicBookingThrottle` + **`PublicReviewThrottle`** (جديد) + **`PublicCancelThrottle`** (جديد). حُذف `PublicWriteThrottle` العام (كان يجمع الإلغاء+التقييم) واستُبدِل بالنوعين المخصّصين (لا مراجع متبقّية).
+  - **إغلاق الثغرة الأساسية:** `PublicRoomAvailabilityView` كان `throttle_classes = []` (بلا أيّ حدّ — يتجاوز الافتراض العام) ⇒ صار `[PublicAvailabilityThrottle]`.
+  - **المعدّلات (DRF `DEFAULT_THROTTLE_RATES`):** `public_availability: 30/min` · `public_booking: 5/min` · `public_review: 5/min` · `public_cancel: 10/min` · `public_lookup: 20/min` (رُفِع من 10 لعدم إزعاج المستخدم الحقيقي، §9). منطقيّة: التوفّر أعلى (يُستخدَم بالبحث)، والإنشاء/التقييم أقلّ.
+  - **التغطية:** التوفّر ✓ · إنشاء الحجز ✓ (كان محميًّا) · بحث/إدارة (`PublicLookupThrottle`) ✓ · إلغاء (`PublicCancelThrottle`) ✓ · تقييم POST (`PublicReviewThrottle`) ✓. تُركت صفحات التصفّح البحت (قائمة الفنادق/التفاصيل/معلومات المنصّة/قراءة التقييمات) **حرّة عمدًا** كي لا يتعطّل التصفّح الطبيعي (§9) — مُوثَّقة كتحسين اختياريّ لاحق (browse‑throttle سخيّ).
+  - **الواجهة:** لا تغيير — عند 429 يُرجع DRF `{detail:…}`، والواجهة تعرض رسالة عامّة عبر `data.error ?? t(...)` (fallback)، فلا تظهر رسالة خام.
+  - **ملاحظة إنتاج (§8):** خلف Proxy/Nginx يجب ضبط `NUM_PROXIES`/`X‑Forwarded‑For` كي يعمل الـthrottling على IP الزائر الحقيقي — مُوثَّقة في `settings.py` ولم تُنفَّذ إعدادات Nginx الآن.
+  - **الفحص السريع:** `check` نظيف · لا ترحيلات (لا نماذج) · smoke‑test: كل scope يحلّ لمعدّله (lookup 20 · availability 30 · booking 5 · review 5 · cancel 10)، والتوفّر/الإلغاء/الإنشاء/الإدارة تحمل الفئة الصحيحة. **لم تُشغَّل/تُكتَب اختبارات** (حسب نطاق المرحلة). الفرع: `feat/p7-public-throttle`.
+  - **مؤجّل للاختبار النهائي:** اختبارات تؤكّد 429 بعد تجاوز الحدّ على التوفّر/الإنشاء/التقييم، وأنّ الحدود لا تعطّل الاستخدام الطبيعي.
 - **[2026‑07‑02] Phase 6 — Permission Role Fallback Hardening ✅ (تحصين مصدر الدور بلا اختبارات بطلب المرحلة).**
   - **تمت إزالة الـfallback المعتمِد على اسم المستخدم** من `permissions._get_user_role` (كان: عند غياب Profile يُخرِّط `username ∈ {platform, manager, reception}` إلى دور). لم يَعُد يُستنتَج أيّ دور من `username`/`email`/أيّ حقل تعريفيّ.
   - **مصدر الدور الرسميّ الوحيد الآن هو `UserProfile.role`.** والدالة **fail‑closed:** غير مُصادَق، أو بلا `UserProfile`، أو بلا دور ⇒ **بلا دور** ('') — لا دور افتراضيّ. تُلتقَط `AttributeError`/`ObjectDoesNotExist` بأمان.

@@ -132,11 +132,16 @@ REST_FRAMEWORK = {
         'user': '1000/hour',
         'login': '5/minute',
         'register': '5/hour',
-        # B‑1: نقاط عامة حسّاسة (استعلام/إلغاء/تقييم/إنشاء حجز)
-        'public_lookup': '10/minute',
-        'public_write': '10/minute',
-        'public_booking': '5/minute',
+        # B‑1/م7: نقاط عامة حسّاسة — scope مستقلّ لكل نوع بمعدّل يناسب حساسيّته.
+        # (availability أعلى لأنه يُستخدَم أثناء البحث؛ إنشاء الحجز/التقييم أقلّ.)
+        'public_lookup': '20/minute',        # بحث/إدارة الحجز
+        'public_availability': '30/minute',  # م7: توفّر الغرف
+        'public_booking': '5/minute',        # إنشاء حجز عام
+        'public_review': '5/minute',         # م7: إرسال تقييم (منع السبام)
+        'public_cancel': '10/minute',        # م7: إلغاء الحجز العام
     },
+    # م7: خلف Proxy/Nginx على الإنتاج يجب ضبط NUM_PROXIES و/أو تمرير X‑Forwarded‑For
+    # بشكل صحيح كي يعمل throttling على IP الزائر الحقيقي لا IP الوسيط. (لا يُضبط هنا الآن.)
 }
 
 SIMPLE_JWT = {
