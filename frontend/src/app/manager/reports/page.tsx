@@ -970,26 +970,7 @@ export default function ReportsPage(){
               </button>
             ))}
           </div>
-          {/* Per-section print buttons */}
-          <div style={{display:"flex",gap:"0.4rem",flexShrink:0}}>
-            {(["overview","reservations","financial","rooms","food","maintenance"] as TTab[]).map(tt=>(
-              <button key={tt}
-                onClick={()=>{ setTab(tt); setTimeout(()=>handlePrint(),100); }}
-                title={`${t("طباعة")}: ${TAB_LABELS[tt]}`}
-                style={{
-                  display:"flex",alignItems:"center",gap:5,
-                  padding:"0.4rem 0.7rem",fontSize:11,fontWeight:700,cursor:"pointer",
-                  background: tab===tt ? "#4f46e5" : "#f8fafc",
-                  color: tab===tt ? "#fff" : "#64748b",
-                  border: tab===tt ? "none" : "1px solid #e2e8f0",
-                  borderRadius:8,whiteSpace:"nowrap",
-                  boxShadow: tab===tt ? "0 1px 4px rgba(79,70,229,0.2)" : "none",
-                }}>
-                <Printer size={12} strokeWidth={2}/>
-                {TAB_LABELS[tt]}
-              </button>
-            ))}
-          </div>
+          {/* §ثانيًا‑3: أُزيلت أزرار الطباعة لكل تبويب — زر واحد أعلى الصفحة يطبع التبويب النشط عبر handlePrint */}
         </div>
       </div>
 
