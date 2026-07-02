@@ -420,15 +420,52 @@ class PaymentSerializer(serializers.ModelSerializer):
         }
 
     def validate(self, attrs):
-        # م3: عند إرسال تفصيل الدفع، الإجمالي مُشتقّ = مجموع الأجزاء (مصدر حقيقة واحد)
-        cash = attrs.get('amount_cash') or Decimal('0')
-        elec = attrs.get('amount_electronic') or Decimal('0')
-        card = attrs.get('amount_card') or Decimal('0')
+        """م4 (اتساق الدفع المقسّم): يجب أن يساوي مجموعُ طرق الدفع مبلغَ الدفعة،
+        بلا قيم سالبة، ومبلغٌ موجب. `amount` هو مصدر الحقيقة والأجزاء تفصيله.
+
+        آمن للتحديث الجزئي: يدمج القيم المُرسَلة مع القائمة قبل الفحص (Decimal لا
+        float). ملاحظة: `PaymentViewSet` يمنع PUT/PATCH أصلًا (إنشاء/إبطال فقط)،
+        فالدمج احترازيّ لو فُعِّل التعديل مستقبلًا. الحقول الفارغة/None تُعامَل 0."""
+        raw = getattr(self, 'initial_data', {}) or {}
+
+        def eff(field):
+            if field in attrs:
+                v = attrs[field]
+            elif self.instance is not None:
+                v = getattr(self.instance, field)
+            else:
+                v = None
+            return v if v is not None else Decimal('0')
+
+        amount = eff('amount')
+        cash   = eff('amount_cash')
+        elec   = eff('amount_electronic')
+        card   = eff('amount_card')
+
+        # (3) منع القيم السالبة في أيّ حقل ماليّ
+        for name, v in (('amount', amount), ('amount_cash', cash),
+                        ('amount_electronic', elec), ('amount_card', card)):
+            if v < 0:
+                raise serializers.ValidationError({name: 'لا يجوز أن تكون القيمة سالبة.'})
+
         split_sum = cash + elec + card
-        if split_sum > 0:
-            attrs['amount'] = split_sum
-            if sum(1 for x in (cash, elec, card) if x) > 1:
-                attrs['method'] = Payment.METHOD_MIXED
+
+        # توافق خلفيّ: إن أُرسلت الأجزاء دون إجمالي صريح، يُشتقّ الإجمالي منها
+        if split_sum > 0 and 'amount' not in raw:
+            attrs['amount'] = amount = split_sum
+
+        # (3) مبلغ الدفعة يجب أن يكون أكبر من صفر
+        if amount <= 0:
+            raise serializers.ValidationError({'amount': 'مبلغ الدفعة يجب أن يكون أكبر من صفر.'})
+
+        # (2) عند وجود تفصيل، يجب أن يطابق مجموعُه إجماليَّ الدفعة تمامًا
+        if split_sum > 0 and split_sum != amount:
+            raise serializers.ValidationError('مجموع طرق الدفع يجب أن يساوي مبلغ الدفعة.')
+
+        # طريقة «مختلط» عند وجود أكثر من جزء غير صفريّ (يحافظ على السلوك القائم)
+        if split_sum > 0 and sum(1 for x in (cash, elec, card) if x) > 1:
+            attrs['method'] = Payment.METHOD_MIXED
+
         return attrs
 
     def get_guest_name(self, obj):
