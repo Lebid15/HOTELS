@@ -6,7 +6,7 @@ cd backend
 python manage.py test api
 ```
 
-> **العدّ المُثبَّت (المرحلة 11):** `python manage.py test api` → **208 اختبارًا، كلّها ناجحة** (0 فشل/0 خطأ، ~292s) — **152** من مراحل الإغلاق التجاري + **56** جديدة لسلسلة التحصين (`api/tests_hardening.py`، انظر §ب). آخر تشغيل: 2026‑07‑02.
+> **العدّ النهائي المُثبَّت:** `python manage.py test api` → **216 / 216 PASS** (`Found 216 tests · Ran 216 · OK`، 0 فشل/0 خطأ، ~300s) — **152** من مراحل الإغلاق التجاري + **56** لسلسلة التحصين (`api/tests_hardening.py`) + **8** سيناريو E2E (`api/tests_e2e_scenario.py`، §ب/م12). آخر تشغيل: 2026‑07‑02.
 
 ---
 
@@ -134,7 +134,8 @@ python manage.py check --deploy      # النتيجة: 0 issues
 
 | الفحص | الأمر | النتيجة |
 |-------|-------|---------|
-| اختبارات الخلفية | `python manage.py test api` | **208 ناجحة · 0 فشل · 0 خطأ** (~292s) |
+| اختبارات الخلفية | `python manage.py test api` | **216 / 216 PASS · 0 فشل · 0 خطأ** (~300s؛ 152+56+8 E2E) |
+| بناء الواجهة (كامل) | `npm run build` | ✓ يكتمل بالكامل (46/46 صفحة + Finalizing) — عمّال مثبّتون على 4 (`experimental.cpus`) |
 | فحص النظام | `python manage.py check` | 0 مشاكل |
 | الترحيلات | `makemigrations --check --dry-run` | لا معلّقات (أحدث 0038) |
 | فحص الإنتاج | `check --deploy` (env إنتاجيّ) | **0 issues** |

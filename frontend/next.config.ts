@@ -17,6 +17,11 @@ const CSP = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // إصلاح Build: تثبيت عدد عمّال توليد الصفحات الساكنة (بدل اشتقاقه من عدد الأنوية).
+  // على أجهزة كثيرة الأنوية كان Next يشغّل عشرات العمّال ("49 workers") فينكسر أنبوب
+  // الـIPC (write EPIPE) ويعلّق البناء عند "Collecting page data". التثبيت على عدد
+  // صغير يجعل البناء حتميًّا دون أي أثر على وقت التشغيل. (build فقط)
+  experimental: { cpus: 4 },
   async headers() {
     return [
       {

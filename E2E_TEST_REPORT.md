@@ -5,7 +5,7 @@
 > النتيجة فعلًا؛ لا PASS بلا دليل).
 
 **آخر تنفيذ:** 2026‑07‑02 · **طريقة التشغيل:** `python manage.py test api.tests_e2e_scenario`
-· **النتيجة:** `Ran 8 tests … OK` (8/8) · **الحزمة الكاملة:** 208 اختبارًا خضراء (م11).
+· **النتيجة:** `Ran 8 tests … OK` (8/8) · **الحزمة الكاملة:** **216 / 216 PASS** (152+56+8 E2E).
 
 ---
 
@@ -63,7 +63,7 @@
 ```
 backend:  python manage.py check                           # 0 مشاكل
           python manage.py makemigrations --check --dry-run # لا ترحيلات معلّقة (0038)
-          python manage.py test api                         # 208 اختبارًا خضراء (م11)
+          python manage.py test api                         # 216 / 216 PASS (152+56+8 E2E)
           python manage.py test api.tests_e2e_scenario      # 8/8 (م12)
           python manage.py check --deploy (env إنتاجيّ)     # 0 issues (م9)
 frontend: npm run lint / typecheck / build                  # 0 / 0 / ناجح
@@ -78,4 +78,4 @@ frontend: npm run lint / typecheck / build                  # 0 / 0 / ناجح
 ---
 
 ## 5) الأرشيف — سيناريوهات مراحل الإغلاق التجاري (سابقة، لا تزال خضراء)
-`EndToEndScenarioTests`: رحلة الموقع العام الكاملة + رحلة الحجز المباشر (دخول→طعام/فوليو→منع الخروج 402→تسوية ذرّية→خروج→إغلاق يوم). محفوظة ضمن الحزمة (208).
+`EndToEndScenarioTests`: رحلة الموقع العام الكاملة + رحلة الحجز المباشر (دخول→طعام/فوليو→منع الخروج 402→تسوية ذرّية→خروج→إغلاق يوم). محفوظة ضمن الحزمة (216).
