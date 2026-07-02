@@ -1,17 +1,21 @@
+from django.core.exceptions import ObjectDoesNotExist
 from rest_framework import permissions
 
 
 def _get_user_role(user) -> str:
-    """Return user's role from UserProfile.
+    """المرحلة 6 (تحصين الصلاحيات): المصدر الرسميّ الوحيد للدور هو `UserProfile.role`.
 
-    H‑6: عند غياب UserProfile، الافتراض هو **بلا دور** (الأكثر تقييدًا) — لا 'manager'.
-    يُبقى تعيينٌ صريح للحسابات التجريبية الثلاثة فقط للتوافق الخلفي.
-    """
+    Fail‑closed: لا يُستنتَج الدور أبدًا من `username` أو `email` أو أيّ حقل تعريفيّ.
+    مستخدمٌ غير مُصادَق، أو بلا `UserProfile`، أو بلا دور مضبوط ⇒ **بلا دور** ('').
+    (ملاحظة: نظام أدوار الـAPI مبنيّ على الملف الشخصيّ فقط ولا يعتمد `is_superuser`؛
+    وصول superuser إلى لوحة Django admin منفصلٌ وغير متأثّر.)"""
+    if not user or not getattr(user, 'is_authenticated', False):
+        return ''
     try:
-        return user.profile.role
-    except AttributeError:
-        _MAP = {'platform': 'platform_owner', 'manager': 'manager', 'reception': 'reception'}
-        return _MAP.get(user.username, '')
+        profile = user.profile
+    except (AttributeError, ObjectDoesNotExist):
+        return ''
+    return getattr(profile, 'role', '') or ''
 
 
 def _get_user_hotel_id(user):
