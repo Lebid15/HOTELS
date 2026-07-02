@@ -6,6 +6,16 @@ import { Users, CheckCircle2, PauseCircle, Bell, Wrench, Search, ListFilter, Pho
 import { useLang } from "../LangContext";
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
 
+// يحوّل استجابة خطأ DRF (كائن/مصفوفة/نص) إلى رسالة عربية واحدة مقروءة بدل JSON خام.
+// رسائل الباك‑إند أصبحت عربية (LANGUAGE_CODE=ar) فتظهر مباشرة للمستخدم.
+function flattenErr(d: unknown): string {
+  if (d == null) return "";
+  if (typeof d === "string") return d;
+  if (Array.isArray(d)) return d.map(flattenErr).filter(Boolean).join(" ");
+  if (typeof d === "object") return Object.values(d as Record<string, unknown>).map(flattenErr).filter(Boolean).join(" — ");
+  return String(d);
+}
+
 type StaffRole   = "receptionist"|"cashier"|"housekeeping"|"maintenance"|"restaurant"|"room_service"|"supervisor";
 type StaffShift  = "morning"|"evening"|"night"|"flexible";
 type StaffStatus = "active"|"suspended"|"archived";
@@ -162,8 +172,9 @@ export default function StaffPage() {
   /* ── Save staff ── */
   async function handleSave(){
     if(!fName.trim()){setFormErr(t("الاسم الكامل مطلوب."));return;}
-    if(!fEmail.trim()||!fEmail.includes("@")){setFormErr(t("البريد الإلكتروني غير صالح."));return;}
-    const dup=staff.find(s=>s.email.toLowerCase()===fEmail.toLowerCase()&&(modal==="add"||s.id!==selStaff?.id));
+    // البريد اختياري — الدخول يعتمد على اسم المستخدم لا البريد. نتحقّق من الصيغة فقط إن أُدخل.
+    if(fEmail.trim()&&!fEmail.includes("@")){setFormErr(t("البريد الإلكتروني غير صالح."));return;}
+    const dup=fEmail.trim()?staff.find(s=>s.email.toLowerCase()===fEmail.toLowerCase()&&(modal==="add"||s.id!==selStaff?.id)):undefined;
     if(dup){setFormErr(t("هذا البريد الإلكتروني مستخدم بالفعل من قبل موظف آخر."));return;}
     // د‑5: عند الإضافة، إن أُدخل اسم مستخدم يُنشأ حساب دخول (كلمة مرور ≥ 8)
     if(modal==="add"&&fUsername.trim()&&fPassword.length<8){setFormErr(t("كلمة المرور 8 أحرف على الأقل لإنشاء حساب الدخول."));return;}
@@ -176,11 +187,11 @@ export default function StaffPage() {
     try{
       if(modal==="edit"&&selStaff){
         const r=await fetch(`${API}/staff/${selStaff.id}/`,{method:"PUT",headers:apiHJ(),body:JSON.stringify(payload)});
-        if(!r.ok){const d=await r.json();setFormErr(JSON.stringify(d));setSaving(false);return;}
+        if(!r.ok){const d=await r.json();setFormErr(flattenErr(d)||t("حدث خطأ أثناء الحفظ."));setSaving(false);return;}
         showToast(t("تم تحديث بيانات الموظف بنجاح."));
       }else{
         const r=await fetch(`${API}/staff/`,{method:"POST",headers:apiHJ(),body:JSON.stringify(payload)});
-        if(!r.ok){const d=await r.json();setFormErr(JSON.stringify(d));setSaving(false);return;}
+        if(!r.ok){const d=await r.json();setFormErr(flattenErr(d)||t("حدث خطأ أثناء الحفظ."));setSaving(false);return;}
         showToast(t("تم إضافة الموظف بنجاح."));
       }
       setModal(null);fetchStaff();
@@ -224,7 +235,7 @@ export default function StaffPage() {
     if(!selStaff.has_login){ if(!pwUser.trim()){setPwErr(t("اسم المستخدم مطلوب لإنشاء حساب الدخول."));return;} body.username=pwUser.trim(); }
     try{
       const r=await fetch(`${API}/staff/${selStaff.id}/set_password/`,{method:"POST",headers:apiHJ(),body:JSON.stringify(body)});
-      if(!r.ok){const d=await r.json().catch(()=>({}));setPwErr(d.error||t("حدث خطأ."));return;}
+      if(!r.ok){const d=await r.json().catch(()=>({}));setPwErr(flattenErr(d)||t("حدث خطأ."));return;}
       showToast(t("تم تحديث كلمة المرور."));setModal(null);fetchStaff();
     }catch{setPwErr(t("حدث خطأ."));}
   }
@@ -399,19 +410,26 @@ export default function StaffPage() {
                   <label className="field-label">{t("الاسم الكامل")} *</label>
                   <input className="input" value={fName} onChange={e=>setFName(e.target.value)} placeholder={t("مثال: محمد عبدالله السعيد")} />
                 </div>
-                {modal==="add"&&(<>
-                  <div className="field">
-                    <label className="field-label">{t("اسم المستخدم")}</label>
-                    <input className="input" value={fUsername} onChange={e=>setFUsername(e.target.value)} placeholder={t("لتفعيل حساب دخول (اختياري)")} autoComplete="off" />
+                {modal==="add"&&(
+                  <div style={{gridColumn:"1/-1",background:"var(--color-surface-2,#f8fafc)",border:"1px solid var(--color-border)",borderRadius:12,padding:"0.75rem 0.85rem"}}>
+                    <p style={{fontWeight:800,fontSize:13,marginBottom:2,display:"flex",alignItems:"center",gap:6,color:"var(--color-heading)"}}>
+                      <Key size={14} strokeWidth={2.2} color="var(--color-primary)"/> {t("بيانات الدخول إلى النظام")} <span className="text-muted" style={{fontWeight:600,fontSize:11}}>({t("اختياري")})</span>
+                    </p>
+                    <p className="text-muted" style={{fontSize:11,marginBottom:10,lineHeight:1.6}}>
+                      {t("يُسجّل الموظف دخوله باسم المستخدم وكلمة المرور — لا يُستخدم البريد للدخول. اترك الحقلين فارغين إن كان الموظف لا يحتاج حسابًا في النظام، أو املأهما لإنشاء حساب دخول حقيقي تُسجَّل باسمه كل عملية.")}
+                    </p>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"0.65rem"}}>
+                      <div className="field">
+                        <label className="field-label">{t("اسم المستخدم للدخول")}</label>
+                        <input className="input" value={fUsername} onChange={e=>setFUsername(e.target.value)} placeholder={t("مثال: ahmad.reception")} autoComplete="off" />
+                      </div>
+                      <div className="field">
+                        <label className="field-label">{t("كلمة المرور")}</label>
+                        <input className="input" type="password" value={fPassword} onChange={e=>setFPassword(e.target.value)} placeholder={t("8 أحرف على الأقل")} autoComplete="new-password" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="field">
-                    <label className="field-label">{t("كلمة المرور")}</label>
-                    <input className="input" type="password" value={fPassword} onChange={e=>setFPassword(e.target.value)} placeholder={t("8 أحرف على الأقل")} autoComplete="new-password" />
-                  </div>
-                  <p className="text-muted" style={{gridColumn:"1/-1",fontSize:11,marginTop:-4}}>
-                    {t("عند إدخال اسم مستخدم وكلمة مرور يُنشأ حساب دخول حقيقي للموظف، وكل عملية تُسجَّل باسمه.")}
-                  </p>
-                </>)}
+                )}
                 <div className="field">
                   <label className="field-label">{t("الدور الوظيفي")} *</label>
                   <select className="select" value={fRole2} onChange={e=>{
@@ -441,7 +459,7 @@ export default function StaffPage() {
                   <input className="input" value={fPhone} onChange={e=>setFPhone(e.target.value)} placeholder="+966 5X XXX XXXX" />
                 </div>
                 <div className="field">
-                  <label className="field-label">{t("البريد الإلكتروني")} *</label>
+                  <label className="field-label">{t("البريد الإلكتروني")} <span className="text-muted" style={{fontWeight:600,fontSize:11}}>({t("اختياري")})</span></label>
                   <input className="input" type="email" value={fEmail} onChange={e=>setFEmail(e.target.value)} placeholder="example@email.com" />
                 </div>
                 <div className="field" style={{gridColumn:"1/-1"}}>

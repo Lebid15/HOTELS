@@ -90,6 +90,8 @@ const UI: Record<string, { ar: string; en: string }> = {
 export default function ManagerLayout({ children }: { children: React.ReactNode }) {
   // User & hotel
   const [username,         setUsername]         = useState("");
+  const [displayName,      setDisplayName]      = useState("");        // الاسم الكامل للمدير (إن وُجد)
+  const [userAvatar,       setUserAvatar]       = useState<string | null>(null); // الصورة الشخصية
   const [hotelName,        setHotelName]        = useState("");
   const [ownerName,        setOwnerName]        = useState("");
   const [hotelLogo,        setHotelLogo]        = useState<string | null>(null);
@@ -132,6 +134,17 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
     return () => window.removeEventListener("hotel-identity-updated", onIdentity);
   }, []);
 
+  // تحديث فوريّ للصورة الشخصية واسم المدير في التوب بار عند حفظه في الملف الشخصي
+  useEffect(() => {
+    const onUser = (e: Event) => {
+      const d = (e as CustomEvent).detail ?? {};
+      if ("avatar" in d) setUserAvatar(d.avatar || null);
+      if ("name" in d)   setDisplayName((d.name || "").trim());
+    };
+    window.addEventListener("user-profile-updated", onUser);
+    return () => window.removeEventListener("user-profile-updated", onUser);
+  }, []);
+
   // ── Auth + hotel identity ────────────────────────────────────────────────
   useEffect(() => {
     const token = getToken();
@@ -161,6 +174,8 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
       .then(u => {
         if (u.role !== "manager") { router.push("/login"); return; }
         setUsername(u.username ?? "");
+        setUserAvatar(u.avatar || null);
+        setDisplayName([u.first_name, u.last_name].filter(Boolean).join(" ").trim());
         if (u.hotel_name) setHotelName(u.hotel_name);
 
         if (u.hotel_id) {
@@ -264,7 +279,8 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
   const visibleNav = NAV.filter(item => !item.foodOnly || showFoodServices);
 
   // ── Avatar / brand letters ───────────────────────────────────────────────
-  const avatarLetter   = username   ? username.charAt(0).toUpperCase()   : "م";
+  const userLabel      = (displayName || username).trim();
+  const avatarLetter   = userLabel ? userLabel.charAt(0).toUpperCase() : "م";
   const platformLetter = platformName ? platformName.charAt(0).toUpperCase() : "F";
 
   // ─────────────────────────────────────────────────────────────────────────
@@ -399,8 +415,13 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
 
           {/* User chip → الملف الشخصي (د‑6/16) */}
           <Link href="/manager/profile" className="user-chip" title={t("الملف الشخصي")} style={{ textDecoration: "none", color: "inherit" }}>
-            <span className="user-chip-avatar">{avatarLetter}</span>
-            <span className="user-chip-name">{username || t("userFallback")}</span>
+            <span className="user-chip-avatar">
+              {userAvatar
+                /* eslint-disable-next-line @next/next/no-img-element -- صورة شخصية data-url صغيرة */
+                ? <img src={userAvatar} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                : avatarLetter}
+            </span>
+            <span className="user-chip-name">{userLabel || t("userFallback")}</span>
           </Link>
 
           {/* Logout */}

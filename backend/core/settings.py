@@ -90,7 +90,10 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-LANGUAGE_CODE = 'en-us'
+# تطبيق عربي أولاً: يضمن أن رسائل Django المدمجة (مدقّقات كلمة المرور، أخطاء
+# النماذج، لوحة الإدارة) تظهر بالعربية بدل الإنجليزية. لا يوجد LocaleMiddleware
+# فاللغة الفعّالة لكل طلب = LANGUAGE_CODE. رسائل واجهة API المخصّصة عربية أصلاً.
+LANGUAGE_CODE = 'ar'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
