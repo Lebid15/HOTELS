@@ -367,7 +367,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
             />
           ) : (
             <span className="topbar-hotel-icon">
-              <Building2 size={26} strokeWidth={1.6} />
+              <Building2 size={28} strokeWidth={1.7} />
             </span>
           )}
           <div className="topbar-title">
@@ -418,7 +418,7 @@ export default function ManagerLayout({ children }: { children: React.ReactNode 
           {/* Logout */}
           <button
             onClick={logout}
-            className="ds-btn ds-btn-neutral ds-btn-sm"
+            className="ds-btn ds-btn-danger ds-btn-sm"
             title={t("logout")}
             aria-label={t("logout")}
           >
