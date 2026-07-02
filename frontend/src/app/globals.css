@@ -2743,3 +2743,26 @@ a.pf-card-link:hover .pf-kpi-go { opacity: .8; transform: translateX(0); }
   .pub-hero { padding: 3rem 1rem 2.5rem; }
 }
 
+/* ── م10: مبدّل لغة الموقع العام (عائم ثابت) ─────────────────────────────── */
+.public-lang-toggle {
+  position: fixed;
+  bottom: 1.25rem;
+  inset-inline-end: 1.25rem;
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  padding: .55rem .85rem;
+  border-radius: 999px;
+  border: 1px solid var(--pf-border, #e2e8f0);
+  background: #fff;
+  color: var(--pf-primary, #1e293b);
+  font-weight: 700;
+  font-size: .9rem;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .12);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.public-lang-toggle:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(0, 0, 0, .16); }
+.public-lang-toggle span { line-height: 1; }
+

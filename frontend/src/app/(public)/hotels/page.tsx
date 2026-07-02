@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Building2, MapPin, Search, SlidersHorizontal } from "lucide-react";
 import { apiUrl } from "@/lib/api";
+import { useLang } from "@/lib/i18n/LangContext";
 
 interface HotelCard {
   id: number;
@@ -35,6 +36,7 @@ const STARS_OPTS = [
 ];
 
 function HotelsPageInner() {
+  const { t } = useLang();
   const sp     = useSearchParams();
   const router = useRouter();
 
@@ -79,12 +81,12 @@ function HotelsPageInner() {
           <Link href="/" className="pub-logo">funduqii</Link>
           <nav>
             <ul className="pub-nav-links">
-              <li><Link href="/" className="pub-nav-link">الرئيسية</Link></li>
-              <li><Link href="/hotels" className="pub-nav-link" style={{ color: "var(--color-primary)" }}>الفنادق</Link></li>
-              <li><Link href="/manage-booking" className="pub-nav-link">إدارة حجزي</Link></li>
+              <li><Link href="/" className="pub-nav-link">{t("الرئيسية")}</Link></li>
+              <li><Link href="/hotels" className="pub-nav-link" style={{ color: "var(--color-primary)" }}>{t("الفنادق")}</Link></li>
+              <li><Link href="/manage-booking" className="pub-nav-link">{t("إدارة حجزي")}</Link></li>
             </ul>
           </nav>
-          <Link href="/manage-booking" className="ds-btn ds-btn-primary ds-btn-sm">إدارة حجزي</Link>
+          <Link href="/manage-booking" className="ds-btn ds-btn-primary ds-btn-sm">{t("إدارة حجزي")}</Link>
         </div>
       </header>
 
@@ -94,7 +96,7 @@ function HotelsPageInner() {
         <input
           className="pub-filter-input"
           type="text"
-          placeholder="اسم المدينة..."
+          placeholder={t("اسم المدينة...")}
           value={cityInput}
           onChange={e => setCityInput(e.target.value)}
           style={{ minWidth: 160 }}
@@ -104,10 +106,10 @@ function HotelsPageInner() {
           value={filters.stars}
           onChange={e => setFilters(f => ({ ...f, stars: e.target.value }))}
         >
-          {STARS_OPTS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {STARS_OPTS.map(o => <option key={o.value} value={o.value}>{t(o.label)}</option>)}
         </select>
         <button type="submit" className="ds-btn ds-btn-primary ds-btn-sm" style={{ gap: 6 }}>
-          <Search size={15} /> بحث
+          <Search size={15} /> {t("بحث")}
         </button>
         {(filters.city || filters.stars) && (
           <button type="button" className="ds-btn ds-btn-neutral ds-btn-sm"
@@ -118,7 +120,7 @@ function HotelsPageInner() {
               loadHotels(f);
               router.replace("/hotels", { scroll: false });
             }}>
-            مسح الفلاتر
+            {t("مسح الفلاتر")}
           </button>
         )}
       </form>
@@ -128,22 +130,22 @@ function HotelsPageInner() {
         <div className="pub-container">
           {loading ? (
             <div style={{ textAlign: "center", padding: "4rem", color: "var(--color-muted)" }}>
-              جارٍ تحميل الفنادق...
+              {t("جارٍ تحميل الفنادق...")}
             </div>
           ) : hotels.length === 0 ? (
             <div style={{ textAlign: "center", padding: "4rem" }}>
               <Building2 size={64} style={{ color: "#c7d2fe", margin: "0 auto 1rem" }} />
               <p style={{ color: "var(--color-heading)", fontWeight: 700, fontSize: "var(--text-lg)" }}>
-                لا توجد فنادق مطابقة
+                {t("لا توجد فنادق مطابقة")}
               </p>
               <p style={{ color: "var(--color-muted)", fontSize: "var(--text-sm)", marginTop: ".5rem" }}>
-                جرب تغيير معايير البحث أو تصفح جميع الفنادق
+                {t("جرب تغيير معايير البحث أو تصفح جميع الفنادق")}
               </p>
             </div>
           ) : (
             <>
               <p style={{ color: "var(--color-muted)", fontSize: "var(--text-sm)", marginBottom: "1.25rem" }}>
-                {hotels.length} فندق متاح
+                {hotels.length} {t("فندق متاح")}
               </p>
               <div className="pub-hotel-grid">
                 {hotels.map(h => (
@@ -158,7 +160,7 @@ function HotelsPageInner() {
                     )}
                     <div className="pub-hotel-card-body">
                       {h.is_featured && (
-                        <span className="ds-badge ds-badge-accent" style={{ marginBottom: ".5rem" }}>مميز</span>
+                        <span className="ds-badge ds-badge-accent" style={{ marginBottom: ".5rem" }}>{t("مميز")}</span>
                       )}
                       {h.stars != null && (
                         <div className="pub-stars">{"★".repeat(h.stars)}{"☆".repeat(Math.max(0, 5 - h.stars))}</div>
@@ -166,7 +168,7 @@ function HotelsPageInner() {
                       {h.avg_rating != null && h.ratings_count > 0 && (
                         <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "var(--text-xs)", color: "#f59e0b", fontWeight: 700, marginBottom: ".3rem" }}>
                           <span>★ {h.avg_rating.toFixed(1)}</span>
-                          <span style={{ color: "var(--color-muted)", fontWeight: 500 }}>({h.ratings_count} تقييم)</span>
+                          <span style={{ color: "var(--color-muted)", fontWeight: 500 }}>({h.ratings_count} {t("تقييم")})</span>
                         </div>
                       )}
                       <div className="pub-hotel-card-name">{h.name}</div>
@@ -193,10 +195,10 @@ function HotelsPageInner() {
                         {h.min_price != null ? (
                           <div className="pub-price">
                             {h.min_price.toLocaleString("ar")}
-                            {" "}<span className="pub-price-label">{h.min_currency} / ليلة</span>
+                            {" "}<span className="pub-price-label">{h.min_currency} / {t("ليلة")}</span>
                           </div>
                         ) : <div />}
-                        <span className="ds-btn ds-btn-primary ds-btn-sm" style={{ pointerEvents: "none" }}>عرض التفاصيل</span>
+                        <span className="ds-btn ds-btn-primary ds-btn-sm" style={{ pointerEvents: "none" }}>{t("عرض التفاصيل")}</span>
                       </div>
                     </div>
                   </Link>
@@ -209,7 +211,7 @@ function HotelsPageInner() {
 
       <footer className="pub-footer">
         <div className="pub-container">
-          <p>© funduqii — منصة فندقي للحجز الفندقي</p>
+          <p>© funduqii — {t("منصة فندقي للحجز الفندقي")}</p>
         </div>
       </footer>
     </div>
@@ -217,11 +219,12 @@ function HotelsPageInner() {
 }
 
 export default function HotelsPage() {
+  const { t } = useLang();
   return (
     <Suspense fallback={
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
         background: "#f8fafc", fontFamily: "var(--font-main)" }}>
-        <p style={{ color: "var(--color-muted)" }}>جارٍ التحميل...</p>
+        <p style={{ color: "var(--color-muted)" }}>{t("جارٍ التحميل...")}</p>
       </div>
     }>
       <HotelsPageInner />

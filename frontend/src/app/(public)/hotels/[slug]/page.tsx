@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { apiUrl } from "@/lib/api";
 import HotelMap from "@/components/HotelMap";
+import { useLang } from "@/lib/i18n/LangContext";
 
 interface HotelDetail {
   id: number;
@@ -77,6 +78,7 @@ const HOTEL_TYPE_MAP: Record<string, string> = {
 export default function HotelDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
   const router   = useRouter();
+  const { t }    = useLang();
 
   const [hotel,    setHotel]    = useState<HotelDetail | null>(null);
   const [loading,  setLoading]  = useState(true);
@@ -115,7 +117,8 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
     fetch(apiUrl(`/public/hotels/${slug}/`))
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(data => { setHotel(data); setCoverImg(data.cover_image || ""); setLoading(false); })
-      .catch(() => { setError("هذا الفندق غير متاح حاليًا"); setLoading(false); });
+      .catch(() => { setError(t("هذا الفندق غير متاح حاليًا")); setLoading(false); });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- t مستقرّ من سياق اللغة؛ لا نُعيد الجلب عند تبديل اللغة
   }, [slug]);
 
   const loadRatings = useCallback(() => {
@@ -129,8 +132,8 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
 
   function submitRating(e: React.FormEvent) {
     e.preventDefault();
-    if (!rateBookingNo.trim() || !ratePhone.trim()) { setRateError("يرجى إدخال رقم الحجز ورقم الهاتف"); return; }
-    if (rateStars < 1 || rateStars > 5) { setRateError("يرجى اختيار تقييم من 1 إلى 5 نجوم"); return; }
+    if (!rateBookingNo.trim() || !ratePhone.trim()) { setRateError(t("يرجى إدخال رقم الحجز ورقم الهاتف")); return; }
+    if (rateStars < 1 || rateStars > 5) { setRateError(t("يرجى اختيار تقييم من 1 إلى 5 نجوم")); return; }
     setRateLoading(true); setRateError("");
     fetch(apiUrl(`/public/hotels/${slug}/ratings/`), {
       method: "POST",
@@ -140,18 +143,18 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
       .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
       .then(({ ok, data }) => {
         setRateLoading(false);
-        if (!ok) { setRateError(data.error ?? "تعذّر إرسال التقييم"); return; }
+        if (!ok) { setRateError(data.error ?? t("تعذّر إرسال التقييم")); return; }
         setRateSuccess(true);
         setRateBookingNo(""); setRatePhone(""); setRateStars(0); setRateComment("");
         loadRatings();
         setTimeout(() => { setShowRateForm(false); setRateSuccess(false); }, 2500);
       })
-      .catch(() => { setRateError("حدث خطأ في الاتصال"); setRateLoading(false); });
+      .catch(() => { setRateError(t("حدث خطأ في الاتصال")); setRateLoading(false); });
   }
 
   function searchAvailability(e: React.FormEvent) {
     e.preventDefault();
-    if (!checkIn || !checkOut) { setAvailErr("يرجى تحديد تواريخ الدخول والخروج"); return; }
+    if (!checkIn || !checkOut) { setAvailErr(t("يرجى تحديد تواريخ الدخول والخروج")); return; }
     setAvailErr("");
     setSearching(true);
     setRooms(null);
@@ -159,11 +162,11 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
     fetch(apiUrl(`/public/hotels/${slug}/availability/?check_in=${checkIn}&check_out=${checkOut}&guests=${guests}`))
       .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
       .then(({ ok, data }) => {
-        if (!ok) { setAvailErr(data.error ?? "حدث خطأ"); setSearching(false); return; }
+        if (!ok) { setAvailErr(data.error ?? t("حدث خطأ")); setSearching(false); return; }
         setRooms(Array.isArray(data) ? data : []);
         setSearching(false);
       })
-      .catch(() => { setAvailErr("حدث خطأ في الاتصال"); setSearching(false); });
+      .catch(() => { setAvailErr(t("حدث خطأ في الاتصال")); setSearching(false); });
   }
 
   function submitBooking(e: React.FormEvent) {
@@ -171,7 +174,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
     if (!selectedRoom || !hotel) return;
     const { guest_first_name, guest_last_name, guest_phone } = bookForm;
     if (!guest_first_name || !guest_last_name || !guest_phone) {
-      setBookError("يرجى ملء الاسم الأول والأخير ورقم الهاتف"); return;
+      setBookError(t("يرجى ملء الاسم الأول والأخير ورقم الهاتف")); return;
     }
     setBookLoading(true);
     setBookError("");
@@ -189,7 +192,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
     })
       .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
       .then(({ ok, data }) => {
-        if (!ok) { setBookError(data.error ?? "فشل الحجز"); setBookLoading(false); return; }
+        if (!ok) { setBookError(data.error ?? t("فشل الحجز")); setBookLoading(false); return; }
         const p = new URLSearchParams({
           no:        data.public_booking_no ?? "",
           name:      `${data.guest_first_name} ${data.guest_last_name}`,
@@ -205,13 +208,13 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
         });
         router.push(`/booking/success?${p}`);
       })
-      .catch(() => { setBookError("حدث خطأ في الاتصال"); setBookLoading(false); });
+      .catch(() => { setBookError(t("حدث خطأ في الاتصال")); setBookLoading(false); });
   }
 
   if (loading) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
       background: "#f8fafc", fontFamily: "var(--font-main)" }}>
-      <p style={{ color: "var(--color-muted)" }}>جارٍ تحميل بيانات الفندق...</p>
+      <p style={{ color: "var(--color-muted)" }}>{t("جارٍ تحميل بيانات الفندق...")}</p>
     </div>
   );
 
@@ -220,14 +223,14 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
       <header className="pub-header">
         <div className="pub-header-inner">
           <Link href="/" className="pub-logo">funduqii</Link>
-          <Link href="/hotels" className="ds-btn ds-btn-neutral ds-btn-sm">← الفنادق</Link>
+          <Link href="/hotels" className="ds-btn ds-btn-neutral ds-btn-sm">← {t("الفنادق")}</Link>
         </div>
       </header>
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column",
         gap: "1rem", padding: "4rem" }}>
         <AlertCircle size={48} style={{ color: "var(--color-danger)" }} />
         <p style={{ color: "var(--color-heading)", fontSize: "var(--text-lg)", fontWeight: 700 }}>{error}</p>
-        <Link href="/hotels" className="ds-btn ds-btn-primary">العودة لقائمة الفنادق</Link>
+        <Link href="/hotels" className="ds-btn ds-btn-primary">{t("العودة لقائمة الفنادق")}</Link>
       </div>
     </div>
   );
@@ -244,12 +247,12 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
           <Link href="/" className="pub-logo">funduqii</Link>
           <nav>
             <ul className="pub-nav-links">
-              <li><Link href="/" className="pub-nav-link">الرئيسية</Link></li>
-              <li><Link href="/hotels" className="pub-nav-link">الفنادق</Link></li>
-              <li><Link href="/manage-booking" className="pub-nav-link">إدارة حجزي</Link></li>
+              <li><Link href="/" className="pub-nav-link">{t("الرئيسية")}</Link></li>
+              <li><Link href="/hotels" className="pub-nav-link">{t("الفنادق")}</Link></li>
+              <li><Link href="/manage-booking" className="pub-nav-link">{t("إدارة حجزي")}</Link></li>
             </ul>
           </nav>
-          <Link href="/manage-booking" className="ds-btn ds-btn-primary ds-btn-sm">إدارة حجزي</Link>
+          <Link href="/manage-booking" className="ds-btn ds-btn-primary ds-btn-sm">{t("إدارة حجزي")}</Link>
         </div>
       </header>
 
@@ -268,9 +271,9 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
           <div className="pub-cover-info">
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: ".5rem", flexWrap: "wrap" }}>
               {hotel.hotel_type && (
-                <span className="ds-badge ds-badge-info">{HOTEL_TYPE_MAP[hotel.hotel_type] ?? hotel.hotel_type}</span>
+                <span className="ds-badge ds-badge-info">{t(HOTEL_TYPE_MAP[hotel.hotel_type] ?? hotel.hotel_type)}</span>
               )}
-              {hotel.is_featured && <span className="ds-badge ds-badge-accent">مميز</span>}
+              {hotel.is_featured && <span className="ds-badge ds-badge-accent">{t("مميز")}</span>}
             </div>
             <h1>{hotel.name}</h1>
             {hotel.stars != null && (
@@ -284,7 +287,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
                   ★ {ratings.avg.toFixed(1)} / 5
                 </span>
                 <span style={{ fontSize: ".8rem", color: "rgba(255,255,255,.9)" }}>
-                  ({ratings.count} تقييم من الضيوف)
+                  ({ratings.count} {t("تقييم من الضيوف")})
                 </span>
               </div>
             )}
@@ -322,7 +325,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
           {hotel.amenities?.length > 0 && (
             <div style={{ marginBottom: "2rem" }}>
               <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--color-heading)", marginBottom: ".75rem" }}>
-                المرافق والخدمات
+                {t("المرافق والخدمات")}
               </h3>
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                 {hotel.amenities.map(a => (
@@ -338,7 +341,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
           {(hotel.public_description_short || hotel.public_description_full) && (
             <div style={{ marginBottom: "2rem" }}>
               <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--color-heading)", marginBottom: ".75rem" }}>
-                عن الفندق
+                {t("عن الفندق")}
               </h3>
               <p style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", lineHeight: "var(--line-normal)", marginBottom: ".75rem" }}>
                 {hotel.public_description_short}
@@ -354,7 +357,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
                     style={{ color: "var(--color-primary)", fontSize: "var(--text-sm)", fontWeight: 600,
                       background: "none", border: "none", cursor: "pointer", padding: 0,
                       display: "flex", alignItems: "center", gap: 4 }}>
-                    {showFullDesc ? <><ChevronUp size={16} /> عرض أقل</> : <><ChevronDown size={16} /> عرض المزيد</>}
+                    {showFullDesc ? <><ChevronUp size={16} /> {t("عرض أقل")}</> : <><ChevronDown size={16} /> {t("عرض المزيد")}</>}
                   </button>
                 </>
               )}
@@ -365,19 +368,19 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
           {(hotel.cancellation_policy || hotel.check_in_policy || hotel.check_out_policy || hotel.payment_policy) && (
             <div style={{ marginBottom: "2rem" }}>
               <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--color-heading)", marginBottom: ".75rem" }}>
-                السياسات
+                {t("السياسات")}
               </h3>
               {hotel.check_in_policy && (
-                <div className="pub-policy-block"><h4>سياسة الدخول</h4><p>{hotel.check_in_policy}</p></div>
+                <div className="pub-policy-block"><h4>{t("سياسة الدخول")}</h4><p>{hotel.check_in_policy}</p></div>
               )}
               {hotel.check_out_policy && (
-                <div className="pub-policy-block"><h4>سياسة المغادرة</h4><p>{hotel.check_out_policy}</p></div>
+                <div className="pub-policy-block"><h4>{t("سياسة المغادرة")}</h4><p>{hotel.check_out_policy}</p></div>
               )}
               {hotel.cancellation_policy && (
-                <div className="pub-policy-block"><h4>سياسة الإلغاء</h4><p>{hotel.cancellation_policy}</p></div>
+                <div className="pub-policy-block"><h4>{t("سياسة الإلغاء")}</h4><p>{hotel.cancellation_policy}</p></div>
               )}
               {hotel.payment_policy && (
-                <div className="pub-policy-block"><h4>سياسة الدفع</h4><p>{hotel.payment_policy}</p></div>
+                <div className="pub-policy-block"><h4>{t("سياسة الدفع")}</h4><p>{hotel.payment_policy}</p></div>
               )}
             </div>
           )}
@@ -385,7 +388,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
           {/* Contact */}
           {hotel.show_contact_info && hotel.phone && (
             <div className="ds-alert ds-alert-info" style={{ marginBottom: "1.5rem" }}>
-              <strong>التواصل مع الفندق:</strong> {hotel.phone}
+              <strong>{t("التواصل مع الفندق:")}</strong> {hotel.phone}
             </div>
           )}
 
@@ -393,7 +396,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
           {(hotel.latitude != null && hotel.longitude != null) || hotel.map_url ? (
             <div style={{ marginBottom: "2rem" }}>
               <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--color-heading)", marginBottom: ".75rem" }}>
-                الموقع
+                {t("الموقع")}
               </h3>
               {hotel.latitude != null && hotel.longitude != null && (
                 <div style={{ marginBottom: "0.75rem" }}>
@@ -403,7 +406,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
               {hotel.map_url && (
                 <a href={hotel.map_url} target="_blank" rel="noopener noreferrer"
                   className="ds-btn ds-btn-neutral ds-btn-sm" style={{ gap: 6 }}>
-                  <MapPin size={16} /> فتح في خرائط Google
+                  <MapPin size={16} /> {t("فتح في خرائط Google")}
                 </a>
               )}
               {hotel.latitude != null && hotel.longitude != null && !hotel.map_url && (
@@ -411,7 +414,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
                   href={`https://www.openstreetmap.org/?mlat=${hotel.latitude}&mlon=${hotel.longitude}#map=16/${hotel.latitude}/${hotel.longitude}`}
                   target="_blank" rel="noopener noreferrer"
                   className="ds-btn ds-btn-neutral ds-btn-sm" style={{ gap: 6 }}>
-                  <MapPin size={16} /> فتح في خريطة أكبر
+                  <MapPin size={16} /> {t("فتح في خريطة أكبر")}
                 </a>
               )}
             </div>
@@ -421,7 +424,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
           <div style={{ marginBottom: "2rem" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: ".75rem", flexWrap: "wrap", gap: 8 }}>
               <h3 style={{ fontSize: "var(--text-lg)", fontWeight: 700, color: "var(--color-heading)", margin: 0 }}>
-                تقييمات الضيوف
+                {t("تقييمات الضيوف")}
                 {ratings.count > 0 && (
                   <span style={{ marginRight: 8, fontSize: "var(--text-sm)", color: "#f59e0b", fontWeight: 700 }}>
                     ★ {ratings.avg?.toFixed(1)} ({ratings.count})
@@ -429,7 +432,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
                 )}
               </h3>
               <button onClick={() => setShowRateForm(v => !v)} className="ds-btn ds-btn-primary ds-btn-sm" style={{ gap: 6 }}>
-                <MessageSquare size={14} /> {showRateForm ? "إخفاء النموذج" : "أضف تقييمك"}
+                <MessageSquare size={14} /> {showRateForm ? t("إخفاء النموذج") : t("أضف تقييمك")}
               </button>
             </div>
 
@@ -457,48 +460,48 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
               <form onSubmit={submitRating} style={{ background: "#fff", border: "1.5px solid var(--color-border)", borderRadius: 12, padding: "1.25rem", marginBottom: "1rem" }}>
                 {rateSuccess ? (
                   <div className="ds-alert ds-alert-success">
-                    <CheckCircle size={16} /> شكراً لك! تم استلام تقييمك.
+                    <CheckCircle size={16} /> {t("شكراً لك! تم استلام تقييمك.")}
                   </div>
                 ) : (
                   <>
                     <p style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", marginBottom: ".75rem" }}>
-                      لإضافة تقييم، يجب أن يكون لديك حجز في هذا الفندق عبر منصة funduqii.
+                      {t("لإضافة تقييم، يجب أن يكون لديك حجز في هذا الفندق عبر منصة funduqii.")}
                     </p>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: ".75rem", marginBottom: ".75rem" }}>
                       <div>
-                        <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: ".35rem" }}>رقم الحجز</label>
+                        <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: ".35rem" }}>{t("رقم الحجز")}</label>
                         <input className="pub-filter-input" style={{ width: "100%", boxSizing: "border-box", marginBottom: 0 }}
                           placeholder="WEB-2026-00001" value={rateBookingNo}
                           onChange={e => setRateBookingNo(e.target.value.toUpperCase())} />
                       </div>
                       <div>
-                        <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: ".35rem" }}>رقم الهاتف</label>
+                        <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: ".35rem" }}>{t("رقم الهاتف")}</label>
                         <input className="pub-filter-input" style={{ width: "100%", boxSizing: "border-box", marginBottom: 0 }}
                           type="tel" placeholder="+963..." value={ratePhone}
                           onChange={e => setRatePhone(e.target.value)} />
                       </div>
                     </div>
                     <div style={{ marginBottom: ".75rem" }}>
-                      <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: ".35rem" }}>تقييمك</label>
+                      <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: ".35rem" }}>{t("تقييمك")}</label>
                       <div style={{ display: "flex", gap: 4, direction: "ltr", justifyContent: "flex-start" }}>
                         {[1, 2, 3, 4, 5].map(n => (
                           <button key={n} type="button" onClick={() => setRateStars(n)}
                             style={{ background: "none", border: "none", cursor: "pointer", padding: 4, fontSize: "1.8rem", lineHeight: 1, color: n <= rateStars ? "#f59e0b" : "#d1d5db" }}
-                            aria-label={`${n} نجوم`}>
+                            aria-label={`${n} ${t("نجوم")}`}>
                             ★
                           </button>
                         ))}
                       </div>
                     </div>
                     <div style={{ marginBottom: ".75rem" }}>
-                      <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: ".35rem" }}>تعليق (اختياري)</label>
+                      <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, marginBottom: ".35rem" }}>{t("تعليق (اختياري)")}</label>
                       <textarea rows={3} value={rateComment} onChange={e => setRateComment(e.target.value)}
-                        placeholder="شاركنا تجربتك في الفندق..."
+                        placeholder={t("شاركنا تجربتك في الفندق...")}
                         style={{ width: "100%", padding: ".6rem .9rem", border: "1.5px solid var(--color-border)", borderRadius: 8, fontSize: "var(--text-sm)", fontFamily: "var(--font-main)", outline: "none", boxSizing: "border-box", resize: "vertical" }} />
                     </div>
                     {rateError && <div className="ds-alert ds-alert-danger" style={{ marginBottom: ".75rem" }}><AlertCircle size={16} /> {rateError}</div>}
                     <button type="submit" disabled={rateLoading} className="ds-btn ds-btn-primary" style={{ gap: 6 }}>
-                      <Send size={14} /> {rateLoading ? "جارٍ الإرسال..." : "إرسال التقييم"}
+                      <Send size={14} /> {rateLoading ? t("جارٍ الإرسال...") : t("إرسال التقييم")}
                     </button>
                   </>
                 )}
@@ -508,7 +511,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
             {/* List of ratings -------------------------------------- */}
             {ratings.items.length === 0 ? (
               <p style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)", textAlign: "center", padding: "1rem" }}>
-                لا توجد تقييمات بعد. كن أول من يقيّم هذا الفندق!
+                {t("لا توجد تقييمات بعد. كن أول من يقيّم هذا الفندق!")}
               </p>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: ".75rem" }}>
@@ -517,7 +520,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: ".35rem", flexWrap: "wrap", gap: 8 }}>
                       <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                         <span style={{ fontWeight: 700, color: "var(--color-heading)", fontSize: "var(--text-sm)" }}>
-                          {r.guest_name || "ضيف"}
+                          {r.guest_name || t("ضيف")}
                         </span>
                         <span style={{ color: "#f59e0b", fontSize: ".9rem" }} dir="ltr">
                           {"★".repeat(r.rating)}{"☆".repeat(Math.max(0, 5 - r.rating))}
@@ -543,9 +546,9 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
             {hotel.min_price != null && (
               <div style={{ textAlign: "center", marginBottom: "1.25rem", paddingBottom: "1.25rem",
                 borderBottom: "1px solid var(--color-border)" }}>
-                <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>يبدأ من</span>
+                <span style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>{t("يبدأ من")}</span>
                 <div className="pub-room-card-price" style={{ fontSize: "1.6rem" }}>
-                  {hotel.min_price.toLocaleString("ar")} <span style={{ fontSize: "var(--text-sm)", fontWeight: 400, color: "var(--color-muted)" }}>{hotel.min_currency} / ليلة</span>
+                  {hotel.min_price.toLocaleString("ar")} <span style={{ fontSize: "var(--text-sm)", fontWeight: 400, color: "var(--color-muted)" }}>{hotel.min_currency} / {t("ليلة")}</span>
                 </div>
               </div>
             )}
@@ -553,35 +556,35 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
             <form onSubmit={searchAvailability}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.75rem" }}>
                 <div className="pub-avail-field">
-                  <label><Calendar size={12} style={{ display: "inline", marginLeft: 4 }} />تاريخ الدخول</label>
+                  <label><Calendar size={12} style={{ display: "inline", marginLeft: 4 }} />{t("تاريخ الدخول")}</label>
                   <input type="date" value={checkIn}
                     min={new Date().toISOString().split("T")[0]}
                     onChange={e => setCheckIn(e.target.value)} required />
                 </div>
                 <div className="pub-avail-field">
-                  <label><Calendar size={12} style={{ display: "inline", marginLeft: 4 }} />تاريخ الخروج</label>
+                  <label><Calendar size={12} style={{ display: "inline", marginLeft: 4 }} />{t("تاريخ الخروج")}</label>
                   <input type="date" value={checkOut}
                     min={checkIn || new Date().toISOString().split("T")[0]}
                     onChange={e => setCheckOut(e.target.value)} required />
                 </div>
               </div>
               <div className="pub-avail-field">
-                <label><Users size={12} style={{ display: "inline", marginLeft: 4 }} />عدد الضيوف</label>
+                <label><Users size={12} style={{ display: "inline", marginLeft: 4 }} />{t("عدد الضيوف")}</label>
                 <select value={guests} onChange={e => setGuests(e.target.value)}>
                   {[1,2,3,4,5,6].map(n => (
-                    <option key={n} value={n}>{n} {n === 1 ? "ضيف" : "ضيوف"}</option>
+                    <option key={n} value={n}>{n} {n === 1 ? t("ضيف") : t("ضيوف")}</option>
                   ))}
                 </select>
               </div>
               {nights > 0 && (
                 <p style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)", marginBottom: ".75rem", textAlign: "center" }}>
-                  {nights} {nights === 1 ? "ليلة" : "ليالٍ"}
+                  {nights} {nights === 1 ? t("ليلة") : t("ليالٍ")}
                 </p>
               )}
               {availErr && <div className="ds-alert ds-alert-danger" style={{ marginBottom: ".75rem" }}>{availErr}</div>}
               <button type="submit" className="ds-btn ds-btn-primary" disabled={searching}
                 style={{ width: "100%", justifyContent: "center" }}>
-                {searching ? "جارٍ البحث..." : "تحقق من التوفر"}
+                {searching ? t("جارٍ البحث...") : t("تحقق من التوفر")}
               </button>
             </form>
 
@@ -592,20 +595,20 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
                   <div style={{ textAlign: "center", padding: "1rem 0" }}>
                     <AlertCircle size={32} style={{ color: "var(--color-warning)", margin: "0 auto .5rem" }} />
                     <p style={{ fontSize: "var(--text-sm)", color: "var(--color-muted)" }}>
-                      لا توجد غرف متاحة في التواريخ المحددة
+                      {t("لا توجد غرف متاحة في التواريخ المحددة")}
                     </p>
                   </div>
                 ) : (
                   <>
                     <p style={{ fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-heading)", marginBottom: "1rem" }}>
-                      الغرف المتاحة
+                      {t("الغرف المتاحة")}
                     </p>
                     {rooms.map(r => (
                       <div key={r.room_type} className="pub-room-card">
                         <div>
                           <div className="pub-room-card-name">{r.room_type_label}</div>
                           <div style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)", marginBottom: ".4rem" }}>
-                            حتى {r.capacity} ضيوف · {r.available_count} غرفة متاحة
+                            {t("حتى")} {r.capacity} {t("ضيوف")} · {r.available_count} {t("غرفة متاحة")}
                           </div>
                           {r.description && (
                             <div style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)" }}>{r.description}</div>
@@ -614,14 +617,14 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
                         <div style={{ textAlign: "center", flexShrink: 0 }}>
                           <div className="pub-room-card-price">{r.price_per_night.toLocaleString("ar")}</div>
                           <div style={{ fontSize: "var(--text-xs)", color: "var(--color-muted)", marginBottom: ".5rem" }}>
-                            {r.currency}/ليلة
+                            {r.currency}/{t("ليلة")}
                           </div>
                           <div style={{ fontSize: "var(--text-xs)", color: "var(--color-primary)", fontWeight: 600, marginBottom: ".5rem" }}>
-                            المجموع: {r.total_price.toLocaleString("ar")} {r.currency}
+                            {t("المجموع:")} {r.total_price.toLocaleString("ar")} {r.currency}
                           </div>
                           <button className="ds-btn ds-btn-primary ds-btn-sm"
                             onClick={() => { setSelectedRoom(r); setBookError(""); }}>
-                            احجز الآن
+                            {t("احجز الآن")}
                           </button>
                         </div>
                       </div>
@@ -640,7 +643,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
           <div className="pub-modal">
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
               <h2 style={{ fontSize: "var(--text-xl)", fontWeight: 700, color: "var(--color-heading)", margin: 0 }}>
-                تأكيد الحجز
+                {t("تأكيد الحجز")}
               </h2>
               <button onClick={() => setSelectedRoom(null)}
                 style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-muted)" }}>
@@ -652,58 +655,58 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
             <div style={{ background: "var(--color-primary-soft)", borderRadius: 12, padding: "1rem", marginBottom: "1.5rem",
               border: "1px solid var(--color-primary)", fontSize: "var(--text-sm)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: ".4rem" }}>
-                <span style={{ color: "var(--color-muted)" }}>الفندق</span>
+                <span style={{ color: "var(--color-muted)" }}>{t("الفندق")}</span>
                 <strong style={{ color: "var(--color-heading)" }}>{hotel.name}</strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: ".4rem" }}>
-                <span style={{ color: "var(--color-muted)" }}>نوع الغرفة</span>
+                <span style={{ color: "var(--color-muted)" }}>{t("نوع الغرفة")}</span>
                 <strong style={{ color: "var(--color-heading)" }}>{selectedRoom.room_type_label}</strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: ".4rem" }}>
-                <span style={{ color: "var(--color-muted)" }}>الفترة</span>
-                <strong style={{ color: "var(--color-heading)" }}>{checkIn} — {checkOut} ({selectedRoom.nights} {selectedRoom.nights === 1 ? "ليلة" : "ليالٍ"})</strong>
+                <span style={{ color: "var(--color-muted)" }}>{t("الفترة")}</span>
+                <strong style={{ color: "var(--color-heading)" }}>{checkIn} — {checkOut} ({selectedRoom.nights} {selectedRoom.nights === 1 ? t("ليلة") : t("ليالٍ")})</strong>
               </div>
               <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ color: "var(--color-muted)" }}>الإجمالي</span>
+                <span style={{ color: "var(--color-muted)" }}>{t("الإجمالي")}</span>
                 <strong style={{ color: "var(--color-primary)", fontSize: "var(--text-lg)" }}>
                   {selectedRoom.total_price.toLocaleString("ar")} {selectedRoom.currency}
                 </strong>
               </div>
               <div style={{ marginTop: ".5rem", fontSize: "var(--text-xs)", color: "var(--color-muted)", textAlign: "center" }}>
-                الدفع عند الوصول — لا حاجة لبطاقة ائتمانية
+                {t("الدفع عند الوصول — لا حاجة لبطاقة ائتمانية")}
               </div>
             </div>
 
             <form onSubmit={submitBooking}>
               <div className="pub-form-row">
                 <div className="pub-form-field">
-                  <label>الاسم الأول *</label>
-                  <input type="text" placeholder="أحمد" required
+                  <label>{t("الاسم الأول")} *</label>
+                  <input type="text" placeholder={t("أحمد")} required
                     value={bookForm.guest_first_name}
                     onChange={e => setBookForm(f => ({ ...f, guest_first_name: e.target.value }))} />
                 </div>
                 <div className="pub-form-field">
-                  <label>الاسم الأخير *</label>
-                  <input type="text" placeholder="علي" required
+                  <label>{t("الاسم الأخير")} *</label>
+                  <input type="text" placeholder={t("علي")} required
                     value={bookForm.guest_last_name}
                     onChange={e => setBookForm(f => ({ ...f, guest_last_name: e.target.value }))} />
                 </div>
               </div>
               <div className="pub-form-field">
-                <label>رقم الهاتف *</label>
+                <label>{t("رقم الهاتف")} *</label>
                 <input type="tel" placeholder="+963..." required
                   value={bookForm.guest_phone}
                   onChange={e => setBookForm(f => ({ ...f, guest_phone: e.target.value }))} />
               </div>
               <div className="pub-form-field">
-                <label>البريد الإلكتروني (اختياري)</label>
+                <label>{t("البريد الإلكتروني (اختياري)")}</label>
                 <input type="email" placeholder="email@example.com"
                   value={bookForm.guest_email}
                   onChange={e => setBookForm(f => ({ ...f, guest_email: e.target.value }))} />
               </div>
               <div className="pub-form-field">
-                <label>ملاحظات (اختياري)</label>
-                <textarea rows={2} placeholder="أي طلبات خاصة..."
+                <label>{t("ملاحظات (اختياري)")}</label>
+                <textarea rows={2} placeholder={t("أي طلبات خاصة...")}
                   value={bookForm.notes}
                   onChange={e => setBookForm(f => ({ ...f, notes: e.target.value }))}
                   style={{ resize: "vertical" }} />
@@ -714,10 +717,10 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
               <div style={{ display: "flex", gap: "1rem" }}>
                 <button type="submit" className="ds-btn ds-btn-success" disabled={bookLoading}
                   style={{ flex: 1, justifyContent: "center" }}>
-                  {bookLoading ? "جارٍ الحجز..." : <><CheckCircle size={18} /> تأكيد الحجز</>}
+                  {bookLoading ? t("جارٍ الحجز...") : <><CheckCircle size={18} /> {t("تأكيد الحجز")}</>}
                 </button>
                 <button type="button" className="ds-btn ds-btn-neutral" onClick={() => setSelectedRoom(null)}>
-                  إلغاء
+                  {t("إلغاء")}
                 </button>
               </div>
             </form>
@@ -727,7 +730,7 @@ export default function HotelDetailPage({ params }: { params: Promise<{ slug: st
 
       <footer className="pub-footer">
         <div className="pub-container">
-          <p>© funduqii — منصة فندقي للحجز الفندقي</p>
+          <p>© funduqii — {t("منصة فندقي للحجز الفندقي")}</p>
         </div>
       </footer>
     </div>

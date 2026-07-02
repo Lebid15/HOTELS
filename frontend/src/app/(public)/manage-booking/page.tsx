@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import { Search, CheckCircle, XCircle, AlertCircle, Calendar, Building2, User, Phone, MessageCircle, Copy, Check } from "lucide-react";
 import { apiUrl } from "@/lib/api";
+import { useLang } from "@/lib/i18n/LangContext";
 
 interface BookingDetail {
   id: number;
@@ -52,6 +53,7 @@ function formatDate(d: string) {
 }
 
 export default function ManageBookingPage() {
+  const { t } = useLang();
   const [bookingNo, setBookingNo] = useState("");
   const [phone,     setPhone]     = useState("");
   const [loading,   setLoading]   = useState(false);
@@ -68,15 +70,15 @@ export default function ManageBookingPage() {
 
   function buildSummary(b: BookingDetail) {
     return (
-`تفاصيل حجزي 🏨
-رقم الحجز: ${b.public_booking_no}
-الفندق: ${b.hotel_name}${b.hotel_city ? ` — ${b.hotel_city}` : ""}
-نوع الغرفة: ${b.room_type_label}
-الوصول: ${b.check_in_date}
-المغادرة: ${b.check_out_date}
-عدد الليالي: ${b.nights_count}
-الإجمالي: ${parseFloat(b.total).toLocaleString("ar")} ${b.currency}
-طريقة الدفع: الدفع عند الوصول`
+`${t("تفاصيل حجزي")} 🏨
+${t("رقم الحجز")}: ${b.public_booking_no}
+${t("الفندق")}: ${b.hotel_name}${b.hotel_city ? ` — ${b.hotel_city}` : ""}
+${t("نوع الغرفة")}: ${b.room_type_label}
+${t("الوصول")}: ${b.check_in_date}
+${t("المغادرة")}: ${b.check_out_date}
+${t("عدد الليالي")}: ${b.nights_count}
+${t("الإجمالي")}: ${parseFloat(b.total).toLocaleString("ar")} ${b.currency}
+${t("طريقة الدفع")}: ${t("الدفع عند الوصول")}`
     );
   }
 
@@ -89,7 +91,7 @@ export default function ManageBookingPage() {
 
   function lookup(e: React.FormEvent) {
     e.preventDefault();
-    if (!bookingNo.trim() || !phone.trim()) { setError("يرجى إدخال رقم الحجز ورقم الهاتف"); return; }
+    if (!bookingNo.trim() || !phone.trim()) { setError(t("يرجى إدخال رقم الحجز ورقم الهاتف")); return; }
     setLoading(true);
     setError("");
     setBooking(null);
@@ -98,7 +100,7 @@ export default function ManageBookingPage() {
     fetch(apiUrl(`/public/manage-booking/?no=${encodeURIComponent(bookingNo.trim())}&phone=${encodeURIComponent(phone.trim())}`))
       .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
       .then(({ ok, data }) => {
-        if (!ok) { setError(data.error ?? "لم يتم العثور على الحجز"); setLoading(false); return; }
+        if (!ok) { setError(data.error ?? t("لم يتم العثور على الحجز")); setLoading(false); return; }
         setBooking(data);
         setLoading(false);
         // تمرير سلس إلى بطاقة تفاصيل الحجز بعد رسمها
@@ -106,7 +108,7 @@ export default function ManageBookingPage() {
           setTimeout(() => bookingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
         });
       })
-      .catch(() => { setError("حدث خطأ في الاتصال"); setLoading(false); });
+      .catch(() => { setError(t("حدث خطأ في الاتصال")); setLoading(false); });
   }
 
   function submitCancel(e: React.FormEvent) {
@@ -121,13 +123,13 @@ export default function ManageBookingPage() {
     })
       .then(r => r.json().then(d => ({ ok: r.ok, data: d })))
       .then(({ ok, data }) => {
-        if (!ok) { setCancelError(data.error ?? "فشل الإلغاء"); setCancelLoading(false); return; }
+        if (!ok) { setCancelError(data.error ?? t("فشل الإلغاء")); setCancelLoading(false); return; }
         setBooking(b => b ? { ...b, status: "cancelled", arrival_status: "cancelled_by_guest" } : b);
         setCancelSuccess(true);
         setShowCancel(false);
         setCancelLoading(false);
       })
-      .catch(() => { setCancelError("حدث خطأ في الاتصال"); setCancelLoading(false); });
+      .catch(() => { setCancelError(t("حدث خطأ في الاتصال")); setCancelLoading(false); });
   }
 
   const canCancel = booking && !["cancelled","checked_in","checked_out","no_show"].includes(booking.status);
@@ -141,12 +143,12 @@ export default function ManageBookingPage() {
           <Link href="/" className="pub-logo">funduqii</Link>
           <nav>
             <ul className="pub-nav-links">
-              <li><Link href="/" className="pub-nav-link">الرئيسية</Link></li>
-              <li><Link href="/hotels" className="pub-nav-link">الفنادق</Link></li>
-              <li><Link href="/manage-booking" className="pub-nav-link" style={{ color: "var(--color-primary)" }}>إدارة حجزي</Link></li>
+              <li><Link href="/" className="pub-nav-link">{t("الرئيسية")}</Link></li>
+              <li><Link href="/hotels" className="pub-nav-link">{t("الفنادق")}</Link></li>
+              <li><Link href="/manage-booking" className="pub-nav-link" style={{ color: "var(--color-primary)" }}>{t("إدارة حجزي")}</Link></li>
             </ul>
           </nav>
-          <Link href="/hotels" className="ds-btn ds-btn-primary ds-btn-sm">احجز الآن</Link>
+          <Link href="/hotels" className="ds-btn ds-btn-primary ds-btn-sm">{t("احجز الآن")}</Link>
         </div>
       </header>
 
@@ -154,10 +156,10 @@ export default function ManageBookingPage() {
         <div className="pub-container">
           <div style={{ textAlign: "center", marginBottom: "2rem" }}>
             <h1 style={{ fontSize: "var(--text-2xl)", fontWeight: 800, color: "var(--color-heading)", marginBottom: ".5rem" }}>
-              إدارة حجزك
+              {t("إدارة حجزك")}
             </h1>
             <p style={{ color: "var(--color-muted)", fontSize: "var(--text-sm)" }}>
-              أدخل رقم الحجز ورقم هاتفك للوصول إلى بيانات حجزك
+              {t("أدخل رقم الحجز ورقم هاتفك للوصول إلى بيانات حجزك")}
             </p>
           </div>
 
@@ -166,7 +168,7 @@ export default function ManageBookingPage() {
             <form onSubmit={lookup}>
               <div className="pub-form-field">
                 <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-heading)", marginBottom: ".4rem" }}>
-                  رقم الحجز
+                  {t("رقم الحجز")}
                 </label>
                 <input
                   className="pub-filter-input"
@@ -179,7 +181,7 @@ export default function ManageBookingPage() {
               </div>
               <div className="pub-form-field" style={{ marginTop: "1rem" }}>
                 <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600, color: "var(--color-heading)", marginBottom: ".4rem" }}>
-                  رقم الهاتف (المستخدم عند الحجز)
+                  {t("رقم الهاتف (المستخدم عند الحجز)")}
                 </label>
                 <input
                   className="pub-filter-input"
@@ -197,7 +199,7 @@ export default function ManageBookingPage() {
               )}
               <button type="submit" className="ds-btn ds-btn-primary" disabled={loading}
                 style={{ width: "100%", justifyContent: "center", marginTop: "1.25rem", gap: 8 }}>
-                {loading ? "جارٍ البحث..." : <><Search size={18} /> بحث عن الحجز</>}
+                {loading ? t("جارٍ البحث...") : <><Search size={18} /> {t("بحث عن الحجز")}</>}
               </button>
             </form>
           </div>
@@ -210,66 +212,66 @@ export default function ManageBookingPage() {
                 marginBottom: "1.5rem", paddingBottom: "1rem", borderBottom: "1px solid var(--color-border)" }}>
                 <div>
                   <h2 style={{ fontSize: "var(--text-lg)", fontWeight: 800, color: "var(--color-heading)", margin: 0 }}>
-                    حجز رقم: <span style={{ color: "var(--color-primary)" }}>{booking.public_booking_no}</span>
+                    {t("حجز رقم:")} <span style={{ color: "var(--color-primary)" }}>{booking.public_booking_no}</span>
                   </h2>
                 </div>
-                {statusInfo && <span className={statusInfo.badge}>{statusInfo.label}</span>}
+                {statusInfo && <span className={statusInfo.badge}>{t(statusInfo.label)}</span>}
               </div>
 
               {cancelSuccess && (
                 <div className="ds-alert ds-alert-success" style={{ marginBottom: "1rem" }}>
-                  <CheckCircle size={16} /> تم إلغاء الحجز بنجاح
+                  <CheckCircle size={16} /> {t("تم إلغاء الحجز بنجاح")}
                 </div>
               )}
 
               {/* Details rows */}
               <div className="pub-detail-row">
-                <span className="pub-detail-label"><User size={14} style={{ display: "inline", marginLeft: 4 }} />الضيف</span>
+                <span className="pub-detail-label"><User size={14} style={{ display: "inline", marginLeft: 4 }} />{t("الضيف")}</span>
                 <span className="pub-detail-value">{booking.guest_first_name} {booking.guest_last_name}</span>
               </div>
               <div className="pub-detail-row">
-                <span className="pub-detail-label"><Phone size={14} style={{ display: "inline", marginLeft: 4 }} />الهاتف</span>
+                <span className="pub-detail-label"><Phone size={14} style={{ display: "inline", marginLeft: 4 }} />{t("الهاتف")}</span>
                 <span className="pub-detail-value">{booking.guest_phone}</span>
               </div>
               <div className="pub-detail-row">
-                <span className="pub-detail-label"><Building2 size={14} style={{ display: "inline", marginLeft: 4 }} />الفندق</span>
+                <span className="pub-detail-label"><Building2 size={14} style={{ display: "inline", marginLeft: 4 }} />{t("الفندق")}</span>
                 <span className="pub-detail-value">{booking.hotel_name}{booking.hotel_city ? ` — ${booking.hotel_city}` : ""}</span>
               </div>
               {booking.hotel_phone && (
                 <div className="pub-detail-row">
-                  <span className="pub-detail-label"><Phone size={14} style={{ display: "inline", marginLeft: 4 }} />هاتف الفندق</span>
+                  <span className="pub-detail-label"><Phone size={14} style={{ display: "inline", marginLeft: 4 }} />{t("هاتف الفندق")}</span>
                   <span className="pub-detail-value">{booking.hotel_phone}</span>
                 </div>
               )}
               <div className="pub-detail-row">
-                <span className="pub-detail-label">نوع الغرفة</span>
+                <span className="pub-detail-label">{t("نوع الغرفة")}</span>
                 <span className="pub-detail-value">{booking.room_type_label}</span>
               </div>
               <div className="pub-detail-row">
-                <span className="pub-detail-label"><Calendar size={14} style={{ display: "inline", marginLeft: 4 }} />الوصول</span>
+                <span className="pub-detail-label"><Calendar size={14} style={{ display: "inline", marginLeft: 4 }} />{t("الوصول")}</span>
                 <span className="pub-detail-value">{formatDate(booking.check_in_date)}</span>
               </div>
               <div className="pub-detail-row">
-                <span className="pub-detail-label"><Calendar size={14} style={{ display: "inline", marginLeft: 4 }} />المغادرة</span>
+                <span className="pub-detail-label"><Calendar size={14} style={{ display: "inline", marginLeft: 4 }} />{t("المغادرة")}</span>
                 <span className="pub-detail-value">{formatDate(booking.check_out_date)}</span>
               </div>
               <div className="pub-detail-row">
-                <span className="pub-detail-label">المدة</span>
-                <span className="pub-detail-value">{booking.nights_count} {booking.nights_count === 1 ? "ليلة" : "ليالٍ"}</span>
+                <span className="pub-detail-label">{t("المدة")}</span>
+                <span className="pub-detail-value">{booking.nights_count} {booking.nights_count === 1 ? t("ليلة") : t("ليالٍ")}</span>
               </div>
               <div className="pub-detail-row">
-                <span className="pub-detail-label">عدد الضيوف</span>
+                <span className="pub-detail-label">{t("عدد الضيوف")}</span>
                 <span className="pub-detail-value">{booking.persons_count}</span>
               </div>
               <div className="pub-detail-row">
-                <span className="pub-detail-label">الإجمالي</span>
+                <span className="pub-detail-label">{t("الإجمالي")}</span>
                 <span className="pub-detail-value" style={{ color: "var(--color-primary)", fontSize: "var(--text-lg)" }}>
                   {parseFloat(booking.total).toLocaleString("ar")} {booking.currency}
                 </span>
               </div>
               <div className="pub-detail-row">
-                <span className="pub-detail-label">طريقة الدفع</span>
-                <span className="pub-detail-value">الدفع عند الوصول</span>
+                <span className="pub-detail-label">{t("طريقة الدفع")}</span>
+                <span className="pub-detail-value">{t("الدفع عند الوصول")}</span>
               </div>
 
               {booking.status === "cancelled" && (
@@ -277,7 +279,7 @@ export default function ManageBookingPage() {
                   <div className="ds-alert ds-alert-danger">
                     <XCircle size={16} />
                     <span>
-                      {booking.cancelled_by_type === "guest" ? "تم الإلغاء من قِبَلك" : "تم الإلغاء من قِبَل الفندق"}
+                      {booking.cancelled_by_type === "guest" ? t("تم الإلغاء من قِبَلك") : t("تم الإلغاء من قِبَل الفندق")}
                       {booking.cancel_reason ? ` — ${booking.cancel_reason}` : ""}
                     </span>
                   </div>
@@ -287,7 +289,7 @@ export default function ManageBookingPage() {
               {/* Cancellation policy */}
               {booking.cancellation_policy && (
                 <div className="pub-policy-block" style={{ marginTop: "1rem" }}>
-                  <h4>سياسة الإلغاء</h4>
+                  <h4>{t("سياسة الإلغاء")}</h4>
                   <p>{booking.cancellation_policy}</p>
                 </div>
               )}
@@ -297,25 +299,25 @@ export default function ManageBookingPage() {
                 <div style={{ marginTop: "1.5rem" }}>
                   {!showCancel ? (
                     <button className="ds-btn ds-btn-danger ds-btn-sm" onClick={() => setShowCancel(true)}>
-                      <XCircle size={16} /> إلغاء الحجز
+                      <XCircle size={16} /> {t("إلغاء الحجز")}
                     </button>
                   ) : (
                     <div style={{ background: "var(--color-danger-soft)", borderRadius: 12, padding: "1.25rem",
                       border: "1.5px solid var(--color-danger)" }}>
                       <h4 style={{ fontWeight: 700, color: "var(--color-heading)", marginBottom: ".75rem", fontSize: "var(--text-md)" }}>
-                        تأكيد إلغاء الحجز
+                        {t("تأكيد إلغاء الحجز")}
                       </h4>
                       <form onSubmit={submitCancel}>
                         <div style={{ marginBottom: ".75rem" }}>
                           <label style={{ display: "block", fontSize: "var(--text-sm)", fontWeight: 600,
                             color: "var(--color-heading)", marginBottom: ".35rem" }}>
-                            سبب الإلغاء (اختياري)
+                            {t("سبب الإلغاء (اختياري)")}
                           </label>
                           <textarea rows={2}
                             style={{ width: "100%", padding: ".6rem .9rem", border: "1.5px solid var(--color-border)",
                               borderRadius: 8, fontSize: "var(--text-sm)", fontFamily: "var(--font-main)",
                               outline: "none", boxSizing: "border-box", resize: "vertical" }}
-                            placeholder="سبب الإلغاء..."
+                            placeholder={t("سبب الإلغاء...")}
                             value={cancelReason}
                             onChange={e => setCancelReason(e.target.value)} />
                         </div>
@@ -324,11 +326,11 @@ export default function ManageBookingPage() {
                         )}
                         <div style={{ display: "flex", gap: ".75rem" }}>
                           <button type="submit" className="ds-btn ds-btn-danger ds-btn-sm" disabled={cancelLoading}>
-                            {cancelLoading ? "جارٍ الإلغاء..." : "تأكيد الإلغاء"}
+                            {cancelLoading ? t("جارٍ الإلغاء...") : t("تأكيد الإلغاء")}
                           </button>
                           <button type="button" className="ds-btn ds-btn-neutral ds-btn-sm"
                             onClick={() => setShowCancel(false)}>
-                            تراجع
+                            {t("تراجع")}
                           </button>
                         </div>
                       </form>
@@ -344,13 +346,13 @@ export default function ManageBookingPage() {
                   href={`https://wa.me/?text=${encodeURIComponent(buildSummary(booking))}`}
                   target="_blank" rel="noopener noreferrer"
                   className="ds-btn ds-btn-success ds-btn-sm" style={{ gap: 6 }}>
-                  <MessageCircle size={15} /> مشاركة عبر واتساب
+                  <MessageCircle size={15} /> {t("مشاركة عبر واتساب")}
                 </a>
                 <button onClick={() => copyDetails(booking)} className="ds-btn ds-btn-neutral ds-btn-sm" style={{ gap: 6 }}>
-                  {copied ? <><Check size={15} /> تم النسخ</> : <><Copy size={15} /> نسخ التفاصيل</>}
+                  {copied ? <><Check size={15} /> {t("تم النسخ")}</> : <><Copy size={15} /> {t("نسخ التفاصيل")}</>}
                 </button>
                 <Link href="/hotels" className="ds-btn ds-btn-primary ds-btn-sm">
-                  البحث عن فندق آخر
+                  {t("البحث عن فندق آخر")}
                 </Link>
               </div>
             </div>
@@ -360,7 +362,7 @@ export default function ManageBookingPage() {
 
       <footer className="pub-footer">
         <div className="pub-container">
-          <p>© funduqii — منصة فندقي للحجز الفندقي</p>
+          <p>© funduqii — {t("منصة فندقي للحجز الفندقي")}</p>
         </div>
       </footer>
     </div>
