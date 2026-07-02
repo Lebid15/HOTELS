@@ -20,7 +20,7 @@ interface Reservation {
   total:string|number; paid:string|number; currency:string;
   // مشتقّات سلسلة المال (الغرفة + الخدمات − المدفوع)
   grand_total?:string|number; balance_due?:string|number; charges_total?:string|number;
-  status:string; created_at?:string; updated_at?:string;
+  status:string; source?:string; created_at?:string; updated_at?:string;
 }
 interface RoomItem {
   id:number; number:string; floor:number; type:string;
@@ -247,6 +247,9 @@ export default function ReportsPage(){
   const [period, setPeriod] = useState<TPeriod>("month");
   const [cfrom,  setCfrom]  = useState("");
   const [cto,    setCto]    = useState("");
+  // §12.2: فلاتر تفصيلية (مصدر الحجز + الحالة)
+  const [fSource, setFSource] = useState("all");
+  const [fStatus, setFStatus] = useState("all");
   const [tab,    setTab]    = useState<TTab>("overview");
 
   /* ── Fetch ── */
@@ -309,7 +312,10 @@ export default function ReportsPage(){
       inRange(r.check_out_date,dateFrom,dateTo)||
       inRange(r.created_at??"",dateFrom,dateTo)
     )
-  ),[reservations,dateFrom,dateTo]);
+    // §12.2: فلترة بمصدر الحجز (مباشر/موقع) والحالة
+    && (fSource==="all" || (fSource==="website" ? (r.source==="website"||r.source==="public_website") : r.source===fSource))
+    && (fStatus==="all" || r.status===fStatus)
+  ),[reservations,dateFrom,dateTo,fSource,fStatus]);
 
   const filteredOrders=useMemo(()=>foodOrders.filter(o=>
     inRange(o.created_at,dateFrom,dateTo)
@@ -954,6 +960,25 @@ export default function ReportsPage(){
               value={period==="custom"?cto:dateTo}
               onChange={e=>onToChange(e.target.value)}
               style={{fontSize:12}} />
+          </div>
+          {/* §12.2: فلاتر مصدر الحجز والحالة */}
+          <div>
+            <p style={{fontSize:11,color:"var(--color-muted)",marginBottom:"0.35rem"}}>{t("مصدر الحجز")}</p>
+            <select className="select" value={fSource} onChange={e=>setFSource(e.target.value)} style={{fontSize:12}}>
+              <option value="all">{t("الكل")}</option>
+              <option value="direct">{t("مباشر")}</option>
+              <option value="website">{t("موقع")}</option>
+            </select>
+          </div>
+          <div>
+            <p style={{fontSize:11,color:"var(--color-muted)",marginBottom:"0.35rem"}}>{t("الحالة")}</p>
+            <select className="select" value={fStatus} onChange={e=>setFStatus(e.target.value)} style={{fontSize:12}}>
+              <option value="all">{t("الكل")}</option>
+              <option value="confirmed">{t("مؤكد")}</option>
+              <option value="checked_in">{t("مسجل الدخول")}</option>
+              <option value="checked_out">{t("تم المغادرة")}</option>
+              <option value="cancelled">{t("ملغى")}</option>
+            </select>
           </div>
         </div>
       </div>
