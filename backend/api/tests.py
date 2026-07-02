@@ -12,7 +12,7 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from .models import (
-    Hotel, Room, Reservation, Staff, Package, Subscription,
+    Hotel, HotelSettings, Room, Reservation, Staff, Package, Subscription,
     SubscriptionRequest, UserProfile, Payment,
 )
 
@@ -1347,3 +1347,58 @@ class Stage1SettingsTests(BaseAPITest):
         self.client.get('/api/rooms/')
         self.roomA.refresh_from_db()
         self.assertEqual(self.roomA.status, Room.STATUS_CLEANING)  # يدوي: يبقى حتى زر «تم التنظيف»
+
+
+# ── م2: الحجوزات/النزلاء/الوثائق (استدعاء + منع تكرار عبر إعادة الاستخدام + وثائق) ──
+class Stage2ReservationTests(BaseAPITest):
+    def _mk_res(self, **over):
+        d = dict(hotel=self.hotelA, guest_first_name='سامر', guest_last_name='خالد',
+                 guest_id_number='NID555', guest_phone='0999000111', check_in_date=date.today())
+        d.update(over)
+        return Reservation.objects.create(**d)
+
+    def test_guest_lookup_by_name(self):
+        self._mk_res()
+        self.as_(self.mgrA)
+        r = self.client.get('/api/reservations/guest_lookup/?q=سامر')
+        self.assertEqual(r.status_code, 200)
+        rows = r.json()
+        self.assertTrue(any(x['guest_id_number'] == 'NID555' for x in rows))
+
+    def test_guest_lookup_returns_stays_count(self):
+        self._mk_res(); self._mk_res(check_in_date=date.today() - timedelta(days=30))  # نزيل عائد
+        self.as_(self.mgrA)
+        rows = self.client.get('/api/reservations/guest_lookup/?q=NID555').json()
+        self.assertEqual(rows[0]['stays_count'], 2)          # يُحصى بدل None
+
+    def test_guest_lookup_tenant_isolated(self):
+        Reservation.objects.create(hotel=self.hotelB, guest_first_name='آخر', guest_last_name='ف',
+                                   guest_id_number='NIDB', guest_phone='0555')
+        self.as_(self.mgrA)
+        self.assertEqual(self.client.get('/api/reservations/guest_lookup/?q=NIDB').json(), [])
+
+    def test_documents_required_blocks_direct_booking(self):
+        HotelSettings.get_for(self.hotelA).documents = {'requireGuest': True}
+        HotelSettings.objects.filter(hotel=self.hotelA).update(documents={'requireGuest': True})
+        self.as_(self.mgrA)
+        r = self.client.post('/api/reservations/', {
+            'guest_first_name': 'بلا', 'guest_last_name': 'وثيقة', 'room': self.roomA.id,
+        }, format='json')
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('documents', r.json())
+
+    def test_documents_present_allows_direct_booking(self):
+        HotelSettings.objects.update_or_create(hotel=self.hotelA, defaults={'documents': {'requireGuest': True}})
+        self.as_(self.mgrA)
+        r = self.client.post('/api/reservations/', {
+            'guest_first_name': 'مع', 'guest_last_name': 'وثيقة', 'room': self.roomA.id,
+            'guest_doc_type': 'هوية', 'guest_doc_image': 'data:image/png;base64,AAA',
+        }, format='json')
+        self.assertEqual(r.status_code, 201)
+
+    def test_no_doc_settings_is_backward_compatible(self):
+        self.as_(self.mgrA)
+        r = self.client.post('/api/reservations/', {
+            'guest_first_name': 'افتراضي', 'guest_last_name': 'بلا إعداد', 'room': self.roomA.id,
+        }, format='json')
+        self.assertEqual(r.status_code, 201)                 # بلا إعداد وثائق → لا إلزام

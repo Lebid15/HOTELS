@@ -1012,6 +1012,33 @@ class RoomViewSet(viewsets.ModelViewSet):
 
 # ── Reservation ViewSet ───────────────────────────────────────────────────────
 
+def _validate_reservation_documents(hotel_id, data):
+    """م2: التحقق الخادمي من الوثائق الإلزامية للحجز المباشر (لا الواجهة فقط).
+
+    يقرأ إعدادات الوثائق من `HotelSettings.documents` (المصدر المركزي). يُلزَم
+    فقط عند تفعيل المفاتيح صراحةً (توافق خلفي: بلا إعداد → لا إلزام). يعيد قائمة
+    الوثائق الناقصة (تسميات عربية) لعرضها للمستخدم."""
+    cfg = (HotelSettings.get_for(Hotel.objects.get(id=hotel_id)).documents or {})
+    missing = []
+    if cfg.get('requireGuest') and not (data.get('guest_doc_image') or '').strip():
+        missing.append('وثيقة صاحب الحجز')
+    companions = data.get('companions') or []
+    if cfg.get('requireCompanion') and data.get('has_companions') and not (data.get('companion_docs') or []):
+        missing.append('وثائق المرافقين')
+    # إثبات زواج عند وجود زوجة ضمن المرافقين
+    def _has_wife():
+        rel = (data.get('companion_children_relation') or '')
+        if 'زوج' in rel:
+            return True
+        for c in companions:
+            if isinstance(c, dict) and 'زوج' in str(c.get('relation', '')):
+                return True
+        return False
+    if cfg.get('requireRelation') and _has_wife() and not (data.get('family_doc_image') or '').strip():
+        missing.append('دفتر العائلة / إثبات الزواج')
+    return missing
+
+
 class ReservationViewSet(viewsets.ModelViewSet):
     serializer_class = ReservationSerializer
     permission_classes = [ReservationPermission]
@@ -1062,19 +1089,28 @@ class ReservationViewSet(viewsets.ModelViewSet):
             raise PermissionDenied('غير مرتبط بأي فندق.')
         if hotel_id and str(hotel_id) != str(user_hotel_id):
             raise PermissionDenied('ليس لديك صلاحية الإنشاء في هذا الفندق.')
+        # م2: إلزام الوثائق خادميًّا للحجز المباشر (يحترم إعدادات الفندق؛ الحجز العام مُستثنى)
+        if not serializer.validated_data.get('public_booking', False):
+            missing = _validate_reservation_documents(user_hotel_id, serializer.validated_data)
+            if missing:
+                raise ValidationError({'documents': missing,
+                                       'detail': 'لا يكتمل الحجز قبل رفع الوثائق الإلزامية: ' + '، '.join(missing)})
         serializer.save(hotel_id=user_hotel_id, created_by=self.request.user, **extra)
 
     @action(detail=False, methods=['get'], url_path='guest_lookup')
     def guest_lookup(self, request):
-        """د‑2: استدعاء نزيل سابق من سجلّ الحجوزات (مصدر مركزي بدل localStorage).
-        يبحث بالرقم الوطني/الجواز أو الهاتف داخل فندق المستخدم، ويعيد أحدث بيانات مطابقة."""
+        """م2/د‑2: استدعاء نزيل سابق من سجلّ الحجوزات (مصدر مركزي بدل localStorage).
+        يبحث بالرقم الوطني/الجواز أو الهاتف أو **الاسم** داخل فندق المستخدم، ويعيد
+        قائمة مطابقات فريدة مع **عدد الإقامات** و**آخر إقامة** لتسهيل إعادة الاستخدام
+        (ومن ثمّ منع إدخال نزيل مكرّر يدويًّا)."""
         q = (request.query_params.get('q') or '').strip()
-        if len(q) < 3:
+        if len(q) < 2:
             return Response([])
         qs = self.get_queryset()
         from django.db.models import Q
         matches = qs.filter(
             Q(guest_id_number__iexact=q) | Q(guest_phone__icontains=q)
+            | Q(guest_first_name__icontains=q) | Q(guest_last_name__icontains=q)
         ).order_by('-created_at')
         seen, out = set(), []
         for r in matches:
@@ -1082,11 +1118,12 @@ class ReservationViewSet(viewsets.ModelViewSet):
             if key in seen:
                 continue
             seen.add(key)
+            stays = qs.filter(guest_id_number__iexact=r.guest_id_number).count() if r.guest_id_number else 1
             out.append({
                 'guest_id_number': r.guest_id_number, 'guest_first_name': r.guest_first_name,
                 'guest_last_name': r.guest_last_name, 'guest_phone': r.guest_phone,
                 'guest_email': r.guest_email, 'guest_father_name': r.guest_father_name,
-                'guest_dob': r.guest_dob, 'last_stay': r.check_in_date, 'stays_count': None,
+                'guest_dob': r.guest_dob, 'last_stay': r.check_in_date, 'stays_count': stays,
             })
             if len(out) >= 8:
                 break
