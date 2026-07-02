@@ -1923,41 +1923,20 @@ class AuditLogViewSet(viewsets.ReadOnlyModelViewSet):
 
 from django.db import transaction as _transaction
 from .serializers import PublicHotelCardSerializer, PublicHotelDetailSerializer, PublicBookingDetailSerializer
+from . import eligibility as _elig
 
 
 def _public_hotels_qs():
-    """المرحلة 2 (ضبط الظهور العام) — مصدر مركزي واحد لشروط ظهور الفندق للعامّة.
-    لا يظهر الفندق إلا إذا تحقّقت **كل** الشروط:
-      1) الحالة = فعّال (تلقائيًا: غير موقوف من المنصّة وغير مؤرشف)
-      2) `public_listing_enabled` مفعّل
-      3) بيانات أساسية مكتملة (اسم + مدينة)
-      4) اشتراك فعّال/تجريبي، باقته تسمح بالظهور، وغير منتهٍ
-    يُستخدم في قائمة/تفاصيل الفنادق + التوفّر + التقييمات (لا يظهر ما هو مخفيّ)."""
-    today = timezone.localdate()
-    return (
-        Hotel.objects
-        .filter(status=Hotel.STATUS_ACTIVE, public_listing_enabled=True)
-        .exclude(name='').exclude(city='')
-        .filter(subscription__status__in=[Subscription.STATUS_ACTIVE, Subscription.STATUS_TRIAL],
-                subscription__package__allow_public_listing=True)
-        .filter(Q(subscription__end_date__isnull=True) | Q(subscription__end_date__gte=today))
-        .select_related('subscription', 'subscription__package')
-        .distinct()
-    )
+    """المرحلة 2: مُفوَّض إلى eligibility.public_visible_hotels_qs (مصدر واحد
+    لشروط الظهور العام — لا يُكرَّر المنطق هنا)."""
+    return _elig.public_visible_hotels_qs()
 
 
 def _get_bookable_hotel(hotel_id):
-    """م3: الفندق يقبل حجزًا عامًّا فقط إذا: فعّال + `public_booking_enabled` +
-    اشتراك فعّال/تجريبي غير منتهٍ + باقته تسمح باستقبال حجوزات الموقع."""
-    today = timezone.localdate()
-    return (
-        Hotel.objects
-        .filter(pk=hotel_id, status=Hotel.STATUS_ACTIVE, public_booking_enabled=True)
-        .filter(subscription__status__in=[Subscription.STATUS_ACTIVE, Subscription.STATUS_TRIAL],
-                subscription__package__allow_public_booking=True)
-        .filter(Q(subscription__end_date__isnull=True) | Q(subscription__end_date__gte=today))
-        .first()
-    )
+    """المرحلة 2: مُفوَّض إلى eligibility.bookable_hotel_or_none — يفرض الآن
+    **كل شروط الظهور** (م§3) + شروط الحجز + **قبول الاتفاقية الحالية** عند إنشاء
+    الحجز (لا فقط عند تفعيل المدير)."""
+    return _elig.bookable_hotel_or_none(hotel_id)
 
 
 def _ensure_slug(hotel):
@@ -1966,15 +1945,6 @@ def _ensure_slug(hotel):
         Hotel.objects.filter(pk=hotel.pk).update(slug=slug)
         hotel.slug = slug
     return hotel.slug
-
-
-def _get_conflicting_room_ids(hotel_id, check_in, check_out):
-    return list(Reservation.objects.filter(
-        hotel_id=hotel_id, room__isnull=False,
-        check_in_date__lt=check_out, check_out_date__gt=check_in,
-    ).exclude(
-        status__in=[Reservation.STATUS_CANCELLED, Reservation.STATUS_NO_SHOW]
-    ).values_list('room_id', flat=True))
 
 
 class PublicHotelListView(APIView):
@@ -2046,12 +2016,13 @@ class PublicRoomAvailabilityView(APIView):
         if check_out <= check_in:
             return Response({'error': 'تاريخ الخروج يجب أن يكون بعد تاريخ الدخول'}, status=400)
 
-        nights   = (check_out - check_in).days
-        busy_ids = set(_get_conflicting_room_ids(hotel.id, check_in, check_out))
+        nights = (check_out - check_in).days
+        # المرحلة 2: إن كان الفندق لا يقبل حجزًا عامًّا (حجز مُعطَّل/باقة/اتفاقية)
+        # فلا نعرض غرفًا «قابلة للحجز» — التوفّر يُرجع قائمة فارغة (بلا كشف السبب).
+        if not _elig.can_accept_public_booking(hotel):
+            return Response([])
 
-        available = hotel.rooms.filter(show_in_public=True).exclude(
-            status__in=[Room.STATUS_ARCHIVED, Room.STATUS_OUT_OF_SERVICE, Room.STATUS_MAINTENANCE]
-        ).exclude(id__in=busy_ids).filter(capacity__gte=guests)
+        available = _elig.public_available_rooms_qs(hotel, check_in, check_out, guests)
 
         from collections import defaultdict
         groups = defaultdict(list)
@@ -2117,12 +2088,12 @@ class PublicBookingCreateView(APIView):
         nights = (check_out - check_in).days
 
         with _transaction.atomic():
-            busy_ids = set(_get_conflicting_room_ids(hotel.id, check_in, check_out))
+            # المرحلة 2: اختيار الغرفة عبر المصدر المركزي (نفس شروط التوفّر) مع
+            # قفل الصفوف داخل المعاملة لحسم السباق (الفحص الحاسم يبقى داخل القفل).
             room = (
-                Room.objects.select_for_update()
-                .filter(hotel=hotel, type=room_type, show_in_public=True, capacity__gte=guests_count)
-                .exclude(status__in=[Room.STATUS_ARCHIVED, Room.STATUS_OUT_OF_SERVICE, Room.STATUS_MAINTENANCE])
-                .exclude(id__in=busy_ids)
+                _elig.public_available_rooms_qs(
+                    hotel, check_in, check_out, guests_count,
+                    room_type=room_type, for_update=True)
                 .order_by('price')
                 .first()
             )
@@ -2274,10 +2245,8 @@ def _agreement_state(hotel_id):
 
 
 def _hotel_accepted_agreement(hotel_id):
-    s = PlatformSettings.get_solo()
-    if not (s.web_booking_agreement or '').strip():
-        return True   # لا اتفاقية مضبوطة → لا حجب
-    return HotelAgreementAcceptance.objects.filter(hotel_id=hotel_id, version=s.agreement_version).exists()
+    """المرحلة 2: مُفوَّض إلى eligibility.hotel_accepted_agreement (مصدر واحد)."""
+    return _elig.hotel_accepted_agreement(hotel_id)
 
 
 class WebBookingAgreementView(APIView):
