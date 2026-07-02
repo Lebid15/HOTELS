@@ -541,6 +541,46 @@ class FoodOrderSerializer(serializers.ModelSerializer):
         ]
         extra_kwargs = {'hotel': {'read_only': True}, 'order_no': {'read_only': True}, 'created_by': {'read_only': True}}
 
+    # حقول توزيع الدفع الأربعة لطلب المطعم (تشمل «على حساب الغرفة») — مصدر الحقيقة: amount
+    _SPLIT_FIELDS = ('amount_cash', 'amount_electronic', 'amount_card', 'amount_room')
+
+    def validate(self, attrs):
+        """م8 (اتساق دفع المطعم): عند إرسال توزيع لطرق الدفع (نقدي/إلكتروني/كرت/
+        على حساب الغرفة) يجب أن يساوي مجموعُه إجماليَّ الطلب `amount` تمامًا (Decimal
+        لا float)، وبلا قيم سالبة.
+
+        الأجزاء تمثّل «المقبوض عند إنشاء الطلب» (لقطة عند التسجيل)، لذا يُفرَض
+        الفحص فقط عندما يحمل الطلبُ توزيعًا في هذا الطلب (إنشاء/إعادة تسجيل)، لا
+        عند تعديلات لا تمسّ التوزيع (حالة/ملاحظات/أصناف) — كي لا يُكسَر تدفّق
+        التعديل أحادي‑الطريقة. آمن للتحديث الجزئي: يدمج المُرسَل مع القائم."""
+        raw = getattr(self, 'initial_data', {}) or {}
+
+        def eff(field):
+            if field in attrs:
+                v = attrs[field]
+            elif self.instance is not None:
+                v = getattr(self.instance, field)
+            else:
+                v = None
+            return v if v is not None else Decimal('0')
+
+        amount = eff('amount')
+        parts = {f: eff(f) for f in self._SPLIT_FIELDS}
+
+        # منع القيم السالبة في الإجمالي وكل أجزاء الدفع
+        for name, v in (('amount', amount), *parts.items()):
+            if v < 0:
+                raise serializers.ValidationError({name: 'لا يجوز أن تكون القيمة سالبة.'})
+
+        split_sum = sum(parts.values(), Decimal('0'))
+        splits_in_request = any(f in raw for f in self._SPLIT_FIELDS)
+
+        # يُفرَض التطابق عند وجود توزيع فعليّ مُرسَل في هذا الطلب
+        if splits_in_request and split_sum > 0 and split_sum != amount:
+            raise serializers.ValidationError('مجموع طرق الدفع لا يساوي إجمالي الطلب.')
+
+        return attrs
+
 
 class FolioChargeSerializer(serializers.ModelSerializer):
     created_by_name = serializers.CharField(source='created_by.username', read_only=True)
