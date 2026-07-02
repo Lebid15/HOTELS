@@ -616,6 +616,46 @@ class HotelSettingsView(APIView):
         return Response(HotelSettingsSerializer(s).data)
 
 
+class ShiftReportView(APIView):
+    """م5: تقرير وردية موظّف — يجمع نشاط موظّف خلال يوم: الحجوزات المُنشأة،
+    تسجيلات الدخول/الخروج (من سجلّ التدقيق)، المدفوعات (إجمالي + نقدي/إلكتروني/كرت)،
+    وطلبات المطعم. للمدير/مالك المنصّة فقط، مقيّد بفندق المستخدم."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        role = _get_user_role(request.user)
+        if role not in ('platform_owner', 'manager'):
+            return Response({'detail': 'هذا التقرير متاح لمدير الفندق فقط.'}, status=status.HTTP_403_FORBIDDEN)
+        hid = _get_user_hotel_id(request.user) if role == 'manager' else request.query_params.get('hotel')
+        if not hid:
+            return Response({'detail': 'غير مرتبط بأي فندق.'}, status=status.HTTP_404_NOT_FOUND)
+        uid = request.query_params.get('user')
+        if not uid:
+            return Response({'detail': 'مُعرّف الموظف (user) مطلوب.'}, status=status.HTTP_400_BAD_REQUEST)
+        d = request.query_params.get('date') or str(timezone.localdate())
+        from django.db.models import Sum, Count
+        pay = Payment.objects.filter(hotel_id=hid, created_by_id=uid, voided=False, created_at__date=d)
+        pagg = pay.aggregate(total=Sum('amount'), cash=Sum('amount_cash'),
+                             electronic=Sum('amount_electronic'), card=Sum('amount_card'), count=Count('id'))
+        res_created = Reservation.objects.filter(hotel_id=hid, created_by_id=uid, created_at__date=d).count()
+        food = FoodOrder.objects.filter(hotel_id=hid, created_by_id=uid, created_at__date=d).aggregate(
+            total=Sum('amount'), count=Count('id'))
+        acts = AuditLog.objects.filter(hotel_id=hid, actor_id=uid, created_at__date=d)
+        uname = User.objects.filter(id=uid).values_list('username', flat=True).first() or ''
+        return Response({
+            'user_id': int(uid), 'username': uname, 'date': d,
+            'reservations_created': res_created,
+            'check_ins': acts.filter(action='reservation.check_in').count(),
+            'check_outs': acts.filter(action__in=['reservation.check_out', 'reservation.settle_checkout']).count(),
+            'payments': {
+                'count': pagg['count'] or 0,
+                'total': str(pagg['total'] or 0), 'cash': str(pagg['cash'] or 0),
+                'electronic': str(pagg['electronic'] or 0), 'card': str(pagg['card'] or 0),
+            },
+            'food_orders': {'count': food['count'] or 0, 'total': str(food['total'] or 0)},
+        })
+
+
 class HotelViewSet(viewsets.ModelViewSet):
     serializer_class = HotelSerializer
     permission_classes = [permissions.IsAuthenticated]

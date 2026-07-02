@@ -1481,3 +1481,34 @@ class Stage5ShiftLoginTests(BaseAPITest):
         self._staff(self.recA, None, None)
         self.hotelA.enforce_shift_login = True; self.hotelA.save()
         self.assertEqual(self._login('recA').status_code, 200)   # بلا نافذة محدّدة → لا منع
+
+
+# ── م5‑ب: تقرير الوردية (تجميع نشاط الموظف) ────────────────────────────────
+class Stage5ShiftReportTests(BaseAPITest):
+    def test_shift_report_aggregates_activity(self):
+        self.as_(self.recA)
+        r = self.client.post('/api/reservations/', {'guest_first_name': 'ش', 'guest_last_name': 'ت',
+                              'room': self.roomA.id, 'total': 100, 'currency': 'USD'}, format='json')
+        self.assertEqual(r.status_code, 201)
+        rid = r.json()['id']
+        self.client.post(f'/api/reservations/{rid}/check_in/', {}, format='json')
+        self.client.post('/api/payments/', {'reservation': rid, 'amount_cash': 40, 'amount_card': 20,
+                         'currency': 'USD', 'source': 'booking'}, format='json')
+        self.as_(self.mgrA)
+        rep = self.client.get(f'/api/shift-report/?user={self.recA.id}&date={date.today()}')
+        self.assertEqual(rep.status_code, 200)
+        d = rep.json()
+        self.assertEqual(d['reservations_created'], 1)
+        self.assertEqual(d['check_ins'], 1)
+        self.assertEqual(d['payments']['count'], 1)
+        self.assertEqual(float(d['payments']['cash']), 40)
+        self.assertEqual(float(d['payments']['card']), 20)
+        self.assertEqual(float(d['payments']['total']), 60)
+
+    def test_shift_report_reception_forbidden(self):
+        self.as_(self.recA)
+        self.assertEqual(self.client.get(f'/api/shift-report/?user={self.recA.id}').status_code, 403)
+
+    def test_shift_report_requires_user_param(self):
+        self.as_(self.mgrA)
+        self.assertEqual(self.client.get('/api/shift-report/').status_code, 400)
