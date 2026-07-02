@@ -13,7 +13,7 @@ import {
   LayoutDashboard, CalendarCheck, Building2, Users, ArrowRightLeft,
   Utensils, CreditCard, BarChart3, UserCog,
   PackageCheck, Settings, Bell, Globe, Menu, X, LogOut,
-  Receipt, Moon, BookOpen, ClipboardCheck, BellRing, ScrollText,
+  Receipt, Moon, BookOpen, ClipboardCheck, BellRing,
 } from "lucide-react";
 
 // ─── Navigation definition ────────────────────────────────────────────────────
@@ -38,10 +38,10 @@ const NAV: NavItem[] = [
   { href: "/manager/night-audit",    label: "التدقيق الليلي",        Icon: Moon },
   { href: "/manager/shift-handover", label: "تسليم الوردية",         Icon: ClipboardCheck },
   { href: "/manager/reports",        label: "التقارير",              Icon: BarChart3 },
-  { href: "/manager/audit",          label: "سجلّ التدقيق",          Icon: ScrollText },
   { href: "/manager/staff",           label: "الموظفون",             Icon: UserCog },
   { href: "/manager/subscription",   label: "الاشتراك والباقات",  Icon: PackageCheck },
-  { href: "/manager/hotel-settings", label: "الإعدادات",          Icon: Settings },
+  // سجلّ التدقيق انتقل إلى داخل «الإعدادات» (تبويب) — لذا الإعدادات نشطة على مساره أيضًا.
+  { href: "/manager/hotel-settings", label: "الإعدادات",          Icon: Settings, activeOn: ["/manager/audit"] },
   // د‑2: أُزيل «حجوزات الموقع» كعنصر مستقل — يُوصَل إليها عبر فلتر «مصدر الحجز» داخل صفحة الحجوزات.
 ];
 
@@ -65,7 +65,6 @@ const NAV_LABELS: Record<string, { ar: string; en: string }> = {
   "/manager/lost-found":     { ar: "المفقودات والموجودات", en: "Lost & Found" },
   "/manager/shift-handover": { ar: "تسليم الوردية",        en: "Shift Handover" },
   "/manager/reports":         { ar: "التقارير",              en: "Reports" },
-  "/manager/audit":          { ar: "سجلّ التدقيق",          en: "Audit Log" },
   "/manager/staff":           { ar: "الموظفون",              en: "Staff" },
   "/manager/subscription":   { ar: "الاشتراك والباقات", en: "Subscription" },
   "/manager/hotel-settings": { ar: "الإعدادات",         en: "Settings" },

@@ -7,7 +7,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   LayoutDashboard, Building2, UserCog, Package, BadgeCheck,
   ClipboardList, CalendarCheck, TrendingUp, FileBarChart, Bell,
-  Settings, LogOut, Menu, X, Globe, ScrollText,
+  Settings, LogOut, Menu, X, Globe,
 } from "lucide-react";
 import { apiUrl, getToken, getAuthHeaders, authFetch, logout as apiLogout } from "@/lib/api";
 import { LangContext, makeLangCtx, readLang, applyLang, type Lang } from "@/lib/i18n/LangContext";
@@ -28,7 +28,6 @@ const NAV: NavItem[] = [
   { href: "/platform/earnings",              label: "أرباحي",           Icon: TrendingUp },
   { href: "/platform/web-bookings",          label: "حجوزات الموقع",    Icon: CalendarCheck },
   { href: "/platform/reports",               label: "تقارير المنصة",    Icon: FileBarChart },
-  { href: "/platform/audit",                 label: "سجلّ التدقيق",     Icon: ScrollText },
   { href: "/platform/notifications",         label: "إشعارات المنصة",   Icon: Bell },
   { href: "/platform/settings",              label: "إعدادات المنصة",   Icon: Settings },
 ];
