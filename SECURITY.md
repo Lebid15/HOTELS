@@ -31,7 +31,8 @@
 
 ## إعدادات الإنتاج
 - الإقلاع **يفشل** إن غاب `SECRET_KEY` مع `DEBUG=false`.
-- HSTS/SSL‑redirect/Secure‑cookies عبر متغيّرات البيئة (انظر `DEPLOY.md`).
+- HSTS/SSL‑redirect/Secure‑cookies تُفعَّل تلقائيًا بقيَم آمنة عند `DEBUG=false`، وقابلة للتجاوز عبر متغيّرات `DJANGO_SECURE_*` (انظر `DEPLOY.md §2.1` و`backend/.env.example`).
+- **م9:** `python manage.py check --deploy` بمتغيّرات إنتاجية حقيقية ⇒ **0 issues** (الأمر الكامل في `DEPLOY.md §2.2`). `ALLOWED_HOSTS`/`CORS`/`CSRF` من env؛ `SECURE_PROXY_SSL_HEADER` مضبوط للعمل خلف بروكسي HTTPS.
 - حارس بذر يرفض التشغيل على الإنتاج بلا `ALLOW_SEED=1`.
 
 ## سجلّ التدقيق (Audit Log)

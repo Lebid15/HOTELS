@@ -173,6 +173,13 @@ npm run build
 
 ### سجل تنفيذ ملاحظات التطوير (Changelog)
 <!-- يُضاف سطر بعد كل مرحلة -->
+- **[2026‑07‑02] Phase 9 — Production Settings & check --deploy ✅ (تجهيز إعدادات الإنتاج وإثبات فحصها).**
+  - **`check --deploy` بمتغيّرات إنتاجية حقيقية ⇒ «System check identified no issues (0 silenced)» — صفر تحذيرات** (كانت 7 سابقًا لأنّها شُغِّلت بإعدادات التطوير DEBUG=true).
+  - **إعدادات الإنتاج من env (لا hardcoded):** `DEBUG` (يفشل الإقلاع إن غاب `SECRET_KEY` مع DEBUG=false) · `ALLOWED_HOSTS` (فارغ إن لم يُضبَط في الإنتاج، لا `*`) · `CORS_ALLOWED_ORIGINS`/`CORS_ALLOW_ALL_ORIGINS=false` · `CSRF_TRUSTED_ORIGINS` · `DATABASE_URL` (PostgreSQL عبر dj_database_url؛ SQLite للتطوير فقط).
+  - **أمان HTTPS/كوكيز/HSTS صار قابلًا للضبط من env بقيَم آمنة افتراضيًا** عند DEBUG=false: `SECURE_SSL_REDIRECT`/`SESSION_COOKIE_SECURE`/`CSRF_COOKIE_SECURE`/`SECURE_HSTS_SECONDS=31536000`(+subdomains+preload)/`X_FRAME_OPTIONS=DENY` عبر `DJANGO_SECURE_*` + helper `_env_bool`. `SECURE_PROXY_SSL_HEADER` مضبوط للعمل خلف بروكسي HTTPS.
+  - **توثيق:** حُدِّث `backend/.env.example` (قسم `DJANGO_SECURE_*` + ملاحظة proxy/IP)، و`DEPLOY.md` (§2.1 أمان تلقائيّ + §2.2 أمر `check --deploy` الكامل + §2.3 static/media)، و`SECURITY.md` و`RELEASE_CHECKLIST.md` (إثبات 0 issues). PostgreSQL/collectstatic/WhiteNoise موثّقة.
+  - **الفحص السريع:** `check` نظيف · `makemigrations --check` = لا تغييرات · `check --deploy` (إنتاجيّ) = **0 issues**. لم تُلمَس أيّ منطق (حجز/دفع/فوليو/foodorder/واجهة). الفرع: `feat/p9-prod-settings`.
+  - **مؤجّل للنشر الفعليّ:** ضبط الدومين/المفتاح/DB الحقيقيين، تطبيق `migrate`/`collectstatic` على الإنتاج، نقل الوسائط إلى Object Storage عند التوسّع، وإعداد Nginx (`X-Forwarded-For`/`NUM_PROXIES`) — كلّها موثّقة ولم تُنفَّذ الآن.
 - **[2026‑07‑02] Phase 8 — FoodOrder Split Payment Consistency ✅ (اتساق دفع المطعم بلا اختبارات بطلب المرحلة).**
   - **مصدر الحقيقة المالي في FoodOrder هو `amount`** (إجمالي الطلب)، والأجزاء الأربعة `amount_cash`/`amount_electronic`/`amount_card`/**`amount_room`** (على حساب الغرفة) تفصيلُ «المقبوض عند إنشاء الطلب».
   - **فُرِض التطابق في `FoodOrderSerializer.validate`:** عند وجود توزيع مُرسَل، يجب أن يساوي مجموع الأجزاء الأربعة `amount` تمامًا (Decimal لا float)، وإلا يُرفض بـ«مجموع طرق الدفع لا يساوي إجمالي الطلب.». ومُنِعت القيم السالبة في الإجمالي وكل جزء.

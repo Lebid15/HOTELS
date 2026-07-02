@@ -6,7 +6,7 @@
 - [ ] `cd backend && python manage.py test api` — كل الاختبارات خضراء (حاليًا **119**).
 - [ ] `python manage.py check` — 0 مشاكل.
 - [ ] `python manage.py makemigrations --check --dry-run` — لا ترحيلات معلّقة.
-- [ ] `python manage.py check --deploy` — نظيف **بمتغيّرات بيئة الإنتاج الحقيقية** (لا تحذيرات W004/W008/W009/W012/W016/W018).
+- [ ] `python manage.py check --deploy` — نظيف **بمتغيّرات بيئة الإنتاج الحقيقية** (لا تحذيرات W004/W008/W009/W012/W016/W018). *(م9: الإعدادات جاهزة — يعطي «0 issues» بالأمر الكامل في `DEPLOY.md §2.2`؛ يُعاد التحقّق بالدومين/المفتاح الحقيقيّين عند الإصدار.)*
 - [ ] `cd frontend && npm run lint` — exit 0.
 - [ ] `npm run typecheck` — نظيف.
 - [ ] `npm run build` — ناجح (بلا اعتماد شبكة — الخط محلّي عبر `next/font/local`).

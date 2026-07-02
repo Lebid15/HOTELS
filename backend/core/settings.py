@@ -202,12 +202,19 @@ _csrf_trusted = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
 if _csrf_trusted:
     CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_trusted.split(',') if o.strip()]
 
-# Production-only security headers
+def _env_bool(name, default):
+    """قراءة علم منطقيّ من البيئة مع قيمة افتراضية آمنة."""
+    return os.environ.get(name, 'true' if default else 'false').lower() == 'true'
+
+
+# م9: ترويسات أمان الإنتاج — تُفعَّل تلقائيًا عند DEBUG=false بقيَم آمنة افتراضيًا،
+# وقابلة للضبط من env (مثلاً خلف بروكسي يُنهي TLS، أو staging مؤقّت دون HTTPS).
+# الافتراض الآمن يُبقي `check --deploy` نظيفًا دون الحاجة لضبط شيء إضافي.
 if not DEBUG:
-    SECURE_SSL_REDIRECT = True
-    SECURE_HSTS_SECONDS = 31536000
-    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SECURE_HSTS_PRELOAD = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
+    SECURE_SSL_REDIRECT = _env_bool('DJANGO_SECURE_SSL_REDIRECT', True)
+    SECURE_HSTS_SECONDS = int(os.environ.get('DJANGO_SECURE_HSTS_SECONDS', '31536000'))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = _env_bool('DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', True)
+    SECURE_HSTS_PRELOAD = _env_bool('DJANGO_SECURE_HSTS_PRELOAD', True)
+    SESSION_COOKIE_SECURE = _env_bool('DJANGO_SESSION_COOKIE_SECURE', True)
+    CSRF_COOKIE_SECURE = _env_bool('DJANGO_CSRF_COOKIE_SECURE', True)
     X_FRAME_OPTIONS = 'DENY'
