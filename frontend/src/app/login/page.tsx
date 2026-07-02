@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiUrl } from "@/lib/api";
+import { apiUrl, clearTokens } from "@/lib/api";
 
 const LANG_KEY = "fandqi.lang";
 type Lang = "ar" | "en";
@@ -41,6 +41,8 @@ const EN: Record<string, string> = {
   "إرسال رابط الاستعادة":                              "Send Recovery Link",
   "اسم المستخدم أو كلمة المرور غير صحيحة":            "Incorrect username or password",
   "خطأ في الاتصال بالخادم":                            "Server connection error",
+  "تعذّر جلب بيانات الحساب. حاول مرة أخرى.":           "Couldn't load account data. Please try again.",
+  "هذا الحساب غير مرتبط بأي لوحة تحكم. تواصل مع مسؤول المنصّة.": "This account isn't linked to any dashboard. Contact the platform admin.",
   "اسم الفندق مطلوب":                                  "Hotel name is required",
   "اسم المستخدم مطلوب":                                "Username is required",
   "كلمة المرور مطلوبة":                                "Password is required",
@@ -187,11 +189,15 @@ export default function LoginPage() {
   async function doLoginFlow(access: string, refresh: string) {
     storeAuth(access, refresh);
     const res  = await fetch(apiUrl("/current-user/"), { headers: { Authorization: `Bearer ${access}` } });
+    if (!res.ok) { clearTokens(); setLoginErr(t("تعذّر جلب بيانات الحساب. حاول مرة أخرى.")); return; }
     const user = await res.json();
+    const dest: Record<string, string> = { platform_owner: "/platform", manager: "/manager", reception: "/reception" };
+    const target = dest[user.role];
+    // حساب بلا دور/لوحة (ملف شخصيّ مفقود) — لا نُلقيه على الموقع العام بصمت؛ رسالة واضحة.
+    if (!target) { clearTokens(); setLoginErr(t("هذا الحساب غير مرتبط بأي لوحة تحكم. تواصل مع مسؤول المنصّة.")); return; }
     localStorage.setItem("role", user.role);
     if (user.hotel_id) localStorage.setItem("hotel_id", String(user.hotel_id));
-    const dest: Record<string, string> = { platform_owner: "/platform", manager: "/manager", reception: "/reception" };
-    router.push(dest[user.role] ?? "/");
+    router.push(target);
   }
 
   async function handleLogin(e: React.FormEvent) {
