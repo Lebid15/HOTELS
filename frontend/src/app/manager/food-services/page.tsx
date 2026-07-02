@@ -6,7 +6,7 @@ import { Utensils, BookOpen, Plus, Pencil, Trash2, Printer, ClipboardList, Loade
 import type { LucideIcon } from "lucide-react";
 import { useLang } from "../LangContext";
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
-import { escapeHtml as esc } from "@/lib/print";
+import { escapeHtml as esc, printHtml } from "@/lib/print";
 
 function mapOrder(x: Record<string, unknown>): FoodOrder {
   return {
@@ -147,8 +147,6 @@ function getLocation(o: FoodOrder, t: (s: string) => string) {
 }
 
 function printInvoice(o: FoodOrder, hotelName: string, currency: string, labels: { svc: Record<string,string>; pay: Record<string,string>; status: Record<string,string> }) {
-  const win = window.open("", "_blank");
-  if (!win) return;
   const itemsHtml = o.items.map(i => `
     <tr>
       <td style="padding:4px 8px;border:1px solid #e5e7eb;">${esc(i.name)}</td>
@@ -156,7 +154,7 @@ function printInvoice(o: FoodOrder, hotelName: string, currency: string, labels:
       <td style="padding:4px 8px;border:1px solid #e5e7eb;text-align:left;">${i.price}</td>
       <td style="padding:4px 8px;border:1px solid #e5e7eb;text-align:left;font-weight:600;">${(i.qty*i.price).toFixed(2)}</td>
     </tr>`).join("");
-  win.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8">
+  printHtml(`<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8">
     <title>فاتورة طلب ${o.orderNo}</title>
     <style>body{font-family:Tajawal,Arial,sans-serif;margin:2cm;font-size:14px;color:#111;}
     h1{text-align:center;font-size:1.3rem;margin-bottom:4px;}
@@ -184,8 +182,7 @@ function printInvoice(o: FoodOrder, hotelName: string, currency: string, labels:
     <tbody>${itemsHtml}</tbody></table>
     <div class="total">الإجمالي: ${o.amount.toFixed(2)} ${currency}</div>
     ${o.notes ? `<p style="margin-top:12px;color:#6b7280;font-size:0.85rem;">ملاحظات: ${esc(o.notes)}</p>` : ""}
-    <script>window.onload=()=>window.print();</script></body></html>`);
-  win.document.close();
+    </body></html>`);   // عابر: طباعة مباشرة بلا تبويب جديد
 }
 
 // ─── blank form ───────────────────────────────────────────────────────────────

@@ -6,7 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import { PlaneLanding, Home, PlaneTakeoff, AlertTriangle, ClipboardList, Banknote, Search, Calendar, Users, Key, DoorOpen, CreditCard, Printer, FileText, X, BookOpen, UserX, TrendingUp, Building2, Activity } from "lucide-react";
 import { useLang } from "../LangContext";
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
-import { escapeHtml as esc } from "@/lib/print";
+import { escapeHtml as esc, printHtml } from "@/lib/print";
 
 
 type TabType = "arrivals"|"in_house"|"departures"|"attention"|"log";
@@ -129,7 +129,7 @@ function printRes(r:Res,hi:{name:string;address:string;city:string;phone:string;
 <div class="footer"><span>نسخة الزبون</span><span>تاريخ الطباعة: ${new Date().toLocaleString("en-US")}</span></div>
 <script>window.onload=()=>{window.print();}</script>
 </body></html>`;
-  const w=window.open("","_blank","width=900,height=700");if(w){w.document.write(html);w.document.close();}
+  printHtml(html);
 }
 
 function printStatement(r:Res,hi:{name:string;address:string;city:string;phone:string;email:string;logo:string}){
@@ -159,7 +159,7 @@ function printStatement(r:Res,hi:{name:string;address:string;city:string;phone:s
 <div class="footer"><span>كشف الحساب</span><span>تاريخ الطباعة: ${new Date().toLocaleString("en-US")}</span></div>
 <script>window.onload=()=>{window.print();}</script>
 </body></html>`;
-  const w=window.open("","_blank","width=700,height=600");if(w){w.document.write(html);w.document.close();}
+  printHtml(html);
 }
 
 /* ══════════════════════════════════════════════════════════ */

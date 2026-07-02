@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 import { Calendar, Banknote, Building2, Users, Home, Settings, BarChart3, Printer, Download } from "lucide-react";
 import { useLang } from "../LangContext";
 import { BASE_URL as API, getAuthHeaders as apiH } from "@/lib/api";
+import { printHtml } from "@/lib/print";
 
 /* ─── Types ──────────────────────────────────────────────────── */
 type TPeriod = "today"|"last7"|"month"|"custom";
@@ -179,8 +180,7 @@ td{padding:6px 10px;border-bottom:1px solid #f1f5f9}
 <div class="foot">تاريخ إنشاء التقرير: ${now}</div>
 <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
 </body></html>`;
-  const w=window.open("","_blank","width=820,height=900");
-  if(w){w.document.write(html);w.document.close();}
+  printHtml(html);
 }
 
 /* ─── Bar ────────────────────────────────────────────────────── */

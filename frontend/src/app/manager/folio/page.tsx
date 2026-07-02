@@ -10,7 +10,7 @@ import {
 
 import { useLang } from "../LangContext";
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
-import { escapeHtml as esc } from "@/lib/print";
+import { escapeHtml as esc, printHtml } from "@/lib/print";
 
 const SET_KEY     = (h: string) => `fandqi.settings.${h}`;
 
@@ -209,8 +209,7 @@ function printFolio(
   <div class="foot"><div>توقيع المستلم: _______________________</div><div style="margin-top:6px">شكرًا لاختياركم ${esc(hotel?.name)||"فندقنا"}</div></div>
   <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script></body></html>`;
 
-  const w = window.open("", "_blank", "width=850,height=750");
-  if (w) { w.document.write(html); w.document.close(); }
+  printHtml(html);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */

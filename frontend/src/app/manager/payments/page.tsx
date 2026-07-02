@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 import { BASE_URL as API, getAuthHeaders as apiH } from "@/lib/api";
-import { escapeHtml as esc } from "@/lib/print";
+import { escapeHtml as esc, printHtml } from "@/lib/print";
 
 const DEBTS_KEY = (h: string) => `fandqi.debts.${h}`;
 const RES_KEY   = (h: string) => `fandqi.reservations.${h}`;
@@ -118,8 +118,7 @@ function printFoodInvoice(o: NormalOrder, hotel: HotelInfo | null, currency: str
   <div class="total"><div style="font-size:12px;color:#64748b">إجمالي المبلغ</div><div class="tv">${Number(o.amount).toLocaleString("en-US")} ${currency}</div></div>
   <div class="foot"><div>تاريخ الطباعة: ${new Date().toLocaleString("en-US")}</div><div>شكرًا لاختياركم ${esc(hotel?.name)||"فندقنا"}</div></div>
   <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script></body></html>`;
-  const w = window.open("", "_blank", "width=820,height=700");
-  if (w) { w.document.write(html); w.document.close(); }
+  printHtml(html);
 }
 
 function printResInvoice(r: NormalRes, hotel: HotelInfo | null, currency: string, pmLabel: Record<TPayMethod, string>) {
@@ -135,8 +134,7 @@ function printResInvoice(r: NormalRes, hotel: HotelInfo | null, currency: string
   </div>
   <div class="foot"><div>تاريخ الطباعة: ${new Date().toLocaleString("en-US")}</div><div>شكرًا لاختياركم ${esc(hotel?.name)||"فندقنا"}</div></div>
   <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script></body></html>`;
-  const w = window.open("", "_blank", "width=820,height=700");
-  if (w) { w.document.write(html); w.document.close(); }
+  printHtml(html);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════ */

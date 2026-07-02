@@ -11,7 +11,7 @@ import {
 import { getHotelCurrency } from "../../../lib/hotel";
 import { useLang } from "../LangContext";
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
-import { escapeHtml as esc } from "@/lib/print";
+import { escapeHtml as esc, printHtml } from "@/lib/print";
 
 /* ─── LocalStorage Keys ────────────────────────────────────────────────────── */
 const FOOD_KEY  = (h: string) => `fandqi.foodOrders.${h}`;
@@ -478,8 +478,7 @@ ${activeRes.length > 0 ? `
 <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close();}<\/script>
 </body></html>`;
 
-    const w = window.open("", "_blank", "width=900,height=950");
-    if (w) { w.document.write(html); w.document.close(); }
+    printHtml(html);
   }
 
   /* ════════════════════════════════════════════════

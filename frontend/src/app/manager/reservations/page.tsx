@@ -8,7 +8,7 @@ import { useLang } from "../LangContext";
 import { BASE_URL as API, getAuthHeaders as apiH, getAuthJsonHeaders as apiHJ } from "@/lib/api";
 import { cachedOpSettings } from "@/lib/settings";
 import DocumentModal from "@/components/DocumentModal";
-import { escapeHtml as esc } from "@/lib/print";
+import { escapeHtml as esc, printHtml } from "@/lib/print";
 
 /* ─── Types ──────────────────────────────────────────────── */
 type ResStatus  = "pending"|"confirmed"|"checked_in"|"checked_out"|"cancelled"|"no_show";
@@ -200,8 +200,7 @@ ${compRows}
 <div class="footer"><span>نسخة الزبون</span><span>تاريخ الطباعة: ${new Date().toLocaleString("en-US")}</span></div>
 <script>window.onload=()=>{window.print();}</script>
 </body></html>`;
-  const w = window.open("","_blank","width=900,height=700");
-  if(w){w.document.write(html);w.document.close();}
+  printHtml(html);   // عابر: طباعة مباشرة بلا تبويب جديد
 }
 
 function printAccountStatement(
@@ -242,8 +241,7 @@ function printAccountStatement(
 <div class="footer"><span>كشف الحساب</span><span>تاريخ الطباعة: ${new Date().toLocaleString("en-US")}</span></div>
 <script>window.onload=()=>{window.print();}</script>
 </body></html>`;
-  const w = window.open("","_blank","width=700,height=600");
-  if(w){w.document.write(html);w.document.close();}
+  printHtml(html);   // عابر: طباعة مباشرة بلا تبويب جديد
 }
 
 /* ══════════════════════════════════════════════════════════ */
