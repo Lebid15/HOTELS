@@ -145,7 +145,7 @@ export default function ReceptionLayout({ children }: { children: React.ReactNod
             <span className="user-chip-avatar">{avatarLetter}</span>
             <span className="user-chip-name">{username || t("المستخدم")}</span>
           </div>
-          <button onClick={logout} className="ds-btn ds-btn-neutral ds-btn-sm">
+          <button onClick={logout} className="ds-btn ds-btn-danger ds-btn-sm">
             <LogOut size={16} strokeWidth={2} />
             <span>{t("خروج")}</span>
           </button>

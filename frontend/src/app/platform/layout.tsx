@@ -185,7 +185,7 @@ export default function PlatformLayout({ children }: { children: React.ReactNode
             <span className="user-chip-name">{username || t("المستخدم")}</span>
           </div>
 
-          <button onClick={logout} className="ds-btn ds-btn-neutral ds-btn-sm" title={t("تسجيل الخروج")}>
+          <button onClick={logout} className="ds-btn ds-btn-danger ds-btn-sm" title={t("تسجيل الخروج")}>
             <LogOut size={16} strokeWidth={2} />
             <span>{t("خروج")}</span>
           </button>
