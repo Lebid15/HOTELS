@@ -1630,6 +1630,12 @@ class DayCloseViewSet(viewsets.ModelViewSet):
             return Response({'error': 'الفندق غير محدّد'}, status=400)
         day = request.data.get('date') or str(timezone.localdate())
         snapshot = _compute_day_snapshot(hid, day)
+        # م7: إغلاق يوم حقيقي — يُمنع عند وجود أخطاء ما لم يُجبِره المدير صراحةً (force)
+        force = str(request.data.get('force', '')).lower() in ('1', 'true', 'yes')
+        if snapshot['blocking'] and not force:
+            return Response({'error': 'لا يمكن إغلاق اليوم قبل معالجة الأخطاء التالية (أو الإغلاق القسري).',
+                             'code': 'blocking', 'blocking': snapshot['blocking'], 'snapshot': snapshot},
+                            status=status.HTTP_409_CONFLICT)
         obj, _created = DayClose.objects.update_or_create(
             hotel_id=hid, business_date=day,
             defaults={'closed_by': request.user, 'closed_by_name': request.user.get_username(),

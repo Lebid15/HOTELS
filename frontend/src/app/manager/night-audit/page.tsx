@@ -294,13 +294,27 @@ export default function NightAuditPage() {
   /* ════════════════════════════════════════════════
      CLOSE DAY (Save Audit)
   ════════════════════════════════════════════════ */
-  async function closeDay() {
+  async function closeDay(force = false) {
     if (!hotelId) { showToast(t("لم يتم تحديد هوية الفندق."), "error"); return; }
 
-    // د‑7: إغلاق فعلي مُخزَّن في الخادم (لقطة + مُغلِق + وقت) — بصلاحية المدير
+    // م7: إغلاق فعلي — الخادم يمنع الإغلاق عند وجود أخطاء (409) ما لم يُجبِره المدير
     try {
       const r = await fetch(`${API}/day-close/`, { method: "POST", headers: apiHJ(),
-        body: JSON.stringify({ date: today }) });
+        body: JSON.stringify({ date: today, force }) });
+      if (r.status === 409) {
+        const d = await r.json().catch(() => ({}));
+        const codes: Record<string, string> = {
+          arrivals_pending: t("وصول اليوم لم يُسجَّل دخوله"),
+          departures_pending: t("مغادرة اليوم لم تُسجَّل خروجها"),
+          unpaid_folios: t("فواتير غير مدفوعة"),
+        };
+        const lines = (d.blocking ?? []).map((b: { code: string; count?: number; amount?: number }) =>
+          `• ${codes[b.code] ?? b.code}${b.count != null ? ` (${b.count})` : ""}${b.amount ? ` — ${b.amount}` : ""}`).join("\n");
+        if (confirm(`${t("لا يمكن إغلاق اليوم قبل معالجة:")}\n${lines}\n\n${t("هل تريد الإغلاق القسري رغم ذلك؟")}`)) {
+          return closeDay(true);
+        }
+        return;
+      }
       if (!r.ok) { showToast(t("تعذّر إغلاق اليوم على الخادم."), "error"); return; }
     } catch { showToast(t("خطأ في الاتصال بالخادم."), "error"); return; }
 
@@ -545,7 +559,7 @@ ${activeRes.length > 0 ? `
               {t("طباعة تقرير الليلة")}
             </button>
             <button
-              onClick={closeDay}
+              onClick={() => closeDay()}
               style={{
                 display: "flex", alignItems: "center", gap: 6,
                 background: "#16a34a", color: "#fff", border: "none",
