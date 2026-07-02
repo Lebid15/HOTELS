@@ -69,6 +69,7 @@ npm run start    # أو انشرها على Vercel/Node server
 ## 4) Reverse Proxy (مثال Nginx)
 - `funduqii.com` → الواجهة الأمامية (Next.js:3000).
 - `api.funduqii.com` → الواجهة الخلفية (Gunicorn:8000) مع تمرير `X-Forwarded-Proto https`.
+- **Throttling حسب IP:** مرّر `X-Forwarded-For` من البروكسي واضبط `NUM_PROXIES` (أو middleware موثوق) كي يعمل الـthrottling العام على IP الزائر الحقيقي لا IP الوسيط. (بدون ذلك قد تُحسب كل الطلبات من IP واحد.)
 
 ## 5) قاعدة البيانات
 - على الإنتاج **PostgreSQL إلزامي** (SQLite للتطوير فقط) — يُضبط عبر `DATABASE_URL`، لا تغيير كود.
