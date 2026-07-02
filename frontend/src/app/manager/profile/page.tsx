@@ -62,6 +62,15 @@ export default function ManagerProfilePage() {
     } catch { showToast(t("خطأ في الاتصال")); }
   }
 
+  async function logoutAllDevices() {
+    if (!confirm(t("سيتم إنهاء جلساتك على كل الأجهزة. متابعة؟"))) return;
+    try {
+      const r = await fetch(`${API}/logout-all/`, { method:"POST", headers:apiHJ() });
+      if(!r.ok) throw new Error();
+      showToast(t("تم تسجيل الخروج من كل الأجهزة."));
+    } catch { showToast(t("خطأ في الاتصال")); }
+  }
+
   return (
     <div>
       {toast && <div style={{position:"fixed",top:80,insetInlineEnd:24,zIndex:9999,background:"#1e293b",color:"#fff",padding:"0.7rem 1.1rem",borderRadius:10,fontWeight:700,fontSize:13}}>{toast}</div>}
@@ -126,6 +135,12 @@ export default function ManagerProfilePage() {
               ))}
             </div>
           )}
+          {/* م6: الخروج من كل الأجهزة */}
+          <div style={{borderTop:"1px solid var(--color-border)",marginTop:"1rem",paddingTop:"1rem"}}>
+            <h4 style={{margin:"0 0 0.5rem",fontSize:13}}>{t("الجلسات")}</h4>
+            <button className="ds-btn ds-btn-danger ds-btn-sm" onClick={logoutAllDevices}>{t("تسجيل الخروج من كل الأجهزة")}</button>
+            <p className="text-muted" style={{fontSize:12,marginTop:"0.5rem"}}>{t("يُنهي كل جلساتك على جميع الأجهزة ويتطلب تسجيل دخول جديدًا.")}</p>
+          </div>
         </div>
       </div>
       <p className="text-muted" style={{fontSize:11,marginTop:"1rem"}}>{lang==="ar"?"":""}</p>

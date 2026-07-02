@@ -77,6 +77,12 @@ class Hotel(models.Model):
     cleaning_duration_minutes = models.PositiveIntegerField(default=60)          # مدة التنظيف قبل الرجوع التلقائي (auto)
     web_booking_needs_confirmation = models.BooleanField(default=True)           # هل حجوزات الموقع تحتاج تأكيدًا؟
     enforce_shift_login = models.BooleanField(default=False)                     # م5: منع دخول الموظف خارج ورديته
+    # م6: سياسة التحقق بخطوتين على مستوى الفندق (يفرضها المدير) — إضافةً للتفعيل الذاتي
+    TFA_OFF = 'off'
+    TFA_MANAGERS = 'managers'
+    TFA_ALL = 'all'
+    TFA_POLICY_CHOICES = [(TFA_OFF, 'اختياري (ذاتي)'), (TFA_MANAGERS, 'إلزامي للمدير'), (TFA_ALL, 'إلزامي للجميع')]
+    two_factor_policy = models.CharField(max_length=12, choices=TFA_POLICY_CHOICES, default=TFA_OFF)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -26,6 +26,7 @@ class HotelSerializer(serializers.ModelSerializer):
             'code', 'check_in_time', 'check_out_time',
             'cleaning_mode', 'cleaning_duration_minutes',
             'enforce_shift_login',   # م5
+            'two_factor_policy',     # م6
             'created_at', 'updated_at',
         ]
         read_only_fields = ['code']

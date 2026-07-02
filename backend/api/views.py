@@ -79,6 +79,23 @@ class LogoutView(APIView):
         return Response({'detail': 'تم تسجيل الخروج'}, status=status.HTTP_200_OK)
 
 
+class LogoutAllView(APIView):
+    """م6: تسجيل الخروج من كل الأجهزة — يضع كل توكنات التحديث القائمة للمستخدم
+    في القائمة السوداء."""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+        n = 0
+        for tok in OutstandingToken.objects.filter(user=request.user):
+            _, created = BlacklistedToken.objects.get_or_create(token=tok)
+            if created:
+                n += 1
+        _log_security('auth.logout_all', request.user.get_username(),
+                      _get_user_hotel_id(request.user), actor=request.user)
+        return Response({'detail': 'تم تسجيل الخروج من كل الأجهزة.', 'revoked': n})
+
+
 # ── Throttles ────────────────────────────────────────────────────────────────
 
 class LoginRateThrottle(AnonRateThrottle):
@@ -125,6 +142,21 @@ def _shift_login_blocked(user):
     return not within
 
 
+def _two_factor_required(user, hotel_id):
+    """م6: هل يلزم التحقق بخطوتين لهذا المستخدم؟ = تفعيله ذاتيًّا، أو سياسة الفندق
+    (إلزامي للمدير / إلزامي للجميع) تشمل دوره."""
+    if getattr(getattr(user, 'profile', None), 'two_factor_enabled', False):
+        return True
+    if not hotel_id:
+        return False
+    policy = Hotel.objects.filter(id=hotel_id).values_list('two_factor_policy', flat=True).first()
+    if policy == Hotel.TFA_ALL:
+        return True
+    if policy == Hotel.TFA_MANAGERS and _get_user_role(user) == 'manager':
+        return True
+    return False
+
+
 class TokenObtainPairView(_BaseTokenObtainPairView):
     """JWT login مع: حدّ معدّل + قفل بعد محاولات فاشلة + تسجيل أمني + تحقّق بخطوتين اختياري (د‑6)."""
     throttle_classes = [LoginRateThrottle]
@@ -156,8 +188,8 @@ class TokenObtainPairView(_BaseTokenObtainPairView):
             _log_security('auth.shift_blocked', username, hotel_id)
             return Response({'detail': 'لا يمكنك تسجيل الدخول، أنت خارج وقت ورديتك المحددة.'},
                             status=status.HTTP_403_FORBIDDEN)
-        # التحقق بخطوتين (اختياري لكل مستخدم)
-        if getattr(getattr(user, 'profile', None), 'two_factor_enabled', False):
+        # م6: التحقق بخطوتين — ذاتيّ أو مفروض بسياسة الفندق
+        if _two_factor_required(user, hotel_id):
             LoginChallenge.objects.filter(user=user, consumed=False).update(consumed=True)
             ticket = secrets.token_urlsafe(24)
             code = f'{secrets.randbelow(1000000):06d}'
@@ -704,7 +736,7 @@ class HotelViewSet(viewsets.ModelViewSet):
                        # م1: الحقول التشغيلية المركزية
                        'check_in_time', 'check_out_time',
                        'cleaning_mode', 'cleaning_duration_minutes',
-                       'enforce_shift_login'}   # م5
+                       'enforce_shift_login', 'two_factor_policy'}   # م5/م6
             payload = {k: v for k, v in serializer.validated_data.items() if k in allowed}
             # د‑8: لا يُفعَّل حضور الموقع/الحجوزات إلا بعد قبول اتفاقية المنصّة
             enabling = payload.get('public_booking_enabled') or payload.get('public_listing_enabled')

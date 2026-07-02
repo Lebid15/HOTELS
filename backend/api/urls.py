@@ -2,7 +2,7 @@ from django.urls import include, path
 from rest_framework import routers
 from .views import (
     CurrentUserView, ChangePasswordView, PlatformStatsView, PlatformDashboardView, RegisterView,
-    LogoutView,
+    LogoutView, LogoutAllView,
     HotelViewSet, HotelSettingsView, ShiftReportView, PackageViewSet,
     SubscriptionViewSet, SubscriptionRequestViewSet,
     RoomViewSet, StaffViewSet, ReservationViewSet,
@@ -44,6 +44,7 @@ urlpatterns = [
     path('current-user/', CurrentUserView.as_view(), name='current-user'),
     path('change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('logout/', LogoutView.as_view(), name='logout'),
+    path('logout-all/', LogoutAllView.as_view(), name='logout-all'),   # م6: خروج من كل الأجهزة
     # م1: إعدادات تشغيل الفندق المركزية (طباعة/وثائق/تنبيهات)
     path('hotel-settings/', HotelSettingsView.as_view(), name='hotel-settings'),
     # م5: تقرير وردية موظّف

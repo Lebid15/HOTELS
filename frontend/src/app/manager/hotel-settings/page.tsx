@@ -23,7 +23,7 @@ type TTab = "identity" | "publish" | "operations" | "rooms" | "restaurant" | "pr
 
 interface IIdentity { name: string; ownerName: string; city: string; address: string; phone: string; email: string; website: string; logo: string | null; coverImage: string | null; mapUrl: string; latitude: string; longitude: string; }
 // م1: أوقات الدخول/الخروج ووضع/مدة التنظيف حقول تشغيلية مركزية مُلزَمة خادميًّا
-interface IOps { currency: string; blockCheckout: boolean; checkInTime: string; checkOutTime: string; cleaningMode: string; cleaningDuration: string; enforceShiftLogin: boolean; }
+interface IOps { currency: string; blockCheckout: boolean; checkInTime: string; checkOutTime: string; cleaningMode: string; cleaningDuration: string; enforceShiftLogin: boolean; twoFactorPolicy: string; }
 // م1: قسم «العرض على موقع الحجز» — يُحفَظ على الفندق (يغذّي الموقع العام)
 interface IPublish { listingEnabled: boolean; bookingEnabled: boolean; needsConfirmation: boolean; descShort: string; descFull: string; amenities: string; stars: string; hotelType: string; galleryImages: string[]; cancellation: string; checkInPolicy: string; checkOutPolicy: string; paymentPolicy: string; showContact: boolean; }
 interface IRooms { floors: string; roomTypes: string[]; defaultCapacity: string; }
@@ -34,7 +34,7 @@ interface INotifs { arrivals: boolean; departures: boolean; balanceDue: boolean;
 interface IFood { restaurant_enabled: boolean; cafeteria_enabled: boolean; dedicated_staff: boolean; allow_cash: boolean; allow_electronic: boolean; allow_card: boolean; allow_room_account: boolean; print_receipt: boolean; }
 
 const DEFAULT_IDENTITY: IIdentity = { name: "", ownerName: "", city: "", address: "", phone: "", email: "", website: "", logo: null, coverImage: null, mapUrl: "", latitude: "", longitude: "" };
-const DEFAULT_OPS: IOps = { currency: "USD", blockCheckout: true, checkInTime: "", checkOutTime: "", cleaningMode: "manual", cleaningDuration: "60", enforceShiftLogin: false };
+const DEFAULT_OPS: IOps = { currency: "USD", blockCheckout: true, checkInTime: "", checkOutTime: "", cleaningMode: "manual", cleaningDuration: "60", enforceShiftLogin: false, twoFactorPolicy: "off" };
 const DEFAULT_PUBLISH: IPublish = { listingEnabled: false, bookingEnabled: false, needsConfirmation: true, descShort: "", descFull: "", amenities: "", stars: "", hotelType: "hotel", galleryImages: [], cancellation: "", checkInPolicy: "", checkOutPolicy: "", paymentPolicy: "", showContact: false };
 const DEFAULT_ROOMS: IRooms = { floors: "1", roomTypes: ["مفردة", "مزدوجة", "ثلاثية", "سويت", "عائلية", "جناح", "غرفة مميزة"], defaultCapacity: "2" };
 const DEFAULT_PRINTING: IPrinting = {
@@ -211,6 +211,7 @@ export default function SettingsPage() {
           cleaningMode: d.cleaning_mode || prev.cleaningMode,
           cleaningDuration: d.cleaning_duration_minutes != null ? String(d.cleaning_duration_minutes) : prev.cleaningDuration,
           enforceShiftLogin: !!d.enforce_shift_login,
+          twoFactorPolicy: d.two_factor_policy || prev.twoFactorPolicy,
         }));
         if (d.code) setHotelCode(d.code);
         if (d.food_settings && typeof d.food_settings === "object") setFood(prev => ({ ...prev, ...d.food_settings }));
@@ -297,6 +298,7 @@ export default function SettingsPage() {
         cleaning_mode: ops.cleaningMode,
         cleaning_duration_minutes: isNaN(dur) ? 60 : dur,
         enforce_shift_login: ops.enforceShiftLogin,
+        two_factor_policy: ops.twoFactorPolicy,
       }) });
     } catch { /* ok */ }
     saveLS(hotelId, { ops });
@@ -672,6 +674,15 @@ export default function SettingsPage() {
           <div style={{ marginTop: "0.5rem" }}>
             <SW label={t("منع تسجيل الخروج عند وجود متبقي مالي")} checked={ops.blockCheckout} onChange={v => setOps(p => ({ ...p, blockCheckout: v }))} hint={t("يمنع إتمام الخروج حتى يُسوَّى الرصيد المستحق (مُلزَم خادميًّا)")} />
             <SW label={t("منع تسجيل دخول الموظفين خارج أوقات الورديات")} checked={ops.enforceShiftLogin} onChange={v => setOps(p => ({ ...p, enforceShiftLogin: v }))} hint={t("عند التفعيل: لا يستطيع الموظف الدخول خارج نافذة ورديته المحددة (المدير مُستثنى)")} />
+          </div>
+          <div style={{ marginTop: "0.75rem", maxWidth: 360 }}>
+            <FLD label={t("سياسة التحقق بخطوتين (2FA)")} hint={t("فرض التحقق بخطوتين على الدخول — إضافةً إلى التفعيل الذاتي لكل مستخدم")}>
+              <select className="select" value={ops.twoFactorPolicy} onChange={e => setOps(p => ({ ...p, twoFactorPolicy: e.target.value }))}>
+                <option value="off">{t("اختياري (تفعيل ذاتي لكل مستخدم)")}</option>
+                <option value="managers">{t("إلزامي للمدير")}</option>
+                <option value="all">{t("إلزامي لكل الموظفين")}</option>
+              </select>
+            </FLD>
           </div>
           <div style={{ marginTop: "1rem" }}>
             <SaveBtn label={t("حفظ إعدادات التشغيل")} saving={saving} saved={false} onClick={doSaveOps} />
